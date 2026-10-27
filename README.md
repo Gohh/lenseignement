@@ -8,6 +8,7 @@ secondaire, technique, alphabétisation et formation des enseignants.
 
 Référence : [`docs/LENSEIGNEMENT_CAHIER_DIRECTEUR_DEVELOPPEMENT.md`](docs/LENSEIGNEMENT_CAHIER_DIRECTEUR_DEVELOPPEMENT.md) (cahier directeur v0.1.0).
 Décisions d’architecture : [`docs/architecture/adr`](docs/architecture/adr).
+Guide pas à pas pour Windows : [`docs/guides/demarrage-windows.md`](docs/guides/demarrage-windows.md).
 
 ## Structure
 

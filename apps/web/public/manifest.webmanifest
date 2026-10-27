@@ -1,0 +1,9 @@
+{
+  "name": "L’Enseignement",
+  "short_name": "Enseignement",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF5",
+  "theme_color": "#146B46"
+}

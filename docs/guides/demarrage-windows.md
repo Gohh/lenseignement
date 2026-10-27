@@ -71,7 +71,7 @@ pnpm infra:up
 docker compose ps
 ```
 
-Attendu : cinq services `postgres`, `redis`, `minio`, `keycloak` en état `running`
+Attendu : quatre services `postgres`, `redis`, `minio`, `keycloak` en état `running`
 (ou `healthy`). **Keycloak met 30 à 60 secondes à démarrer** la première fois : ouvrez
 http://localhost:8080 jusqu’à voir la page d’accueil de Keycloak.
 

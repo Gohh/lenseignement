@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:up": "docker compose up -d",
+    "infra:up:sans-postgres": "docker compose up -d redis minio keycloak",
     "infra:down": "docker compose down"
   },
   "devDependencies": {

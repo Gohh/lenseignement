@@ -35,6 +35,7 @@ tests/e2e/    Playwright + axe-core
 cp .env.example .env
 pnpm install
 pnpm infra:up        # PostgreSQL :5432, Redis :6379, MinIO :9000 (console :9001), Keycloak :8080
+                     # PostgreSQL déjà installé sur le poste : pnpm infra:up:sans-postgres
 pnpm build
 pnpm dev             # web http://localhost:3000, API http://localhost:4000/api/v1/health
 ```

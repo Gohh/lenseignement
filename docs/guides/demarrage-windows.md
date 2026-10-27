@@ -64,16 +64,61 @@ Attendu : la dernière ligne indique `Tasks: 4 successful, 4 total`.
 
 ## Étape 5 — Démarrer la base de données, Redis et Keycloak
 
-Docker Desktop doit être ouvert.
+Docker Desktop doit être ouvert. Deux possibilités pour PostgreSQL :
+
+### Cas A — PostgreSQL est déjà installé sur votre PC (votre cas)
+
+Votre PostgreSQL utilise déjà le port 5432 : on ne démarre donc **pas** celui de Docker.
+
+1. Vérifier la version (14 ou plus récente recommandée). Si `psql` n’est pas reconnu, utiliser
+   « SQL Shell (psql) » dans le menu Démarrer, ou le chemin complet, par exemple
+   `& "C:\Program Files\PostgreSQL\17\bin\psql.exe"` (adapter le numéro de version).
+
+   ```powershell
+   psql --version
+   ```
+
+2. Créer l’utilisateur et la base du projet (**une seule fois**). Le mot de passe demandé est
+   celui du compte `postgres` choisi à l’installation de PostgreSQL :
+
+   ```powershell
+   psql -U postgres -c "CREATE ROLE lenseignement LOGIN PASSWORD 'change-me-dev-only';"
+   psql -U postgres -c "CREATE DATABASE lenseignement OWNER lenseignement ENCODING 'UTF8';"
+   psql -U postgres -d lenseignement -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+   ```
+
+   Attendu : `CREATE ROLE`, `CREATE DATABASE`, puis `CREATE EXTENSION`.
+   Vous pouvez aussi le faire dans **pgAdmin** si vous préférez l’interface graphique.
+
+3. Démarrer les autres services avec Docker :
+
+   ```powershell
+   pnpm infra:up:sans-postgres
+   docker compose ps
+   ```
+
+   Attendu : `redis`, `minio` et `keycloak` en état `running`.
+
+> Ce mot de passe `change-me-dev-only` ne sert qu’en local. Si vous en choisissez un autre,
+> copiez `.env.example` en `.env` (`Copy-Item .env.example .env`) et mettez-le dans
+> `DATABASE_URL`.
+
+### Cas B — pas de PostgreSQL installé
 
 ```powershell
 pnpm infra:up
 docker compose ps
 ```
 
-Attendu : quatre services `postgres`, `redis`, `minio`, `keycloak` en état `running`
-(ou `healthy`). **Keycloak met 30 à 60 secondes à démarrer** la première fois : ouvrez
-http://localhost:8080 jusqu’à voir la page d’accueil de Keycloak.
+Attendu : `postgres`, `redis`, `minio` et `keycloak` en état `running` (ou `healthy`).
+
+### Dans les deux cas
+
+**Keycloak met 30 à 60 secondes à démarrer** la première fois : ouvrez http://localhost:8080
+jusqu’à voir la page d’accueil de Keycloak.
+
+> À ce stade (ticket 5), l’application n’écrit encore rien dans PostgreSQL : les premières
+> tables arriveront avec les tickets 6 et 7. Cette étape prépare la base pour la suite.
 
 ## Étape 6 — Lancer l’application
 
@@ -133,18 +178,23 @@ Attendu : aucun test en échec (`24 passed` pour les tests E2E de la PR #1).
 pnpm infra:down
 ```
 
+Votre PostgreSQL installé (cas A) continue de tourner comme d’habitude : il n’est pas géré
+par Docker.
+
 Vos données locales (base, comptes Keycloak) sont conservées pour la prochaine fois.
 
 ---
 
 ## En cas de problème
 
-| Symptôme                                               | Solution                                                                                                             |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `pnpm` n’est pas reconnu                               | Refaire l’étape 1.4 dans un PowerShell administrateur, puis rouvrir PowerShell.                                      |
-| `docker` : « cannot connect » / « pipe »               | Docker Desktop n’est pas démarré : l’ouvrir et attendre « Engine running ».                                          |
-| « port is already allocated » (5432, 6379, 8080, 9000) | Un autre logiciel utilise ce port. WAMP (ports 80 et 3306) ne gêne pas. Fermer l’autre logiciel ou nous le signaler. |
-| La page de connexion ne s’ouvre pas                    | Keycloak démarre encore : attendre une minute et réessayer http://localhost:8080.                                    |
-| « Connexion impossible » après le mot de passe         | La connexion a expiré (plus de 10 minutes) : cliquer sur « Réessayer ».                                              |
-| Compte bloqué après plusieurs mots de passe faux       | Protection anti-bruteforce : attendre quelques minutes.                                                              |
-| « Service momentanément indisponible » dans Mon espace | L’API n’est pas démarrée : vérifier la fenêtre `pnpm dev`.                                                           |
+| Symptôme                                               | Solution                                                                                                                                                             |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm` n’est pas reconnu                               | Refaire l’étape 1.4 dans un PowerShell administrateur, puis rouvrir PowerShell.                                                                                      |
+| `docker` : « cannot connect » / « pipe »               | Docker Desktop n’est pas démarré : l’ouvrir et attendre « Engine running ».                                                                                          |
+| « port is already allocated » sur 5432                 | Votre PostgreSQL installé utilise ce port : utiliser `pnpm infra:up:sans-postgres` (cas A de l’étape 5), puis `pnpm infra:down` si un conteneur postgres a été créé. |
+| « port is already allocated » (6379, 8080, 9000)       | Un autre logiciel utilise ce port. WAMP (ports 80 et 3306) ne gêne pas. Fermer l’autre logiciel ou nous le signaler.                                                 |
+| `password authentication failed for user "postgres"`   | Le mot de passe est celui choisi à l’installation de PostgreSQL ; s’il est perdu, utiliser pgAdmin ou nous le signaler.                                              |
+| La page de connexion ne s’ouvre pas                    | Keycloak démarre encore : attendre une minute et réessayer http://localhost:8080.                                                                                    |
+| « Connexion impossible » après le mot de passe         | La connexion a expiré (plus de 10 minutes) : cliquer sur « Réessayer ».                                                                                              |
+| Compte bloqué après plusieurs mots de passe faux       | Protection anti-bruteforce : attendre quelques minutes.                                                                                                              |
+| « Service momentanément indisponible » dans Mon espace | L’API n’est pas démarrée : vérifier la fenêtre `pnpm dev`.                                                                                                           |

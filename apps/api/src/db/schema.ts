@@ -595,3 +595,77 @@ export const quizResponses = pgTable(
   },
   (t) => [primaryKey({ columns: [t.attemptId, t.questionId] })],
 );
+
+export const LEARNING_EVENT_TYPES = [
+  'enrolled',
+  'lesson_opened',
+  'lesson_completed',
+  'quiz_submitted',
+] as const;
+
+/**
+ * Journal des actions envoyées par l'appareil de l'apprenant (cahier §6.4, ticket 14, ADR-011).
+ * Chaque action porte un identifiant choisi par l'appareil : un renvoi est reconnu et n'est pas
+ * rejoué. Ajout seulement.
+ */
+export const learningEvents = pgTable(
+  'learning_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id),
+    eventType: text('event_type', { enum: LEARNING_EVENT_TYPES }).notNull(),
+    clientOperationId: uuid('client_operation_id').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+    /** Heure de l'action sur l'appareil (peut précéder la réception, hors ligne). */
+    occurredAt: timestamp('occurred_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('learning_events_operation_unique').on(t.userId, t.clientOperationId),
+    index('learning_events_user_course_time_idx').on(t.userId, t.courseId, t.createdAt),
+    check(
+      'learning_events_type_check',
+      sql`${t.eventType} in ('enrolled','lesson_opened','lesson_completed','quiz_submitted')`,
+    ),
+  ],
+);
+
+export const OUTBOX_EVENT_TYPES = [
+  'EnrollmentCreated',
+  'LessonCompleted',
+  'AssessmentSubmitted',
+] as const;
+export type OutboxEventType = (typeof OUTBOX_EVENT_TYPES)[number];
+
+/**
+ * Outbox transactionnelle (cahier §5.3) : un évènement métier est écrit dans la même transaction
+ * que le changement, puis délivré par un travailleur. Contenu minimal : identifiants seulement.
+ */
+export const outboxEvents = pgTable(
+  'outbox_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: text('event_type', { enum: OUTBOX_EVENT_TYPES }).notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+    /** Prochaine tentative de livraison (reculée après un échec). */
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+  },
+  (t) => [
+    index('outbox_events_pending_idx')
+      .on(t.availableAt)
+      .where(sql`${t.publishedAt} is null`),
+    check(
+      'outbox_events_type_check',
+      sql`${t.eventType} in ('EnrollmentCreated','LessonCompleted','AssessmentSubmitted')`,
+    ),
+  ],
+);

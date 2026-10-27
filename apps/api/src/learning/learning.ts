@@ -1,7 +1,8 @@
 import type { CourseProgress, LearningPlanItem } from '@lenseignement/types';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import type { Database } from '../db/database.js';
+import type { Executor } from '../db/database.js';
 import { courses, courseVersions, enrollments, lessonProgress, lessons } from '../db/schema.js';
+import { emit } from '../events/outbox.js';
 
 /** Erreur métier de l'apprentissage, traduite en 404 ou 409 par le contrôleur. */
 export class LearningError extends Error {
@@ -14,7 +15,7 @@ export class LearningError extends Error {
 }
 
 /** Version publiée d'un cours et son nombre de leçons ; seule une version publiée se suit. */
-export async function publishedVersion(db: Database, courseId: string) {
+export async function publishedVersion(db: Executor, courseId: string) {
   const [row] = await db
     .select({
       id: courseVersions.id,
@@ -29,7 +30,7 @@ export async function publishedVersion(db: Database, courseId: string) {
   return row;
 }
 
-export async function findEnrollment(db: Database, userId: string, courseId: string) {
+export async function findEnrollment(db: Executor, userId: string, courseId: string) {
   const [row] = await db
     .select()
     .from(enrollments)
@@ -65,7 +66,7 @@ function summarize(
   };
 }
 
-async function completedNumbers(db: Database, enrollmentId: string): Promise<number[]> {
+async function completedNumbers(db: Executor, enrollmentId: string): Promise<number[]> {
   const rows = await db
     .select({ n: lessonProgress.lessonNumber })
     .from(lessonProgress)
@@ -74,7 +75,7 @@ async function completedNumbers(db: Database, enrollmentId: string): Promise<num
 }
 
 export async function getProgress(
-  db: Database,
+  db: Executor,
   userId: string,
   courseId: string,
 ): Promise<CourseProgress> {
@@ -86,16 +87,26 @@ export async function getProgress(
 
 /** Inscription à un cours publié. Idempotente : une seconde demande ne change rien. */
 export async function enroll(
-  db: Database,
+  db: Executor,
   userId: string,
   courseId: string,
 ): Promise<CourseProgress> {
   await publishedVersion(db, courseId);
-  await db.insert(enrollments).values({ userId, courseId }).onConflictDoNothing();
+  await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(enrollments)
+      .values({ userId, courseId })
+      .onConflictDoNothing()
+      .returning({ id: enrollments.id });
+    // Évènement seulement pour une vraie inscription : un renvoi n'en produit pas.
+    if (created) {
+      await emit(tx, 'EnrollmentCreated', { enrollmentId: created.id, userId, courseId });
+    }
+  });
   return getProgress(db, userId, courseId);
 }
 
-async function enrolledLesson(db: Database, userId: string, courseId: string, number: number) {
+async function enrolledLesson(db: Executor, userId: string, courseId: string, number: number) {
   const version = await publishedVersion(db, courseId);
   const enrollment = await findEnrollment(db, userId, courseId);
   if (!enrollment) {
@@ -107,7 +118,7 @@ async function enrolledLesson(db: Database, userId: string, courseId: string, nu
 
 /** Mémorise la dernière leçon ouverte, pour reprendre plus tard au même endroit. */
 export async function lessonOpened(
-  db: Database,
+  db: Executor,
   userId: string,
   courseId: string,
   number: number,
@@ -121,26 +132,38 @@ export async function lessonOpened(
 
 /** Leçon terminée. Progression monotone : un double envoi ne crée aucun doublon. */
 export async function lessonCompleted(
-  db: Database,
+  db: Executor,
   userId: string,
   courseId: string,
   number: number,
 ): Promise<CourseProgress> {
   const { version, enrollment } = await enrolledLesson(db, userId, courseId, number);
-  await db
-    .insert(lessonProgress)
-    .values({ enrollmentId: enrollment.id, lessonNumber: number, courseVersionId: version.id })
-    .onConflictDoNothing();
-  const next = number < version.total ? number + 1 : number;
-  await db
-    .update(enrollments)
-    .set({ lastLessonNumber: next, updatedAt: sql`now()` })
-    .where(eq(enrollments.id, enrollment.id));
+  await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(lessonProgress)
+      .values({ enrollmentId: enrollment.id, lessonNumber: number, courseVersionId: version.id })
+      .onConflictDoNothing()
+      .returning({ id: lessonProgress.id });
+    if (created) {
+      await emit(tx, 'LessonCompleted', {
+        enrollmentId: enrollment.id,
+        userId,
+        courseId,
+        courseVersionId: version.id,
+        lessonNumber: number,
+      });
+    }
+    const next = number < version.total ? number + 1 : number;
+    await tx
+      .update(enrollments)
+      .set({ lastLessonNumber: next, updatedAt: sql`now()` })
+      .where(eq(enrollments.id, enrollment.id));
+  });
   return getProgress(db, userId, courseId);
 }
 
 /** Cours suivis par la personne, le plus récemment utilisé d'abord (bouton « Reprendre »). */
-export async function learningPlan(db: Database, userId: string): Promise<LearningPlanItem[]> {
+export async function learningPlan(db: Executor, userId: string): Promise<LearningPlanItem[]> {
   const rows = await db
     .select({
       enrollment: enrollments,

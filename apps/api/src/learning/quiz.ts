@@ -5,7 +5,7 @@ import type {
   QuizResult,
 } from '@lenseignement/types';
 import { and, asc, desc, eq } from 'drizzle-orm';
-import type { Database } from '../db/database.js';
+import type { Executor } from '../db/database.js';
 import {
   courseModules,
   lessons,
@@ -13,10 +13,11 @@ import {
   quizQuestions,
   quizResponses,
 } from '../db/schema.js';
+import { emit } from '../events/outbox.js';
 import { findEnrollment, LearningError, publishedVersion } from './learning.js';
 
 /** Questions (avec leurs réponses) de la leçon n° `number` de la version publiée d'un cours. */
-async function lessonQuiz(db: Database, courseId: string, number: number) {
+async function lessonQuiz(db: Executor, courseId: string, number: number) {
   const version = await publishedVersion(db, courseId);
   const ordered = await db
     .select({ id: lessons.id })
@@ -60,7 +61,7 @@ function grade(questions: Question[], answers: QuizAnswersInput['answers']): Qui
 }
 
 /** Correction sans enregistrement : quiz d'un cours publié, ouvert à tous (cahier E2E-01). */
-export async function checkQuiz(db: Database, input: QuizAnswersInput): Promise<QuizResult> {
+export async function checkQuiz(db: Executor, input: QuizAnswersInput): Promise<QuizResult> {
   const { questions } = await lessonQuiz(db, input.courseId, input.lessonNumber);
   return grade(questions, input.answers);
 }
@@ -70,7 +71,7 @@ export async function checkQuiz(db: Database, input: QuizAnswersInput): Promise<
  * tentative rend la correction déjà enregistrée, sans rien ajouter.
  */
 export async function recordAttempt(
-  db: Database,
+  db: Executor,
   userId: string,
   input: QuizAttemptInput,
 ): Promise<QuizResult> {
@@ -94,6 +95,15 @@ export async function recordAttempt(
       .onConflictDoNothing()
       .returning({ id: quizAttempts.id });
     if (!created) return false;
+    await emit(tx, 'AssessmentSubmitted', {
+      attemptId: input.attemptId,
+      userId,
+      courseId: input.courseId,
+      courseVersionId: versionId,
+      lessonNumber: input.lessonNumber,
+      score: result.score,
+      total: result.total,
+    });
     await tx.insert(quizResponses).values(
       result.items.map((i) => ({
         attemptId: input.attemptId,
@@ -135,7 +145,7 @@ export async function recordAttempt(
 
 /** Dernier résultat de la personne à ce quiz, ou rien. */
 export async function lastAttempt(
-  db: Database,
+  db: Executor,
   userId: string,
   courseId: string,
   lessonNumber: number,

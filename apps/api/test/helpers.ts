@@ -61,6 +61,8 @@ async function resetDatabase(db: Database): Promise<void> {
 
 export async function createTestApp(): Promise<TestContext> {
   process.env.DATABASE_URL = TEST_DATABASE_URL;
+  // Les tests délivrent l'outbox eux-mêmes, au moment voulu.
+  process.env.OUTBOX_RELAY_INTERVAL_MS = '0';
   const db = createDatabase(TEST_DATABASE_URL);
   await resetDatabase(db);
 

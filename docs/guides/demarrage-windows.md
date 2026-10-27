@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #8 (ticket 12) :
+dans la branche de la PR. Pour la PR #9 (ticket 13) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-12-progression
+git checkout feat/ticket-13-quiz
 git pull
 pnpm install
 pnpm build
@@ -237,6 +237,16 @@ terminée. » et **Reprendre : leçon 2**. Terminer la leçon 2 : la fiche du co
 vous avez terminé ce cours ! » et une coche devant chaque leçon du plan. Sans connexion, la fiche
 propose seulement « Se connecter pour enregistrer sa progression ».
 
+Test des quiz (la PR #9 ajoute des tables et un cours fictif : refaire l’étape 6 avant) : sans
+connexion, ouvrir « Additionner jusqu’à 10 (démonstration) » dans le catalogue, puis **Commencer
+le cours**. Sous la leçon, le bloc « Quiz de la leçon » propose deux questions. Choisir « Trois »
+puis « Six » et cliquer sur **Valider mes réponses** : « Résultat : 1 sur 2. », la première
+question est marquée « Bonne réponse » et la seconde donne la bonne réponse (« Cinq ») avec son
+explication. **Recommencer le quiz** vide les réponses. Connecté en `apprenant.demo`, après
+**Suivre ce cours**, le résultat est enregistré : en rechargeant la leçon, « Votre dernier
+résultat » s’affiche. Côté rédaction, connecté en `enseignant.demo`, chaque leçon du plan d’un
+brouillon a un bloc « quiz (facultatif) » avec **Ajouter une question**.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -259,7 +269,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`74 passed` pour les tests E2E de la PR #8).
+Attendu : aucun test en échec (`82 passed` pour les tests E2E de la PR #9).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

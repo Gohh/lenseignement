@@ -22,10 +22,11 @@ const titles = (body: { items: Array<{ title: string }> }) => body.items.map((i)
 test('le catalogue est public et ne montre que les versions publiées', async () => {
   const res = await get('');
   assert.deepEqual(titles(res.body), [
+    'Additionner jusqu’à 10 (démonstration)',
     'Les nombres jusqu’à 50 (démonstration)',
     'Lire des mots courts (démonstration)',
   ]);
-  assert.equal(res.body.total, 2);
+  assert.equal(res.body.total, 3);
   assert.equal(res.body.page, 1);
   // Ni brouillon (M. Koffi) ni cours en relecture (Mme Aminata).
   await get(`/${ID.courseSyllabes}`, 404);
@@ -51,10 +52,11 @@ test('aucune donnée personnelle dans le catalogue', async () => {
 });
 
 test('filtres : espace, recherche et compétence', async () => {
-  assert.deepEqual(titles((await get('?branch=primaire')).body).length, 2);
+  assert.deepEqual(titles((await get('?branch=primaire')).body).length, 3);
   assert.deepEqual((await get('?branch=technique')).body.items, []);
   assert.deepEqual(titles((await get('?q=MOTS')).body), ['Lire des mots courts (démonstration)']);
   assert.deepEqual(titles((await get('?q=additionner')).body), [
+    'Additionner jusqu’à 10 (démonstration)',
     'Les nombres jusqu’à 50 (démonstration)',
   ]);
   // Les caractères spéciaux sont cherchés tels quels.

@@ -6,7 +6,7 @@ import { courses, courseVersions, enrollments, lessonProgress, lessons } from '.
 /** Erreur métier de l'apprentissage, traduite en 404 ou 409 par le contrôleur. */
 export class LearningError extends Error {
   constructor(
-    readonly kind: 'not_found' | 'conflict',
+    readonly kind: 'not_found' | 'conflict' | 'invalid',
     message: string,
   ) {
     super(message);
@@ -14,7 +14,7 @@ export class LearningError extends Error {
 }
 
 /** Version publiée d'un cours et son nombre de leçons ; seule une version publiée se suit. */
-async function publishedVersion(db: Database, courseId: string) {
+export async function publishedVersion(db: Database, courseId: string) {
   const [row] = await db
     .select({
       id: courseVersions.id,
@@ -29,7 +29,7 @@ async function publishedVersion(db: Database, courseId: string) {
   return row;
 }
 
-async function findEnrollment(db: Database, userId: string, courseId: string) {
+export async function findEnrollment(db: Database, userId: string, courseId: string) {
   const [row] = await db
     .select()
     .from(enrollments)

@@ -1,8 +1,8 @@
 'use server';
 
-import type { CourseProgress } from '@lenseignement/types';
+import type { CourseProgress, QuizResult } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
-import { apiSend } from '@/lib/api';
+import { apiSend, publicApiPost } from '@/lib/api';
 import { getSession } from '@/lib/session';
 
 // Inscription et progression (ADR-009) : l'identité vient de la session, jamais du formulaire.
@@ -57,4 +57,31 @@ export async function completeLessonAction(form: FormData): Promise<void> {
   if (lessonNumber < result.data.total)
     redirect(`/catalogue/${courseId}/lecons/${lessonNumber + 1}`);
   redirect(`/catalogue/${courseId}`);
+}
+
+export type QuizState = { ok: true; result: QuizResult } | { ok: false; message: string } | null;
+
+/**
+ * Quiz d'une leçon : enregistré pour une personne inscrite, simplement corrigé sinon (ADR-010).
+ * Les bonnes réponses ne quittent l'API qu'avec la correction.
+ */
+export async function submitQuizAction(_previous: QuizState, form: FormData): Promise<QuizState> {
+  const courseId = courseIdOf(form);
+  const lessonNumber = Number(form.get('lessonNumber'));
+  const answers = [...form.entries()]
+    .filter(([name]) => name.startsWith('q-'))
+    .map(([name, value]) => ({ questionId: name.slice(2), choice: Number(value) }));
+  const input = { courseId, lessonNumber, answers };
+  const result =
+    form.get('mode') === 'attempt'
+      ? await apiSend<QuizResult>(
+          await token(`/catalogue/${courseId}/lecons/${lessonNumber}`),
+          'POST',
+          '/me/quiz-attempts',
+          { ...input, attemptId: String(form.get('attemptId') ?? '') },
+        )
+      : await publicApiPost<QuizResult>('/quiz/check', input);
+  return result.ok
+    ? { ok: true, result: result.data }
+    : { ok: false, message: result.message ?? 'Correction impossible.' };
 }

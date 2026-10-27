@@ -42,6 +42,27 @@ export async function apiSend<T>(
   }
 }
 
+/** Envoi public (sans jeton) : correction d'un quiz pour un visiteur. */
+export async function publicApiPost<T>(
+  path: string,
+  body: unknown,
+): Promise<ApiResult<T> & { message?: string }> {
+  try {
+    const res = await fetch(`${serverEnv().API_INTERNAL_URL}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
+    const json = (await res.json().catch(() => ({}))) as { message?: string };
+    return res.ok
+      ? { ok: true, data: json as T }
+      : { ok: false, status: res.status, message: json.message ?? 'Erreur inattendue.' };
+  } catch {
+    return { ok: false, status: 503, message: 'Service momentanément indisponible.' };
+  }
+}
+
 /** Lecture publique (sans jeton) : catalogue et programmes publiés. */
 export async function publicApiGet<T>(path: string): Promise<ApiResult<T>> {
   try {

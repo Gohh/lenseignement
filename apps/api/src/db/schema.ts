@@ -518,3 +518,80 @@ export const lessonProgress = pgTable(
     check('lesson_progress_number_check', sql`${t.lessonNumber} >= 1`),
   ],
 );
+
+/**
+ * Questions de quiz formatif d'une leçon (ticket 13, ADR-010). Rattachées à la version du cours,
+ * donc figées avec elle hors brouillon (même déclencheur que les leçons).
+ */
+export const quizQuestions = pgTable(
+  'quiz_questions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    lessonId: uuid('lesson_id')
+      .notNull()
+      .references(() => lessons.id),
+    position: integer('position').notNull(),
+    prompt: text('prompt').notNull(),
+    choices: jsonb('choices').$type<string[]>().notNull(),
+    correctChoice: integer('correct_choice').notNull(),
+    explanation: text('explanation').notNull().default(''),
+  },
+  (t) => [
+    index('quiz_questions_lesson_idx').on(t.lessonId),
+    check(
+      'quiz_questions_choices_check',
+      sql`jsonb_typeof(${t.choices}) = 'array' and jsonb_array_length(${t.choices}) between 2 and 4`,
+    ),
+    check(
+      'quiz_questions_correct_check',
+      sql`${t.correctChoice} >= 0 and ${t.correctChoice} < jsonb_array_length(${t.choices})`,
+    ),
+  ],
+);
+
+/**
+ * Tentatives de quiz d'une personne inscrite. Ajout seulement ; l'identifiant vient de l'appareil
+ * pour qu'un renvoi ne crée pas de doublon. La version exacte du cours est conservée (cahier §6.1).
+ */
+export const quizAttempts = pgTable(
+  'quiz_attempts',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id),
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    lessonNumber: integer('lesson_number').notNull(),
+    score: integer('score').notNull(),
+    total: integer('total').notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('quiz_attempts_user_lesson_idx').on(t.userId, t.courseId, t.lessonNumber),
+    check('quiz_attempts_score_check', sql`${t.score} >= 0 and ${t.score} <= ${t.total}`),
+    check('quiz_attempts_number_check', sql`${t.lessonNumber} >= 1`),
+  ],
+);
+
+export const quizResponses = pgTable(
+  'quiz_responses',
+  {
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => quizAttempts.id),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => quizQuestions.id),
+    choice: integer('choice').notNull(),
+    correct: boolean('correct').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.attemptId, t.questionId] })],
+);

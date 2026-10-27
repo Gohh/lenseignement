@@ -21,6 +21,7 @@ import {
   curricula,
   curriculumVersions,
   lessons,
+  quizQuestions,
   organizations,
 } from '../db/schema.js';
 
@@ -187,7 +188,7 @@ export async function getCourseVersion(
   if (!row) throw new CourseError('not_found', 'Version introuvable.');
   const v = row.version;
 
-  const [linked, moduleRows, lessonRows] = await Promise.all([
+  const [linked, moduleRows, lessonRows, questionRows] = await Promise.all([
     db
       .select({ code: competencies.code, title: competencies.title })
       .from(courseVersionCompetencies)
@@ -204,6 +205,11 @@ export async function getCourseVersion(
       .from(lessons)
       .where(eq(lessons.courseVersionId, versionId))
       .orderBy(asc(lessons.position)),
+    db
+      .select()
+      .from(quizQuestions)
+      .where(eq(quizQuestions.courseVersionId, versionId))
+      .orderBy(asc(quizQuestions.position)),
   ]);
 
   return {
@@ -224,7 +230,19 @@ export async function getCourseVersion(
       title: m.title,
       lessons: lessonRows
         .filter((l) => l.moduleId === m.id)
-        .map((l) => ({ title: l.title, body: l.body, estimatedMinutes: l.estimatedMinutes })),
+        .map((l) => ({
+          title: l.title,
+          body: l.body,
+          estimatedMinutes: l.estimatedMinutes,
+          quiz: questionRows
+            .filter((q) => q.lessonId === l.id)
+            .map((q) => ({
+              prompt: q.prompt,
+              choices: q.choices,
+              correct: q.correctChoice,
+              explanation: q.explanation,
+            })),
+        })),
     })),
   };
 }
@@ -335,17 +353,31 @@ async function insertOutline(tx: Tx, versionId: string, modules: CourseOutlineIn
       .insert(courseModules)
       .values({ courseVersionId: versionId, title: module.title, position })
       .returning({ id: courseModules.id });
-    if (module.lessons.length > 0) {
-      await tx.insert(lessons).values(
-        module.lessons.map((lesson, lessonPosition) => ({
+    for (const [lessonPosition, lesson] of module.lessons.entries()) {
+      const [created] = await tx
+        .insert(lessons)
+        .values({
           courseVersionId: versionId,
           moduleId: inserted!.id,
           title: lesson.title,
           body: lesson.body,
           estimatedMinutes: lesson.estimatedMinutes,
           position: lessonPosition,
-        })),
-      );
+        })
+        .returning({ id: lessons.id });
+      if (lesson.quiz.length > 0) {
+        await tx.insert(quizQuestions).values(
+          lesson.quiz.map((q, position) => ({
+            courseVersionId: versionId,
+            lessonId: created!.id,
+            position,
+            prompt: q.prompt,
+            choices: q.choices,
+            correctChoice: q.correct,
+            explanation: q.explanation,
+          })),
+        );
+      }
     }
   }
 }
@@ -358,6 +390,7 @@ export async function replaceOutline(
 ): Promise<CourseVersionDetail> {
   return db.transaction(async (tx) => {
     await lockDraft(tx, versionId, input.revision);
+    await tx.delete(quizQuestions).where(eq(quizQuestions.courseVersionId, versionId));
     await tx.delete(lessons).where(eq(lessons.courseVersionId, versionId));
     await tx.delete(courseModules).where(eq(courseModules.courseVersionId, versionId));
     await insertOutline(tx, versionId, input.modules);
@@ -437,6 +470,7 @@ export async function deleteDraft(db: Database, versionId: string): Promise<void
     await tx
       .delete(courseVersionCompetencies)
       .where(eq(courseVersionCompetencies.courseVersionId, versionId));
+    await tx.delete(quizQuestions).where(eq(quizQuestions.courseVersionId, versionId));
     await tx.delete(lessons).where(eq(lessons.courseVersionId, versionId));
     await tx.delete(courseModules).where(eq(courseModules.courseVersionId, versionId));
     await tx.delete(courseVersions).where(eq(courseVersions.id, versionId));

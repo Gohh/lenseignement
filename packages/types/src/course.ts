@@ -51,10 +51,31 @@ export const UpdateCourseVersionSchema = z.object({
 });
 export type UpdateCourseVersionInput = z.infer<typeof UpdateCourseVersionSchema>;
 
+/**
+ * Question de quiz formatif (ticket 13, ADR-010) : un énoncé, deux à quatre choix, une seule bonne
+ * réponse et une explication montrée après la réponse. Figée avec la version du cours.
+ */
+export const QuizQuestionInputSchema = z
+  .object({
+    prompt: Text(500).min(1, 'Chaque question doit avoir un énoncé.'),
+    choices: z
+      .array(Text(200).min(1, 'Un choix de réponse est vide.'))
+      .min(2, 'Chaque question doit avoir au moins deux choix.')
+      .max(4, 'Quatre choix au maximum par question.'),
+    correct: z.number().int().min(0),
+    explanation: Text(1000).default(''),
+  })
+  .refine((q) => q.correct < q.choices.length, {
+    message: 'La bonne réponse doit être l’un des choix.',
+    path: ['correct'],
+  });
+export type QuizQuestionInput = z.infer<typeof QuizQuestionInputSchema>;
+
 export const LessonInputSchema = z.object({
   title: Title,
   body: Text(20_000).default(''),
   estimatedMinutes: z.number().int().min(1).max(600).nullable().default(null),
+  quiz: z.array(QuizQuestionInputSchema).max(10).default([]),
 });
 
 export const ModuleInputSchema = z.object({
@@ -105,7 +126,12 @@ export interface CourseVersionDetail extends CourseVersionSummary {
   } | null;
   modules: Array<{
     title: string;
-    lessons: Array<{ title: string; body: string; estimatedMinutes: number | null }>;
+    lessons: Array<{
+      title: string;
+      body: string;
+      estimatedMinutes: number | null;
+      quiz: QuizQuestionInput[];
+    }>;
   }>;
 }
 

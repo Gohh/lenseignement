@@ -16,6 +16,14 @@ const ROLE_LABELS: Record<string, string> = {
   'admin-plateforme': 'Administrateur de la plateforme',
 };
 
+// Affichage seulement : l'API reste seule juge des droits de rédaction.
+const AUTHOR_ROLES = new Set([
+  'enseignant',
+  'alphabetiseur',
+  'referent-pedagogique',
+  'chef-etablissement',
+]);
+
 const cardClass = 'rounded-card border border-line bg-surface p-4';
 
 export default async function MyspacePage() {
@@ -80,6 +88,18 @@ export default async function MyspacePage() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {me.ok && me.data.memberships.some((m) => AUTHOR_ROLES.has(m.role)) && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Rédaction</h2>
+          <Link
+            href="/mon-espace/cours"
+            className="inline-flex min-h-[44px] items-center font-bold underline"
+          >
+            Mes cours
+          </Link>
         </div>
       )}
 

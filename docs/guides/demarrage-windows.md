@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #3 (ticket 7) :
+dans la branche de la PR. Pour la PR #4 (ticket 8) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-7-referentiels
+git checkout feat/ticket-8-cours
 git pull
 pnpm install
 pnpm build
@@ -199,6 +199,14 @@ Attendu : le bandeau « Programme de démonstration, non officiel », la **versi
 compétence « Compter jusqu'à 50 ». Dans « Historique des versions », cliquer sur
 **Version 2025** : la compétence redevient « Compter jusqu'à 20 ».
 
+Test de la rédaction de cours : se connecter en `enseignant.demo`, puis dans « Mon espace »
+cliquer sur **Mes cours**. Attendu : le brouillon fictif « Lire ses premières syllabes
+(démonstration) ». Cliquer sur **Créer un cours**, donner un titre, puis choisir le programme
+« version 2026 », enregistrer, cocher une compétence, enregistrer à nouveau. Dans « Plan du
+cours », ajouter un module et une leçon, puis **Enregistrer le plan** : après rechargement de la
+page, tout doit être conservé. Connecté en `apprenant.demo`, le lien « Mes cours » n’apparaît
+pas et http://localhost:3000/mon-espace/cours indique que la rédaction est réservée.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -221,7 +229,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`38 passed` pour les tests E2E de la PR #3).
+Attendu : aucun test en échec (`44 passed` pour les tests E2E de la PR #4).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

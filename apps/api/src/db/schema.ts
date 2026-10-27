@@ -5,6 +5,7 @@ import {
   date,
   integer,
   index,
+  uniqueIndex,
   pgTable,
   primaryKey,
   text,
@@ -307,4 +308,116 @@ export const competencyEdges = pgTable(
     primaryKey({ columns: [t.prerequisiteId, t.competencyId] }),
     check('competency_edges_not_self', sql`${t.prerequisiteId} <> ${t.competencyId}`),
   ],
+);
+
+// --- Cours versionnés : cahier §6.2 (Catalogue), §7 ; ADR-005 --------------------------------
+
+/** Cours rattaché à l'établissement qui en est responsable. Son contenu vit dans ses versions. */
+export const courses = pgTable(
+  'courses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    branch: text('branch').notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('courses_organization_idx').on(t.organizationId)],
+);
+
+export const COURSE_VERSION_STATUSES = [
+  'draft',
+  'in_review',
+  'approved',
+  'published',
+  'archived',
+] as const;
+
+/**
+ * Version numérotée d'un cours. Seul un brouillon (`draft`) est modifiable, et un cours n'a
+ * qu'un brouillon à la fois. `revision` augmente à chaque modification (concurrence optimiste).
+ */
+export const courseVersions = pgTable(
+  'course_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id),
+    number: integer('number').notNull(),
+    status: text('status', { enum: COURSE_VERSION_STATUSES }).notNull().default('draft'),
+    title: text('title').notNull(),
+    summary: text('summary').notNull().default(''),
+    audience: text('audience').notNull().default(''),
+    language: text('language').notNull().default('fr'),
+    licence: text('licence').notNull().default('Tous droits réservés'),
+    estimatedMinutes: integer('estimated_minutes'),
+    /** Version exacte du programme de référence (cahier §6.1). */
+    curriculumVersionId: uuid('curriculum_version_id').references(() => curriculumVersions.id),
+    revision: integer('revision').notNull().default(1),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('course_versions_number_unique').on(t.courseId, t.number),
+    uniqueIndex('course_versions_one_draft')
+      .on(t.courseId)
+      .where(sql`${t.status} = 'draft'`),
+    check(
+      'course_versions_status_check',
+      sql`${t.status} in ('draft','in_review','approved','published','archived')`,
+    ),
+  ],
+);
+
+export const courseVersionCompetencies = pgTable(
+  'course_version_competencies',
+  {
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    competencyId: uuid('competency_id')
+      .notNull()
+      .references(() => competencies.id),
+  },
+  (t) => [primaryKey({ columns: [t.courseVersionId, t.competencyId] })],
+);
+
+export const courseModules = pgTable(
+  'course_modules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    title: text('title').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [index('course_modules_version_idx').on(t.courseVersionId)],
+);
+
+export const lessons = pgTable(
+  'lessons',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Redondant avec le module, pour que la règle d'immuabilité s'applique directement. */
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    moduleId: uuid('module_id')
+      .notNull()
+      .references(() => courseModules.id),
+    title: text('title').notNull(),
+    body: text('body').notNull().default(''),
+    estimatedMinutes: integer('estimated_minutes'),
+    position: integer('position').notNull(),
+  },
+  (t) => [index('lessons_module_idx').on(t.moduleId)],
 );

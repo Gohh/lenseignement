@@ -36,22 +36,34 @@ export const AUTHOR_ROLES = [
   'chef-etablissement',
 ] as const;
 
+/** Circuit de validation (ADR-006) : qui approuve, et qui publie ou retire. */
+export const REVIEWER_ROLES = ['referent-pedagogique'] as const;
+export const PUBLISHER_ROLES = ['referent-pedagogique', 'chef-etablissement'] as const;
+
 /**
- * Structures où une personne peut rédiger : celles où elle a un rôle de rédaction valide,
- * sous-structures comprises (un référent régional couvre les écoles de sa région).
+ * Structures où une personne a l'un des rôles donnés, sous-structures comprises (un référent
+ * régional couvre les écoles de sa région). Renvoie une sous-requête entre parenthèses.
  */
-export function authoringOrganizationIds(userId: string): SQL {
+export function organizationIdsWithRoles(userId: string, roles: readonly string[]): SQL {
   return sql`(
-    with recursive author_orgs as (
+    with recursive role_orgs as (
       select m.organization_id as id
         from memberships m
        where m.user_id = ${userId}
-         and m.role in ('enseignant', 'alphabetiseur', 'referent-pedagogique', 'chef-etablissement')
+         and m.role in (${sql.join(
+           roles.map((role) => sql`${role}`),
+           sql`, `,
+         )})
          and (m.valid_until is null or m.valid_until > now())
       union
-      select o.id from organizations o join author_orgs a on o.parent_id = a.id
+      select o.id from organizations o join role_orgs r on o.parent_id = r.id
     )
-    select id from author_orgs)`;
+    select id from role_orgs)`;
+}
+
+/** Structures où une personne peut rédiger. */
+export function authoringOrganizationIds(userId: string): SQL {
+  return organizationIdsWithRoles(userId, AUTHOR_ROLES);
 }
 
 /**
@@ -103,12 +115,17 @@ export class AccessService {
 
   /** Rédaction de cours : réservée aux structures de la personne. Refus uniforme et journalisé. */
   async assertCanAuthor(request: AuthoringRequest): Promise<void> {
+    await this.assertHasRole(request, AUTHOR_ROLES);
+  }
+
+  /** La personne a l'un des rôles donnés dans la structure de la ressource. Refus journalisé. */
+  async assertHasRole(request: AuthoringRequest, roles: readonly string[]): Promise<void> {
     let reason: AccessReason = 'out_of_scope';
     if (!UUID.test(request.resourceId)) {
       reason = 'invalid_id';
     } else if (request.organizationId) {
       const { rows } = await this.db.execute(
-        sql`select 1 from ${authoringOrganizationIds(request.userId)} a where a.id = ${request.organizationId}`,
+        sql`select 1 from ${organizationIdsWithRoles(request.userId, roles)} a where a.id = ${request.organizationId}`,
       );
       if (rows.length > 0) reason = 'scope';
     }

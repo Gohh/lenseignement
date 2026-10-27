@@ -17,9 +17,9 @@ travailler.
    `course_versions` (numéro, statut, titre, résumé, public, langue, licence, durée estimée,
    version de programme liée). Le contenu appartient à une version : `course_modules`, `lessons`
    et `course_version_competencies` (compétences visées).
-2. **Statuts** : `draft` → `in_review` → `approved` → `published` → `archived`. Ce ticket ne gère
-   que le brouillon ; les autres statuts seront pilotés par le circuit de relecture (ticket 9).
-   Un cours a **au plus un brouillon** (index unique partiel).
+2. **Statuts** : `draft` → `in_review` → `approved` → `published` → `archived`. Les statuts
+   au-delà du brouillon sont pilotés par le circuit de validation (ADR-006).
+   Un cours a **au plus une version en cours** (index unique partiel, voir ADR-006).
 3. **Immuabilité garantie par la base** : des déclencheurs PostgreSQL refusent toute
    modification du contenu (modules, leçons, compétences) d’une version qui n’est plus un
    brouillon, et toute modification d’une telle version autre que son statut. Une version qui

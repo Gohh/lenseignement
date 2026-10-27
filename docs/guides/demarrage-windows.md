@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #4 (ticket 8) :
+dans la branche de la PR. Pour la PR #5 (ticket 9) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-8-cours
+git checkout feat/ticket-9-relecture
 git pull
 pnpm install
 pnpm build
@@ -207,6 +207,14 @@ cours », ajouter un module et une leçon, puis **Enregistrer le plan** : après
 page, tout doit être conservé. Connecté en `apprenant.demo`, le lien « Mes cours » n’apparaît
 pas et http://localhost:3000/mon-espace/cours indique que la rédaction est réservée.
 
+Test de la relecture (double validation) : se connecter en `referent.demo` (Mariam), puis dans
+« Mon espace » cliquer sur **À relire et à publier**. Ouvrir « Compter au marché
+(démonstration) » (cours fictif de Mme Aminata), cocher les trois contrôles et cliquer sur
+**Approuver** : Mariam ne voit pas de bouton « Publier » (elle vient d’approuver). Se reconnecter
+en `directeur.demo` (Bamba), ouvrir le même cours depuis « À relire et à publier » et cliquer sur
+**Publier cette version** : le statut devient « Publiée » et l’historique montre les trois
+étapes. Connecté en `enseignant.demo`, aucun bouton de validation n’apparaît.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -229,7 +237,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`44 passed` pour les tests E2E de la PR #4).
+Attendu : aucun test en échec (`50 passed` pour les tests E2E de la PR #5).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

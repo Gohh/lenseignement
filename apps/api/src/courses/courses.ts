@@ -24,10 +24,10 @@ import {
   organizations,
 } from '../db/schema.js';
 
-/** Erreur métier sur les cours, traduite en 400, 404 ou 409 par le contrôleur. */
+/** Erreur métier sur les cours, traduite en 400, 403, 404 ou 409 par le contrôleur. */
 export class CourseError extends Error {
   constructor(
-    readonly kind: 'invalid' | 'not_found' | 'conflict',
+    readonly kind: 'invalid' | 'forbidden' | 'not_found' | 'conflict',
     message: string,
   ) {
     super(message);
@@ -366,7 +366,7 @@ export async function replaceOutline(
   });
 }
 
-/** Crée un brouillon à partir de la dernière version (un seul brouillon à la fois). */
+/** Crée un brouillon à partir de la dernière version (une seule version en cours à la fois). */
 export async function createNextVersion(
   db: Database,
   courseId: string,
@@ -383,6 +383,12 @@ export async function createNextVersion(
     if (!latest) throw new CourseError('not_found', 'Cours introuvable.');
     if (latest.status === 'draft') {
       throw new CourseError('conflict', 'Ce cours a déjà un brouillon en cours : modifiez-le.');
+    }
+    if (latest.status === 'in_review' || latest.status === 'approved') {
+      throw new CourseError(
+        'conflict',
+        'Une version de ce cours est en cours de validation : attendez sa publication.',
+      );
     }
     const source = await getCourseVersion(tx, latest.id);
     const [created] = await tx

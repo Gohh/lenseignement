@@ -75,3 +75,24 @@ test('paramètres invalides refusés', async () => {
   await get('?page=0', 400);
   assert.deepEqual((await get('?page=2')).body.items, []);
 });
+
+test('lecteur : leçon publiée repérée par son rang, avec précédente et suivante', async () => {
+  const first = await get(`/${ID.courseNombres}/lessons/1`);
+  assert.equal(first.body.title, 'Compter de 10 en 10');
+  assert.match(first.body.body, /bâtonnets/);
+  assert.equal(first.body.total, 2);
+  assert.deepEqual(first.body.module, { number: 1, title: 'Compter et additionner' });
+  assert.equal(first.body.previous, null);
+  assert.equal(first.body.next, 2);
+  const second = await get(`/${ID.courseNombres}/lessons/2`);
+  assert.equal(second.body.previous, 1);
+  assert.equal(second.body.next, null);
+  assert.equal(JSON.stringify(second.body).includes(ID.userKoffi), false);
+
+  await get(`/${ID.courseNombres}/lessons/3`, 404);
+  await get(`/${ID.courseNombres}/lessons/0`, 404);
+  await get(`/${ID.courseNombres}/lessons/abc`, 404);
+  // Le contenu d'un brouillon ou d'un cours en relecture n'est jamais servi.
+  await get(`/${ID.courseSyllabes}/lessons/1`, 404);
+  await get(`/${ID.courseMarche}/lessons/1`, 404);
+});

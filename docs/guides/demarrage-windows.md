@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #6 (ticket 10) :
+dans la branche de la PR. Pour la PR #7 (ticket 11) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-10-catalogue
+git checkout feat/ticket-11-lecteur
 git pull
 pnpm install
 pnpm build
@@ -221,6 +221,12 @@ cours publiés, dont « Les nombres jusqu’à 50 (démonstration) » et « Lire
 Ouvrir sa fiche : compétences visées et plan du cours. Le brouillon « Lire ses premières
 syllabes » n’apparaît jamais dans le catalogue.
 
+Test du lecteur de leçons (sans connexion) : dans le catalogue, ouvrir « Les nombres jusqu’à 50
+(démonstration) » puis cliquer sur **Commencer le cours**. Attendu : « Leçon 1 sur 2 », le texte en
+grand et le bloc « Écouter la leçon ». Cliquer sur **Écouter** : l’ordinateur lit la leçon à voix
+haute (monter le son ; sous Windows, la voix française est fournie par le système). Cliquer sur
+**Leçon suivante →**, puis **← Leçon précédente**.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -243,7 +249,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`58 passed` pour les tests E2E de la PR #6).
+Attendu : aucun test en échec (`68 passed` pour les tests E2E de la PR #7).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

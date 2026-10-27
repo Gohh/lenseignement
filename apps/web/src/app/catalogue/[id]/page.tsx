@@ -2,6 +2,7 @@ import { BRANCHES, type CatalogCourseDetail } from '@lenseignement/types';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { buttonClass } from '@/components/Notice';
 import { publicApiGet } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -82,24 +83,38 @@ export default async function CatalogCoursePage({ params }: Props) {
         <h2 id="plan" className="text-xl font-bold">
           Plan du cours
         </h2>
+        {course.lessonCount > 0 && (
+          <Link href={`/catalogue/${course.id}/lecons/1`} className={buttonClass}>
+            Commencer le cours
+          </Link>
+        )}
         {course.modules.map((m, i) => (
           <div key={i} className="rounded-card border border-line bg-surface p-4">
             <h3 className="font-bold">
               Module {i + 1} : {m.title}
             </h3>
             <ol className="mt-2 list-decimal pl-6">
-              {m.lessons.map((l, j) => (
-                <li key={j}>
-                  {l.title}
-                  {l.estimatedMinutes ? ` (${l.estimatedMinutes} min)` : ''}
-                </li>
-              ))}
+              {m.lessons.map((l, j) => {
+                // Rang de la leçon dans tout le cours, comme dans l'adresse du lecteur.
+                const rank =
+                  course.modules.slice(0, i).reduce((n, prev) => n + prev.lessons.length, 0) +
+                  j +
+                  1;
+                return (
+                  <li key={j}>
+                    <Link
+                      href={`/catalogue/${course.id}/lecons/${rank}`}
+                      className="inline-flex min-h-[44px] items-center underline"
+                    >
+                      {l.title}
+                    </Link>
+                    {l.estimatedMinutes ? ` (${l.estimatedMinutes} min)` : ''}
+                  </li>
+                );
+              })}
             </ol>
           </div>
         ))}
-        <p className="text-ink-muted">
-          La lecture des leçons arrivera avec la prochaine étape (lecteur texte et audio).
-        </p>
       </section>
     </article>
   );

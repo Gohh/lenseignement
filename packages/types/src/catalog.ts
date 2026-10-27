@@ -53,3 +53,22 @@ export interface CatalogCourseDetail extends CatalogCourse {
     lessons: Array<{ title: string; estimatedMinutes: number | null }>;
   }>;
 }
+
+/**
+ * Leçon d'un cours publié, repérée par son rang dans le cours (1, 2, 3…) : l'adresse reste
+ * valable quand une nouvelle version du cours est publiée avec le même plan (ticket 11).
+ */
+export interface CatalogLesson {
+  courseId: string;
+  courseTitle: string;
+  versionNumber: number;
+  language: string;
+  number: number;
+  total: number;
+  module: { number: number; title: string };
+  title: string;
+  body: string;
+  estimatedMinutes: number | null;
+  previous: number | null;
+  next: number | null;
+}

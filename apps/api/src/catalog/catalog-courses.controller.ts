@@ -10,12 +10,13 @@ import {
 import {
   CatalogQuerySchema,
   type CatalogCourseDetail,
+  type CatalogLesson,
   type CatalogPage,
 } from '@lenseignement/types';
 import { z } from 'zod';
 import { Public } from '../auth/public.decorator.js';
 import { DATABASE, type Database } from '../db/database.js';
-import { getCatalogCourse, searchCatalog } from './course-catalog.js';
+import { getCatalogCourse, getCatalogLesson, searchCatalog } from './course-catalog.js';
 
 /** Catalogue public des cours publiés (ADR-007) : sans connexion, sans donnée personnelle. */
 @Public()
@@ -35,5 +36,14 @@ export class CatalogCoursesController {
     const course = await getCatalogCourse(this.db, id);
     if (!course) throw new NotFoundException('Cours introuvable.');
     return course;
+  }
+
+  @Get(':id/lessons/:number')
+  async lesson(@Param('id') id: string, @Param('number') number: string): Promise<CatalogLesson> {
+    const lesson = /^\d{1,4}$/.test(number)
+      ? await getCatalogLesson(this.db, id, Number(number))
+      : null;
+    if (!lesson) throw new NotFoundException('Leçon introuvable.');
+    return lesson;
   }
 }

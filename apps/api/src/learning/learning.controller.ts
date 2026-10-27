@@ -9,18 +9,24 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import {
   EnrollSchema,
   LessonCompletedSchema,
   LessonOpenedSchema,
+  QuizAnswersSchema,
+  QuizAttemptSchema,
   type CourseProgress,
   type LearningPlanItem,
+  type QuizLastAttempt,
+  type QuizResult,
 } from '@lenseignement/types';
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
+import { Public } from '../auth/public.decorator.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
 import {
@@ -31,6 +37,7 @@ import {
   lessonCompleted,
   lessonOpened,
 } from './learning.js';
+import { checkQuiz, lastAttempt, recordAttempt } from './quiz.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -42,6 +49,7 @@ function parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
 
 function translate(error: unknown): never {
   if (error instanceof LearningError) {
+    if (error.kind === 'invalid') throw new BadRequestException(error.message);
     throw error.kind === 'not_found'
       ? new NotFoundException(error.message)
       : new ConflictException(error.message);
@@ -96,5 +104,32 @@ export class LearningController {
     return lessonCompleted(this.db, await this.userId(request), courseId, lessonNumber).catch(
       translate,
     );
+  }
+
+  /** Correction sans enregistrement, pour tous (visiteur ou personne non inscrite). */
+  @Public()
+  @Post('quiz/check')
+  @HttpCode(200)
+  async checkQuiz(@Body() body: unknown): Promise<QuizResult> {
+    return checkQuiz(this.db, parse(QuizAnswersSchema, body)).catch(translate);
+  }
+
+  @Post('me/quiz-attempts')
+  async attempt(@Req() request: Request, @Body() body: unknown): Promise<QuizResult> {
+    const input = parse(QuizAttemptSchema, body);
+    return recordAttempt(this.db, await this.userId(request), input).catch(translate);
+  }
+
+  @Get('me/quiz-attempts/latest')
+  async latest(
+    @Req() request: Request,
+    @Query('courseId') courseId: string,
+    @Query('lessonNumber') lessonNumber: string,
+  ): Promise<{ attempt: QuizLastAttempt | null }> {
+    const number = Number(lessonNumber);
+    if (!UUID.test(courseId ?? '') || !Number.isInteger(number) || number < 1) {
+      throw new BadRequestException('Paramètres invalides.');
+    }
+    return { attempt: await lastAttempt(this.db, await this.userId(request), courseId, number) };
   }
 }

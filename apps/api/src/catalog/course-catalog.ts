@@ -18,6 +18,7 @@ import {
   curriculumVersions,
   lessons,
   organizations,
+  quizQuestions,
 } from '../db/schema.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -210,6 +211,7 @@ export async function getCatalogLesson(
   if (!version) return null;
   const ordered = await db
     .select({
+      id: lessons.id,
       title: lessons.title,
       body: lessons.body,
       estimatedMinutes: lessons.estimatedMinutes,
@@ -223,6 +225,12 @@ export async function getCatalogLesson(
   const lesson = ordered[number - 1];
   if (!lesson) return null;
   const modulePositions = [...new Set(ordered.map((l) => l.modulePosition))];
+  // Sans `correct_choice` ni explication : elles ne partent qu'avec la correction (ADR-010).
+  const quiz = await db
+    .select({ id: quizQuestions.id, prompt: quizQuestions.prompt, choices: quizQuestions.choices })
+    .from(quizQuestions)
+    .where(eq(quizQuestions.lessonId, lesson.id))
+    .orderBy(asc(quizQuestions.position));
   return {
     courseId,
     courseTitle: version.title,
@@ -239,5 +247,6 @@ export async function getCatalogLesson(
     estimatedMinutes: lesson.estimatedMinutes,
     previous: number > 1 ? number - 1 : null,
     next: number < ordered.length ? number + 1 : null,
+    quiz,
   };
 }

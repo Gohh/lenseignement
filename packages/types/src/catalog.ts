@@ -71,4 +71,12 @@ export interface CatalogLesson {
   estimatedMinutes: number | null;
   previous: number | null;
   next: number | null;
+  /** Quiz de la leçon, sans les bonnes réponses : elles ne sont données qu'après la réponse. */
+  quiz: QuizQuestion[];
+}
+
+export interface QuizQuestion {
+  id: string;
+  prompt: string;
+  choices: string[];
 }

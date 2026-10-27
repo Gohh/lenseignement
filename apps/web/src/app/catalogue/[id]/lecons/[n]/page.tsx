@@ -1,9 +1,11 @@
-import type { CatalogLesson, CourseProgress } from '@lenseignement/types';
+import { randomUUID } from 'node:crypto';
+import type { CatalogLesson, CourseProgress, QuizLastAttempt } from '@lenseignement/types';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AudioLessonPlayer } from '@/components/AudioLessonPlayer';
 import { buttonClass, Notice, param } from '@/components/Notice';
+import { QuizRunner } from '@/components/QuizRunner';
 import { apiGet, apiSend, publicApiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { completeLessonAction } from '../../../actions';
@@ -50,6 +52,13 @@ export default async function LessonPage({ params, searchParams }: Props) {
     });
   }
   const done = mine?.completed.includes(lesson.number) ?? false;
+  const last =
+    session && mine && lesson.quiz.length > 0
+      ? await apiGet<{ attempt: QuizLastAttempt | null }>(
+          session.accessToken,
+          `/me/quiz-attempts/latest?courseId=${lesson.courseId}&lessonNumber=${lesson.number}`,
+        )
+      : null;
 
   return (
     <article className="mx-auto max-w-prose space-y-6">
@@ -76,6 +85,17 @@ export default async function LessonPage({ params, searchParams }: Props) {
       <div className="whitespace-pre-line text-xl leading-relaxed" lang={lesson.language}>
         {lesson.body}
       </div>
+
+      {lesson.quiz.length > 0 && (
+        <QuizRunner
+          courseId={lesson.courseId}
+          lessonNumber={lesson.number}
+          questions={lesson.quiz}
+          mode={mine ? 'attempt' : 'check'}
+          attemptId={randomUUID()}
+          last={last?.ok ? last.data.attempt : null}
+        />
+      )}
 
       {mine &&
         (done ? (

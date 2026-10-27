@@ -39,15 +39,10 @@ test.describe('Rédaction des cours (ticket 8)', () => {
     await saved;
     await expect(page.getByLabel('Lire des syllabes simples')).toBeChecked();
 
-    // Plan : un module, une leçon. La redirection après l'enregistrement peut encore
-    // re-rendre la page : on réessaie l'ajout jusqu'à ce que le champ soit stable.
-    await expect(async () => {
-      if ((await page.getByLabel('Titre du module 1').count()) === 0) {
-        await page.getByRole('button', { name: 'Ajouter un module' }).click();
-      }
-      await expect(page.getByLabel('Titre du module 1')).toBeVisible({ timeout: 1000 });
-    }).toPass();
-    await page.waitForLoadState('networkidle');
+    // Page rechargée : la redirection après un enregistrement peut encore re-rendre l'éditeur
+    // et effacer un ajout ; après rechargement (et chargement des scripts), la page est stable.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Ajouter un module' }).click();
     await page.getByLabel('Titre du module 1').fill('Les voyelles');
     await page.getByRole('button', { name: 'Ajouter une leçon au module 1' }).click();
     await page.getByLabel('Leçon 1.1 : titre').fill('Le son a');

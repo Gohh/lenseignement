@@ -239,10 +239,11 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
           </form>
 
           <h2 className="text-xl font-bold">Plan du cours</h2>
-          {/* Recréé seulement si le plan enregistré change : enregistrer les informations ne
-              fait pas perdre un plan en cours de saisie (la révision, elle, suit). */}
+          {/* Un seul éditeur par version : il garde ce qui vient d'être enregistré et son message
+              « Plan enregistré. », et enregistrer les informations ne fait pas perdre un plan en
+              cours de saisie (la révision, elle, suit). */}
           <OutlineEditor
-            key={JSON.stringify(version.modules)}
+            key={version.id}
             versionId={version.id}
             revision={version.revision}
             initial={version.modules}

@@ -102,3 +102,13 @@ et avant tout pilote avec de vrais utilisateurs.
   (un identifiant glissé dans la requête est ignoré, vérifié par un test d’intégration).
 - Intégrité : contraintes d’unicité en base (pas de doublon) et inscription obligatoire avant
   toute progression ; seuls les cours publiés peuvent être suivis.
+
+## Ajouté par le ticket 13 (ADR-010)
+
+- Intégrité des évaluations : les bonnes réponses ne sont jamais envoyées avant la correction
+  (vérifié par un test d'intégration) ; questions figées avec la version publiée ; tentatives et
+  réponses en ajout seulement.
+- Cloisonnement : une tentative est rattachée à la personne du jeton ; rejouer l'identifiant de
+  tentative d'une autre personne est refusé sans rien révéler.
+- Minimisation : seuls le choix, la justesse et le score sont gardés, sans temps de réponse ni
+  suivi de navigation. Un visiteur est corrigé sans aucun enregistrement.

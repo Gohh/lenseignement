@@ -11,7 +11,15 @@ import {
   curricula,
   curriculumVersions,
   lessons,
+  quizQuestions,
 } from '../db/schema.js';
+
+interface DemoQuestion {
+  prompt: string;
+  choices: string[];
+  correct: number;
+  explanation: string;
+}
 
 interface DemoCourse {
   courseId: string;
@@ -23,7 +31,7 @@ interface DemoCourse {
   estimatedMinutes: number;
   competencyCodes: string[];
   module: string;
-  lessons: Array<{ title: string; body: string }>;
+  lessons: Array<{ title: string; body: string; quiz?: DemoQuestion[] }>;
   /**
    * Étape du circuit de validation (ADR-006) : brouillon, envoyé en relecture par son auteur, ou
    * publié après approbation de Mme Mariam (référente) et publication par M. Bamba (directeur).
@@ -104,11 +112,57 @@ const DEMO_COURSES: DemoCourse[] = [
     lessons: [{ title: 'Lire « papa » et « mama »', body: 'pa + pa : papa. ma + ma : mama.' }],
     stage: 'published',
   },
+  {
+    // Cours ajouté au ticket 13 pour montrer les quiz (les cours déjà publiés sont figés).
+    courseId: ID.courseAdditions,
+    versionId: ID.courseAdditionsV1,
+    author: ID.userKoffi,
+    title: 'Additionner jusqu’à 10 (démonstration)',
+    summary: 'Cours fictif : petites additions avec des objets, et un quiz après chaque leçon.',
+    audience: 'Élèves de CP1',
+    estimatedMinutes: 20,
+    competencyCodes: ['CALC-02'],
+    module: 'Premières additions',
+    lessons: [
+      {
+        title: 'Ajouter un objet',
+        body: 'Deux mangues dans le panier. On en ajoute une : un, deux, trois. Il y a trois mangues.',
+        quiz: [
+          {
+            prompt: 'Deux mangues et encore une mangue : combien de mangues en tout ?',
+            choices: ['Deux', 'Trois', 'Quatre'],
+            correct: 1,
+            explanation: 'On compte deux, puis on ajoute un : trois mangues.',
+          },
+          {
+            prompt: 'Quatre cailloux et encore un caillou : combien de cailloux en tout ?',
+            choices: ['Cinq', 'Six', 'Trois'],
+            correct: 0,
+            explanation: 'Après quatre vient cinq : quatre et un font cinq.',
+          },
+        ],
+      },
+      {
+        title: 'Additionner avec ses doigts',
+        body: 'Montre trois doigts, puis encore deux doigts. Compte tous les doigts levés : cinq.',
+        quiz: [
+          {
+            prompt: 'Trois doigts et encore deux doigts : combien de doigts levés ?',
+            choices: ['Quatre', 'Cinq', 'Six'],
+            correct: 1,
+            explanation: 'Trois, puis quatre, cinq : trois et deux font cinq.',
+          },
+        ],
+      },
+    ],
+    stage: 'published',
+  },
 ];
 
 /**
  * Cours FICTIFS de démonstration, à l'École Les Manguiers, reliés au programme de démonstration
- * 2026 : un brouillon, un cours en attente de relecture et deux cours publiés (catalogue). Idempotent.
+ * 2026 : un brouillon, un cours en attente de relecture et trois cours publiés (catalogue), dont
+ * un avec des quiz. Idempotent.
  */
 export async function seedDemoCourses(db: Database): Promise<void> {
   for (const demo of DEMO_COURSES) {
@@ -165,16 +219,32 @@ async function seedCourse(db: Database, demo: DemoCourse): Promise<void> {
       .insert(courseModules)
       .values({ courseVersionId: demo.versionId, title: demo.module, position: 0 })
       .returning({ id: courseModules.id });
-    await tx.insert(lessons).values(
-      demo.lessons.map((lesson, position) => ({
-        courseVersionId: demo.versionId,
-        moduleId: module!.id,
-        title: lesson.title,
-        body: lesson.body,
-        estimatedMinutes: 10,
-        position,
-      })),
-    );
+    for (const [position, lesson] of demo.lessons.entries()) {
+      const [created] = await tx
+        .insert(lessons)
+        .values({
+          courseVersionId: demo.versionId,
+          moduleId: module!.id,
+          title: lesson.title,
+          body: lesson.body,
+          estimatedMinutes: 10,
+          position,
+        })
+        .returning({ id: lessons.id });
+      if (lesson.quiz) {
+        await tx.insert(quizQuestions).values(
+          lesson.quiz.map((q, questionPosition) => ({
+            courseVersionId: demo.versionId,
+            lessonId: created!.id,
+            position: questionPosition,
+            prompt: q.prompt,
+            choices: q.choices,
+            correctChoice: q.correct,
+            explanation: q.explanation,
+          })),
+        );
+      }
+    }
     if (demo.stage === 'draft') return;
     // Les étapes passent par le déclencheur du circuit de validation, comme dans l'application.
     const step = (values: Partial<typeof courseVersions.$inferInsert>) =>

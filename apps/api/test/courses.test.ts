@@ -51,6 +51,7 @@ test('l’enseignant voit le cours de son école ; l’élève et le parent ne v
       .map((c: { latest: { title: string; status: string } }) => [c.latest.title, c.latest.status])
       .sort(),
     [
+      ['Additionner jusqu’à 10 (démonstration)', 'published'],
       ['Compter au marché (démonstration)', 'in_review'],
       ['Les nombres jusqu’à 50 (démonstration)', 'published'],
       ['Lire des mots courts (démonstration)', 'published'],

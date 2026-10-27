@@ -2,6 +2,7 @@ import {
   CATALOG_PAGE_SIZE,
   type CatalogCourse,
   type CatalogCourseDetail,
+  type CatalogLesson,
   type CatalogPage,
   type CatalogQuery,
 } from '@lenseignement/types';
@@ -187,5 +188,56 @@ export async function getCatalogCourse(
         .filter((l) => l.moduleId === m.id)
         .map((l) => ({ title: l.title, estimatedMinutes: l.estimatedMinutes })),
     })),
+  };
+}
+
+/** Leçon n° `number` (à partir de 1, dans l'ordre du plan) de la version publiée d'un cours. */
+export async function getCatalogLesson(
+  db: Database,
+  courseId: string,
+  number: number,
+): Promise<CatalogLesson | null> {
+  if (!UUID.test(courseId) || !Number.isInteger(number) || number < 1) return null;
+  const [version] = await db
+    .select({
+      id: courseVersions.id,
+      number: courseVersions.number,
+      title: courseVersions.title,
+      language: courseVersions.language,
+    })
+    .from(courseVersions)
+    .where(and(eq(courseVersions.courseId, courseId), eq(courseVersions.status, 'published')));
+  if (!version) return null;
+  const ordered = await db
+    .select({
+      title: lessons.title,
+      body: lessons.body,
+      estimatedMinutes: lessons.estimatedMinutes,
+      moduleTitle: courseModules.title,
+      modulePosition: courseModules.position,
+    })
+    .from(lessons)
+    .innerJoin(courseModules, eq(courseModules.id, lessons.moduleId))
+    .where(eq(lessons.courseVersionId, version.id))
+    .orderBy(asc(courseModules.position), asc(lessons.position));
+  const lesson = ordered[number - 1];
+  if (!lesson) return null;
+  const modulePositions = [...new Set(ordered.map((l) => l.modulePosition))];
+  return {
+    courseId,
+    courseTitle: version.title,
+    versionNumber: version.number,
+    language: version.language,
+    number,
+    total: ordered.length,
+    module: {
+      number: modulePositions.indexOf(lesson.modulePosition) + 1,
+      title: lesson.moduleTitle,
+    },
+    title: lesson.title,
+    body: lesson.body,
+    estimatedMinutes: lesson.estimatedMinutes,
+    previous: number > 1 ? number - 1 : null,
+    next: number < ordered.length ? number + 1 : null,
   };
 }

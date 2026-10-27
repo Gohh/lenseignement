@@ -4,6 +4,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
+  OIDC_ISSUER_URL: z.string().url().default('http://localhost:8080/realms/lenseignement'),
+  OIDC_AUDIENCE: z.string().min(1).default('lenseignement-api'),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema>;
@@ -14,5 +16,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!result.success) {
     throw new Error(`Configuration invalide : ${z.prettifyError(result.error)}`);
   }
-  return result.data;
+  const config = result.data;
+  if (config.NODE_ENV === 'production' && !config.OIDC_ISSUER_URL.startsWith('https://')) {
+    throw new Error('Configuration invalide : OIDC_ISSUER_URL doit être en HTTPS en production.');
+  }
+  return config;
 }

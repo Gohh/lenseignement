@@ -33,10 +33,26 @@ tests/e2e/    Playwright + axe-core
 ```bash
 cp .env.example .env
 pnpm install
-pnpm infra:up        # PostgreSQL :5432, Redis :6379, MinIO :9000 (console :9001)
+pnpm infra:up        # PostgreSQL :5432, Redis :6379, MinIO :9000 (console :9001), Keycloak :8080
 pnpm build
 pnpm dev             # web http://localhost:3000, API http://localhost:4000/api/v1/health
 ```
+
+## Comptes de démonstration (Keycloak local)
+
+Comptes **fictifs**, mot de passe commun `Demo-lenseignement-2026` :
+
+| Identifiant       | Profil                                                             |
+| ----------------- | ------------------------------------------------------------------ |
+| `apprenant.demo`  | Apprenant                                                          |
+| `enseignant.demo` | Enseignant                                                         |
+| `referent.demo`   | Référent pédagogique                                               |
+| `admin.demo`      | Administrateur (configuration TOTP exigée à la première connexion) |
+
+Console d’administration Keycloak : http://localhost:8080 (identifiants dans `.env`).
+Après une modification de `infra/keycloak/realm-lenseignement.json`, réimporter avec
+`docker compose down -v keycloak && docker compose up -d keycloak` (les données Keycloak locales
+sont perdues).
 
 ## Vérifications
 

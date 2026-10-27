@@ -42,3 +42,14 @@ et avant tout pilote avec de vrais utilisateurs.
 - Validation de la configuration au démarrage (Zod).
 - Services Docker exposés uniquement sur `127.0.0.1`.
 - Aucune donnée réelle : contenus fictifs uniquement.
+
+## Ajouté par le ticket 5 (ADR-002)
+
+- T3 : OIDC Keycloak, anti-bruteforce, TOTP administrateur, sessions de 30 min d’inactivité,
+  rotation des jetons de rafraîchissement, déconnexion propagée au fournisseur.
+- T6 : jetons uniquement côté serveur, cookie de session opaque `HttpOnly`, destruction de la
+  session serveur à la déconnexion (rejeu de l’ancien cookie testé en E2E).
+- Login CSRF : `state` lié au navigateur par cookie, `nonce`, PKCE S256 ; retour falsifié testé.
+- Redirection ouverte après connexion bloquée (chemins internes uniquement), testée en E2E.
+- API : refus par défaut ; jetons expirés, forgés, `alg: none`, mauvaise audience ou mauvais
+  émetteur refusés (tests d’intégration).

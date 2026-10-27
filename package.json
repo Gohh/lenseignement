@@ -23,6 +23,7 @@
     "@playwright/test": "1.63.0",
     "eslint": "9.39.5",
     "globals": "16.5.0",
+    "oauth2-mock-server": "9.3.0",
     "prettier": "3.9.10",
     "turbo": "2.11.10",
     "typescript": "5.9.3",

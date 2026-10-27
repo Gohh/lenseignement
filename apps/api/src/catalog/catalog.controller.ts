@@ -1,7 +1,9 @@
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 import { BRANCHES, BranchCodeSchema, type Branch } from '@lenseignement/types';
+import { Public } from '../auth/public.decorator.js';
 
 /** Catalogue public : lecture seule, aucune donnée d'apprenant. Données fictives jusqu'au ticket 7. */
+@Public()
 @Controller('catalog')
 export class CatalogController {
   @Get('branches')

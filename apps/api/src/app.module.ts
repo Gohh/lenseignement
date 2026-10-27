@@ -9,6 +9,7 @@ import { CurriculaController } from './curricula/curricula.controller.js';
 import { DatabaseModule } from './db/database.module.js';
 import { HealthController } from './health/health.controller.js';
 import { LearnersController } from './learners/learners.controller.js';
+import { LearningController } from './learning/learning.controller.js';
 import { MeController } from './me/me.controller.js';
 
 @Module({
@@ -22,6 +23,7 @@ import { MeController } from './me/me.controller.js';
     CohortsController,
     LearnersController,
     AuthoringController,
+    LearningController,
   ],
 })
 export class AppModule {}

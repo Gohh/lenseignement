@@ -93,3 +93,12 @@ et avant tout pilote avec de vrais utilisateurs.
 - Exposition publique limitée aux versions publiées après double validation ; aucune donnée
   personnelle (ni auteur ni validateurs) dans le catalogue, vérifié par un test d’intégration.
 - T4 : paramètres de recherche validés (Zod), requêtes paramétrées, motifs LIKE échappés.
+
+## Ajouté par le ticket 12 (ADR-009)
+
+- Minimisation (données de mineurs) : la progression ne contient que l’inscription, les rangs des
+  leçons terminées et leurs dates ; ni score, ni temps passé, ni trace de navigation.
+- Cloisonnement : chacun ne lit et n’écrit que sa propre progression, l’identité venant du jeton
+  (un identifiant glissé dans la requête est ignoré, vérifié par un test d’intégration).
+- Intégrité : contraintes d’unicité en base (pas de doublon) et inscription obligatoire avant
+  toute progression ; seuls les cours publiés peuvent être suivis.

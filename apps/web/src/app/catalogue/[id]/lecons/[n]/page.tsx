@@ -1,14 +1,18 @@
-import type { CatalogLesson } from '@lenseignement/types';
+import type { CatalogLesson, CourseProgress } from '@lenseignement/types';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AudioLessonPlayer } from '@/components/AudioLessonPlayer';
-import { publicApiGet } from '@/lib/api';
+import { buttonClass, Notice, param } from '@/components/Notice';
+import { apiGet, apiSend, publicApiGet } from '@/lib/api';
+import { getSession } from '@/lib/session';
+import { completeLessonAction } from '../../../actions';
 
 export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ id: string; n: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 async function load({ id, n }: { id: string; n: string }) {
@@ -26,10 +30,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const linkClass = 'inline-flex min-h-[44px] items-center font-bold underline';
 
 /** Lecteur de leçon : texte lisible et écoute, sans connexion (ADR-008). */
-export default async function LessonPage({ params }: Props) {
+export default async function LessonPage({ params, searchParams }: Props) {
   const lesson = await load(await params);
   if (!lesson) notFound();
   const lessonHref = (n: number) => `/catalogue/${lesson.courseId}/lecons/${n}`;
+  const query = (await searchParams) ?? {};
+
+  // Lecture libre ; la progression n'est suivie que pour une personne inscrite (ADR-009).
+  const session = await getSession();
+  const progress = session
+    ? await apiGet<CourseProgress>(session.accessToken, `/me/courses/${lesson.courseId}/progress`)
+    : null;
+  const mine = progress?.ok && progress.data.enrolled ? progress.data : null;
+  if (session && mine) {
+    // Mémorise la leçon ouverte pour « Reprendre » ; un échec ne gêne pas la lecture.
+    await apiSend(session.accessToken, 'POST', '/me/progress/opened', {
+      courseId: lesson.courseId,
+      lessonNumber: lesson.number,
+    });
+  }
+  const done = mine?.completed.includes(lesson.number) ?? false;
 
   return (
     <article className="mx-auto max-w-prose space-y-6">
@@ -39,6 +59,7 @@ export default async function LessonPage({ params }: Props) {
       >
         ← {lesson.courseTitle}
       </Link>
+      <Notice error={param(query.erreur)} />
       <header className="space-y-1">
         <p className="text-ink-muted">
           Module {lesson.module.number} : {lesson.module.title}
@@ -55,6 +76,24 @@ export default async function LessonPage({ params }: Props) {
       <div className="whitespace-pre-line text-xl leading-relaxed" lang={lesson.language}>
         {lesson.body}
       </div>
+
+      {mine &&
+        (done ? (
+          <p
+            className="rounded-card border border-line-strong bg-surface p-4 font-bold"
+            data-testid="lesson-status"
+          >
+            ✓ Leçon terminée
+          </p>
+        ) : (
+          <form action={completeLessonAction}>
+            <input type="hidden" name="courseId" value={lesson.courseId} />
+            <input type="hidden" name="lessonNumber" value={lesson.number} />
+            <button type="submit" className={buttonClass}>
+              J’ai terminé cette leçon
+            </button>
+          </form>
+        ))}
 
       <nav
         aria-label="Leçons du cours"

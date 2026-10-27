@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #7 (ticket 11) :
+dans la branche de la PR. Pour la PR #8 (ticket 12) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-11-lecteur
+git checkout feat/ticket-12-progression
 git pull
 pnpm install
 pnpm build
@@ -227,6 +227,16 @@ grand et le bloc « Écouter la leçon ». Cliquer sur **Écouter** : l’ordina
 haute (monter le son ; sous Windows, la voix française est fournie par le système). Cliquer sur
 **Leçon suivante →**, puis **← Leçon précédente**.
 
+Test de l’inscription et de la progression (la PR #8 ajoute deux tables : refaire l’étape 6
+avant) : se connecter en `apprenant.demo` (Awa). Dans « Mon espace », la carte **Mes cours
+suivis** indique « Vous ne suivez encore aucun cours ». Ouvrir « Les nombres jusqu’à 50
+(démonstration) » depuis le catalogue et cliquer sur **Suivre ce cours** : « 0 leçon sur 2
+terminée. » et un bouton **Reprendre : leçon 1**. Cliquer dessus, puis sur **J’ai terminé cette
+leçon** en bas de la leçon : la leçon 2 s’ouvre. Revenir dans « Mon espace » : « 1 leçon sur 2
+terminée. » et **Reprendre : leçon 2**. Terminer la leçon 2 : la fiche du cours affiche « Bravo,
+vous avez terminé ce cours ! » et une coche devant chaque leçon du plan. Sans connexion, la fiche
+propose seulement « Se connecter pour enregistrer sa progression ».
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -249,7 +259,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`68 passed` pour les tests E2E de la PR #7).
+Attendu : aucun test en échec (`74 passed` pour les tests E2E de la PR #8).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

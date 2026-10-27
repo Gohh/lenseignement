@@ -3,6 +3,7 @@ import { AccessModule } from './access/access.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CatalogController } from './catalog/catalog.controller.js';
 import { CohortsController } from './cohorts/cohorts.controller.js';
+import { AuthoringController } from './courses/authoring.controller.js';
 import { CurriculaController } from './curricula/curricula.controller.js';
 import { DatabaseModule } from './db/database.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -18,6 +19,7 @@ import { MeController } from './me/me.controller.js';
     MeController,
     CohortsController,
     LearnersController,
+    AuthoringController,
   ],
 })
 export class AppModule {}

@@ -15,6 +15,33 @@ export async function apiGet<T>(accessToken: string, path: string): Promise<ApiR
   }
 }
 
+/** Écriture vers l'API ; en cas de refus, renvoie le message d'erreur stable de l'API. */
+export async function apiSend<T>(
+  accessToken: string,
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<ApiResult<T> & { message?: string }> {
+  try {
+    const res = await fetch(`${serverEnv().API_INTERNAL_URL}${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: 'no-store',
+    });
+    if (res.status === 204) return { ok: true, data: undefined as T };
+    const json = (await res.json().catch(() => ({}))) as { message?: string };
+    return res.ok
+      ? { ok: true, data: json as T }
+      : { ok: false, status: res.status, message: json.message ?? 'Erreur inattendue.' };
+  } catch {
+    return { ok: false, status: 503, message: 'Service momentanément indisponible.' };
+  }
+}
+
 /** Lecture publique (sans jeton) : catalogue et programmes publiés. */
 export async function publicApiGet<T>(path: string): Promise<ApiResult<T>> {
   try {

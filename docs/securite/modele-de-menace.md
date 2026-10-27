@@ -68,3 +68,13 @@ et avant tout pilote avec de vrais utilisateurs.
   `audit_logs` avec le `trace_id`, sans nom ni contenu personnel.
 - Révocation immédiate : un rattachement expiré, un lien parental révoqué ou un compte suspendu
   ferment l’accès dès la requête suivante (pas de cache des droits).
+
+## Ajouté par le ticket 8 (ADR-005)
+
+- T1/T2 : la rédaction et la lecture des brouillons de cours sont réservées aux rôles
+  pédagogiques rattachés à l’établissement du cours (ou à une structure parente) ; décision côté
+  API, tracée dans `audit_logs`, même réponse 403 pour un cours inexistant ou interdit.
+- Intégrité des contenus : une version de cours qui n’est plus un brouillon est figée par des
+  déclencheurs PostgreSQL ; les écritures concurrentes sont refusées (révision).
+- T4 : contenus validés par Zod côté API (longueurs bornées), affichés comme texte par React
+  (pas de HTML injecté).

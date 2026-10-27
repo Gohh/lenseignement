@@ -22,6 +22,20 @@
       "when": 1793115629105,
       "tag": "0002_referentiels_immuables",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793116986846,
+      "tag": "0003_cours",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793116987681,
+      "tag": "0004_cours_immuables",
+      "breakpoints": true
     }
   ]
 }

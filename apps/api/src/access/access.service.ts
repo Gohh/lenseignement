@@ -18,6 +18,42 @@ export interface AccessRequest {
   traceId?: string;
 }
 
+export interface AuthoringRequest {
+  userId: string;
+  action: string;
+  resourceType: 'organization' | 'course' | 'course_version';
+  resourceId: string;
+  /** Établissement responsable de la ressource ; null si elle n'existe pas. */
+  organizationId: string | null;
+  traceId?: string;
+}
+
+/** Rôles qui peuvent rédiger des cours pour leur structure (ADR-005). */
+export const AUTHOR_ROLES = [
+  'enseignant',
+  'alphabetiseur',
+  'referent-pedagogique',
+  'chef-etablissement',
+] as const;
+
+/**
+ * Structures où une personne peut rédiger : celles où elle a un rôle de rédaction valide,
+ * sous-structures comprises (un référent régional couvre les écoles de sa région).
+ */
+export function authoringOrganizationIds(userId: string): SQL {
+  return sql`(
+    with recursive author_orgs as (
+      select m.organization_id as id
+        from memberships m
+       where m.user_id = ${userId}
+         and m.role in ('enseignant', 'alphabetiseur', 'referent-pedagogique', 'chef-etablissement')
+         and (m.valid_until is null or m.valid_until > now())
+      union
+      select o.id from organizations o join author_orgs a on o.parent_id = a.id
+    )
+    select id from author_orgs)`;
+}
+
 /**
  * Classes visibles par une personne :
  * - celles où elle enseigne, tant que son rattachement « enseignant » à la structure est valide ;
@@ -59,17 +95,45 @@ export class AccessService {
   /** Lève une 403 uniforme si l'accès n'est pas accordé. */
   async assertCanRead(request: AccessRequest): Promise<void> {
     const reason = await this.decide(request);
-    const allowed = reason !== 'out_of_scope' && reason !== 'invalid_id';
+    await this.audit({ ...request, reason });
+    if (reason === 'out_of_scope' || reason === 'invalid_id') {
+      throw new ForbiddenException(ACCESS_DENIED);
+    }
+  }
+
+  /** Rédaction de cours : réservée aux structures de la personne. Refus uniforme et journalisé. */
+  async assertCanAuthor(request: AuthoringRequest): Promise<void> {
+    let reason: AccessReason = 'out_of_scope';
+    if (!UUID.test(request.resourceId)) {
+      reason = 'invalid_id';
+    } else if (request.organizationId) {
+      const { rows } = await this.db.execute(
+        sql`select 1 from ${authoringOrganizationIds(request.userId)} a where a.id = ${request.organizationId}`,
+      );
+      if (rows.length > 0) reason = 'scope';
+    }
+    await this.audit({ ...request, reason });
+    if (reason !== 'scope') throw new ForbiddenException(ACCESS_DENIED);
+  }
+
+  private async audit(entry: {
+    userId: string;
+    action: string;
+    resourceType: string;
+    resourceId: string;
+    reason: AccessReason;
+    traceId?: string;
+  }): Promise<void> {
+    const allowed = entry.reason !== 'out_of_scope' && entry.reason !== 'invalid_id';
     await this.db.insert(auditLogs).values({
-      actorUserId: request.userId,
-      action: request.action,
-      resourceType: request.resourceType,
-      resourceId: request.resourceId.slice(0, 64),
+      actorUserId: entry.userId,
+      action: entry.action,
+      resourceType: entry.resourceType,
+      resourceId: entry.resourceId.slice(0, 64),
       decision: allowed ? 'allow' : 'deny',
-      reason,
-      traceId: request.traceId,
+      reason: entry.reason,
+      traceId: entry.traceId,
     });
-    if (!allowed) throw new ForbiddenException(ACCESS_DENIED);
   }
 
   private async decide({ userId, resourceType, resourceId }: AccessRequest): Promise<AccessReason> {

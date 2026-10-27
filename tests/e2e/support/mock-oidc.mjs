@@ -1,6 +1,7 @@
 // Fournisseur OIDC simulé pour les tests E2E : connexion automatique d'un compte fictif.
 // Le compte est choisi par le paramètre standard `login_hint` (Awa par défaut).
 // En développement, le vrai fournisseur est Keycloak.
+import { createHash } from 'node:crypto';
 import { OAuth2Server } from 'oauth2-mock-server';
 
 // Mêmes identifiants que le jeu de démonstration de l'API (apps/api/src/db/demo-data.ts).
@@ -29,6 +30,17 @@ const USERS = {
 };
 const DEFAULT_USER = 'apprenant.demo';
 
+// « nouveau.<suffixe> » : apprenant jamais vu, créé à sa première visite. Chaque test peut ainsi
+// partir d'une progression vide, même si la base E2E n'est pas remise à zéro.
+const NEW_LEARNER = /^nouveau\.[a-z0-9-]{1,40}$/;
+
+function userNamed(username) {
+  if (USERS[username]) return USERS[username];
+  const hex = createHash('sha256').update(username).digest('hex');
+  const sub = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  return { sub, name: 'Nouvel apprenant', roles: ['apprenant'] };
+}
+
 const port = Number(process.env.MOCK_OIDC_PORT ?? 8090);
 const server = new OAuth2Server();
 await server.issuer.keys.generate('RS256');
@@ -38,7 +50,8 @@ const userByRefreshToken = new Map();
 
 server.service.on('beforeAuthorizeRedirect', ({ url }, req) => {
   const hint = req.query.login_hint;
-  userByCode.set(url.searchParams.get('code'), hint in USERS ? hint : DEFAULT_USER);
+  const known = hint in USERS || NEW_LEARNER.test(String(hint));
+  userByCode.set(url.searchParams.get('code'), known ? hint : DEFAULT_USER);
 });
 
 function userFor(req) {
@@ -51,7 +64,7 @@ function userFor(req) {
 
 server.service.on('beforeTokenSigning', (token, req) => {
   const username = userFor(req);
-  const user = USERS[username];
+  const user = userNamed(username);
   const isIdToken = token.payload.aud === 'lenseignement-web';
   Object.assign(token.payload, {
     sub: user.sub,

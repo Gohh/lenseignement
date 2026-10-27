@@ -469,3 +469,52 @@ export const courseReviewEvents = pgTable(
     ),
   ],
 );
+
+/**
+ * Inscription d'une personne à un cours (cahier §6.2, ticket 12). Une seule par personne et par
+ * cours ; elle suit le cours, quelle que soit sa version publiée.
+ */
+export const enrollments = pgTable(
+  'enrollments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id),
+    status: text('status').notNull().default('active'),
+    /** Dernière leçon ouverte (rang dans le plan), pour le bouton « Reprendre ». */
+    lastLessonNumber: integer('last_lesson_number'),
+    enrolledAt: timestamp('enrolled_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('enrollments_user_course_unique').on(t.userId, t.courseId),
+    check('enrollments_status_check', sql`${t.status} in ('active')`),
+  ],
+);
+
+/**
+ * Leçons terminées. Progression monotone (cahier §5.4) : une leçon terminée le reste, et un
+ * double envoi n'ajoute rien. La version du cours lue est conservée pour la traçabilité.
+ */
+export const lessonProgress = pgTable(
+  'lesson_progress',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    enrollmentId: uuid('enrollment_id')
+      .notNull()
+      .references(() => enrollments.id),
+    lessonNumber: integer('lesson_number').notNull(),
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('lesson_progress_unique').on(t.enrollmentId, t.lessonNumber),
+    check('lesson_progress_number_check', sql`${t.lessonNumber} >= 1`),
+  ],
+);

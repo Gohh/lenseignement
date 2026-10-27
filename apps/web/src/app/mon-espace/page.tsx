@@ -1,3 +1,4 @@
+import type { LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
@@ -31,12 +32,14 @@ export default async function MyspacePage() {
   const session = await getSession();
   if (!session) redirect('/auth/login?returnTo=/mon-espace');
 
-  // Trois lectures indépendantes : l'API ne renvoie que ce que la personne a le droit de voir.
-  const [me, cohorts, children] = await Promise.all([
+  // Lectures indépendantes : l'API ne renvoie que ce que la personne a le droit de voir.
+  const [me, cohorts, children, plan] = await Promise.all([
     apiGet<Me>(session.accessToken, '/me'),
     apiGet<CohortSummary[]>(session.accessToken, '/cohorts'),
     apiGet<Child[]>(session.accessToken, '/me/children'),
+    apiGet<{ items: LearningPlanItem[] }>(session.accessToken, '/me/learning-plan'),
   ]);
+  const followed = plan.ok ? plan.data.items : [];
   const roles = session.roles.filter((role) => role in ROLE_LABELS);
 
   return (
@@ -70,6 +73,47 @@ export default async function MyspacePage() {
           {me.ok ? 'Compte reconnu par le service.' : 'Service momentanément indisponible.'}
         </p>
       </div>
+
+      {(followed.length > 0 || session.roles.includes('apprenant')) && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Mes cours suivis</h2>
+          {followed.length > 0 ? (
+            <ul className="mt-2 space-y-3" data-testid="learning-plan">
+              {followed.map((c) => (
+                <li key={c.courseId}>
+                  <Link
+                    href={`/catalogue/${c.courseId}`}
+                    className="inline-flex min-h-[44px] items-center font-bold underline"
+                  >
+                    {c.title}
+                  </Link>
+                  <p className="text-ink-muted">
+                    {c.finished
+                      ? 'Cours terminé.'
+                      : `${c.completed.length} leçon${c.completed.length > 1 ? 's' : ''} sur ${c.total} terminée${c.completed.length > 1 ? 's' : ''}.`}
+                  </p>
+                  {c.resumeAt && (
+                    <Link
+                      href={`/catalogue/${c.courseId}/lecons/${c.resumeAt}`}
+                      className="inline-flex min-h-[44px] items-center underline"
+                    >
+                      Reprendre : leçon {c.resumeAt}
+                      <span className="sr-only"> de « {c.title} »</span>
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2">
+              Vous ne suivez encore aucun cours.{' '}
+              <Link href="/catalogue" className="inline-flex min-h-[44px] items-center underline">
+                Parcourir le catalogue
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
 
       {cohorts.ok && cohorts.data.length > 0 && (
         <div className={cardClass}>

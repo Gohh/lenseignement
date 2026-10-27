@@ -72,11 +72,27 @@ cd lenseignement
 > À ce stade (ticket 5), l’application n’écrit encore rien dans PostgreSQL : les premières
 > tables arriveront avec les tickets 6 et 7.
 
-## Étape 4 — Créer le fichier de configuration local (une seule fois)
+## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
+
+Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
+dans la branche de la PR. Pour la PR #1 (ticket 5) :
 
 ```powershell
 cd C:\Projets\lenseignement
-Copy-Item .env.example .env
+git fetch origin
+git checkout feat/ticket-5-auth-oidc
+git pull
+pnpm install
+pnpm build
+```
+
+Attendu : la dernière ligne indique `Tasks: 4 successful, 4 total`.
+
+## Étape 5 — Créer le fichier de configuration local
+
+```powershell
+cd C:\Projets\lenseignement
+Copy-Item .env.example .env -Force
 notepad .env
 ```
 
@@ -89,7 +105,7 @@ SESSION_STORE=memory
 Enregistrer et fermer. (Sans Redis, les sessions sont gardées en mémoire : vous serez
 simplement déconnecté à chaque redémarrage de l’application. Ce mode est refusé en production.)
 
-## Étape 5 — Démarrer Keycloak (fenêtre PowerShell n° 1)
+## Étape 6 — Démarrer Keycloak (fenêtre PowerShell n° 1)
 
 1. **La première fois seulement**, copier la configuration du projet dans Keycloak :
 
@@ -113,21 +129,6 @@ simplement déconnecté à chaque redémarrage de l’application. Ce mode est r
    (`admin` / `change-me-dev-only`).
 
 > Si Windows demande d’autoriser Java sur le réseau, accepter pour les réseaux **privés**.
-
-## Étape 6 — Récupérer la PR à tester (fenêtre n° 2)
-
-Chaque PR a une branche. Pour la PR #1 (ticket 5) :
-
-```powershell
-cd C:\Projets\lenseignement
-git fetch origin
-git checkout feat/ticket-5-auth-oidc
-git pull
-pnpm install
-pnpm build
-```
-
-Attendu : la dernière ligne indique `Tasks: 4 successful, 4 total`.
 
 ## Étape 7 — Lancer l’application (fenêtre n° 2)
 
@@ -199,15 +200,15 @@ Votre PostgreSQL continue de tourner comme d’habitude. Les comptes Keycloak so
 | `java` n’est pas reconnu                                   | Réinstaller Temurin 21 en cochant « Add to PATH » et « Set JAVA_HOME », puis rouvrir PowerShell.                                                  |
 | Keycloak : « Address already in use » sur 8080             | Un autre logiciel utilise le port 8080 : le fermer, ou nous le signaler. WAMP (ports 80 et 3306) ne gêne pas.                                     |
 | La page de connexion ne s’ouvre pas                        | Keycloak démarre encore, ou sa fenêtre a été fermée : vérifier la fenêtre n° 1.                                                                   |
-| Message `ECONNREFUSED 127.0.0.1:6379` dans la fenêtre n° 2 | Le fichier `.env` n’indique pas `SESSION_STORE=memory` : refaire l’étape 4, puis relancer `pnpm dev`.                                             |
+| Message `ECONNREFUSED 127.0.0.1:6379` dans la fenêtre n° 2 | Le fichier `.env` n’indique pas `SESSION_STORE=memory` : refaire les étapes 4 et 5, puis relancer `pnpm dev`.                                     |
 | « Connexion impossible » après le mot de passe             | La connexion a expiré (plus de 10 minutes) ou l’application a redémarré : cliquer sur « Réessayer ».                                              |
 | Compte bloqué après plusieurs mots de passe faux           | Protection anti-bruteforce : attendre quelques minutes.                                                                                           |
 | « Service momentanément indisponible » dans Mon espace     | L’API n’est pas démarrée : vérifier la fenêtre n° 2.                                                                                              |
 | `password authentication failed for user "postgres"`       | Le mot de passe est celui choisi à l’installation de PostgreSQL ; s’il est perdu, utiliser pgAdmin ou nous le signaler.                           |
-| Le realm `lenseignement` a changé dans une nouvelle PR     | Arrêter Keycloak, supprimer `C:\Outils\keycloak-26.8.1\data\h2`, recopier le fichier (étape 5.1) et redémarrer. Les comptes de démo sont recréés. |
+| Le realm `lenseignement` a changé dans une nouvelle PR     | Arrêter Keycloak, supprimer `C:\Outils\keycloak-26.8.1\data\h2`, recopier le fichier (étape 6.1) et redémarrer. Les comptes de démo sont recréés. |
 
 ## Variante avec Docker
 
-Sur un poste où Docker Desktop est disponible, les étapes 1.3, 1.4, 4 et 5 sont remplacées par
+Sur un poste où Docker Desktop est disponible, les étapes 1.3, 1.4, 5 et 6 sont remplacées par
 `pnpm infra:up:sans-postgres` (Redis, MinIO et Keycloak dans Docker, PostgreSQL du poste), ou
 `pnpm infra:up` si PostgreSQL n’est pas installé. `pnpm infra:down` arrête les conteneurs.

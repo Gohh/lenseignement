@@ -14,11 +14,13 @@ import {
 } from '@nestjs/common';
 import {
   EnrollSchema,
+  LearningEventBatchSchema,
   LessonCompletedSchema,
   LessonOpenedSchema,
   QuizAnswersSchema,
   QuizAttemptSchema,
   type CourseProgress,
+  type LearningEventResult,
   type LearningPlanItem,
   type QuizLastAttempt,
   type QuizResult,
@@ -37,6 +39,7 @@ import {
   lessonCompleted,
   lessonOpened,
 } from './learning.js';
+import { applyLearningEvents } from './learning-events.js';
 import { checkQuiz, lastAttempt, recordAttempt } from './quiz.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -131,5 +134,16 @@ export class LearningController {
       throw new BadRequestException('Paramètres invalides.');
     }
     return { attempt: await lastAttempt(this.db, await this.userId(request), courseId, number) };
+  }
+
+  /** Lot d'actions de l'appareil (ADR-011) : chacune est appliquée une seule fois. */
+  @Post('learning-events')
+  @HttpCode(200)
+  async events(
+    @Req() request: Request,
+    @Body() body: unknown,
+  ): Promise<{ results: LearningEventResult[] }> {
+    const { events } = parse(LearningEventBatchSchema, body);
+    return { results: await applyLearningEvents(this.db, await this.userId(request), events) };
   }
 }

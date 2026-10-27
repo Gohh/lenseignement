@@ -247,6 +247,13 @@ explication. **Recommencer le quiz** vide les réponses. Connecté en `apprenant
 résultat » s’affiche. Côté rédaction, connecté en `enseignant.demo`, chaque leçon du plan d’un
 brouillon a un bloc « quiz (facultatif) » avec **Ajouter une question**.
 
+Test des évènements (la PR #10 ajoute deux tables : refaire l’étape 6 avant) : connecté en
+`apprenant.demo`, suivre un cours qu’Awa ne suit pas encore, puis terminer une leçon. Dans la
+fenêtre où tourne `pnpm dev`, une ligne `[Outbox] EnrollmentCreated …` puis une ligne
+`[Outbox] LessonCompleted …` apparaissent dans les secondes qui suivent : chaque progrès produit
+un évènement, une seule fois. Cliquer de nouveau sur **Suivre ce cours** ou terminer encore la
+même leçon n’en produit pas de nouveau.
+
 Test des fiches élèves (PR #11) : connecté en `parent.demo` (Fatou), cliquer sur **Awa (fictive)**
 dans « Mes enfants » : sa fiche s’ouvre avec sa classe (CP1 A). Ouvrir ensuite
 http://localhost:3000/mon-espace/eleves/40000000-0000-4000-8000-000000000103 (Seydou, dont le

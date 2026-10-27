@@ -69,18 +69,26 @@ cd lenseignement
    Attendu : `CREATE ROLE`, `CREATE DATABASE`, puis `CREATE EXTENSION`.
    Vous pouvez aussi le faire dans **pgAdmin** si vous préférez l’interface graphique.
 
-> À ce stade (ticket 5), l’application n’écrit encore rien dans PostgreSQL : les premières
-> tables arriveront avec les tickets 6 et 7.
+3. Créer les deux bases réservées aux tests automatiques (elles sont vidées à chaque test,
+   ne jamais y mettre de vraies données) :
+
+   ```powershell
+   psql -U postgres -c "CREATE DATABASE lenseignement_test OWNER lenseignement ENCODING 'UTF8';"
+   psql -U postgres -c "CREATE DATABASE lenseignement_e2e OWNER lenseignement ENCODING 'UTF8';"
+   ```
+
+> Si votre PostgreSQL n’écoute pas sur le port habituel **5432**, ajoutez `-p <port>` à chaque
+> commande `psql` (par exemple `-p 5430`) et adaptez le port dans le fichier `.env` (étape 5).
 
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #1 (ticket 5) :
+dans la branche de la PR. Pour la PR #2 (ticket 6) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-5-auth-oidc
+git checkout feat/ticket-6-abac
 git pull
 pnpm install
 pnpm build
@@ -102,10 +110,27 @@ Dans le Bloc-notes, remplacer la ligne `SESSION_STORE=redis` par :
 SESSION_STORE=memory
 ```
 
+Si votre PostgreSQL utilise un autre port que 5432, modifier aussi la ligne `DATABASE_URL`, par
+exemple pour le port 5430 :
+
+```text
+DATABASE_URL=postgresql://lenseignement:change-me-dev-only@localhost:5430/lenseignement
+```
+
 Enregistrer et fermer. (Sans Redis, les sessions sont gardées en mémoire : vous serez
 simplement déconnecté à chaque redémarrage de l’application. Ce mode est refusé en production.)
 
-## Étape 6 — Démarrer Keycloak (fenêtre PowerShell n° 1)
+## Étape 6 — Créer les tables et les données de démonstration
+
+```powershell
+pnpm --filter @lenseignement/api db:migrate
+pnpm --filter @lenseignement/api db:seed
+```
+
+Attendu : `Migrations appliquées.` puis `Données de démonstration fictives insérées.`
+Les deux commandes peuvent être relancées sans risque : elles n’ajoutent que ce qui manque.
+
+## Étape 7 — Démarrer Keycloak (fenêtre PowerShell n° 1)
 
 1. **La première fois seulement**, copier la configuration du projet dans Keycloak :
 
@@ -130,7 +155,7 @@ simplement déconnecté à chaque redémarrage de l’application. Ce mode est r
 
 > Si Windows demande d’autoriser Java sur le réseau, accepter pour les réseaux **privés**.
 
-## Étape 7 — Lancer l’application (fenêtre n° 2)
+## Étape 8 — Lancer l’application (fenêtre n° 2)
 
 ```powershell
 pnpm dev
@@ -139,7 +164,7 @@ pnpm dev
 Laissez cette fenêtre ouverte. Attendu : les lignes `Ready` (site) et
 `Found 0 errors. Watching for file changes.` (API).
 
-## Étape 8 — Tester dans le navigateur
+## Étape 9 — Tester dans le navigateur
 
 1. Ouvrir http://localhost:3000 : la page d’accueil s’affiche avec « Que voulez-vous faire ? ».
 2. Cliquer sur **Mon espace** (en haut à droite) : vous arrivez sur la page de connexion Keycloak.
@@ -151,14 +176,36 @@ Laissez cette fenêtre ouverte. Attendu : les lignes `Ready` (site) et
 6. Facultatif : http://localhost:4000/api/v1/health doit afficher `"status":"ok"`, et
    http://localhost:4000/api/v1/me doit répondre **401** (accès refusé sans connexion, c’est voulu).
 
-Autres comptes fictifs (même mot de passe) : `enseignant.demo`, `referent.demo`,
-`admin.demo` (ce dernier demande de configurer une application d’authentification, comme
-Google Authenticator, à la première connexion).
+Comptes fictifs (même mot de passe) et ce que chacun doit voir dans « Mon espace » :
 
-## Étape 9 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
+| Compte             | Personne fictive         | Ce qui doit s’afficher                                                   |
+| ------------------ | ------------------------ | ------------------------------------------------------------------------ |
+| `apprenant.demo`   | Awa, élève de CP1 A      | Ni « Mes classes » ni « Mes enfants »                                    |
+| `enseignant.demo`  | Koffi, maître du CP1 A   | « Mes classes » : **CP1 A** seulement (3 élèves)                         |
+| `enseignant2.demo` | Aminata, maîtresse CP1 B | « Mes classes » : **CP1 B** seulement (1 élève)                          |
+| `directeur.demo`   | Bamba, directeur         | Les deux classes de son école, pas celle de l’autre école                |
+| `referent.demo`    | Mariam, référente        | Les trois classes des deux écoles de sa région                           |
+| `parent.demo`      | Fatou, mère d’Awa        | « Mes enfants » : **Awa** seulement (le lien vers Seydou est en attente) |
+| `admin.demo`       | Yao, administrateur      | Aucune donnée d’élève (demande aussi une application d’authentification) |
 
-Arrêter d’abord `pnpm dev` (**Ctrl + C** dans la fenêtre n° 2) : les tests utilisent les mêmes
-ports. Keycloak peut rester allumé, les tests ne l’utilisent pas.
+Test du refus d’accès : connecté en `enseignant.demo`, ouvrir
+http://localhost:3000/mon-espace/classes/30000000-0000-4000-8000-000000000002 (la classe de la
+collègue) : la page doit afficher « **Accès refusé** ».
+
+## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
+
+Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
+`lenseignement_e2e` : `pnpm dev` et Keycloak peuvent rester allumés.
+
+Si votre PostgreSQL n’est pas sur le port 5432, indiquer d’abord les adresses des bases de test
+dans cette fenêtre (exemple pour le port 5430) :
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://lenseignement:change-me-dev-only@localhost:5430/lenseignement_test"
+$env:E2E_DATABASE_URL = "postgresql://lenseignement:change-me-dev-only@localhost:5430/lenseignement_e2e"
+```
+
+Puis :
 
 ```powershell
 cd C:\Projets\lenseignement
@@ -167,11 +214,11 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`24 passed` pour les tests E2E de la PR #1).
+Attendu : aucun test en échec (`32 passed` pour les tests E2E de la PR #2).
 
-## Étape 10 — Valider et fusionner la PR sur GitHub
+## Étape 11 — Valider et fusionner la PR sur GitHub
 
-1. Ouvrir la PR (ex. https://github.com/Gohh/lenseignement/pull/1).
+1. Ouvrir la PR (ex. https://github.com/Gohh/lenseignement/pull/2).
 2. Onglet **Files changed** pour parcourir les modifications si vous le souhaitez.
 3. Vérifier en bas que les contrôles sont verts (« All checks have passed »).
 4. Cliquer sur **Merge pull request**, puis **Confirm merge**.
@@ -182,7 +229,7 @@ Attendu : aucun test en échec (`24 passed` pour les tests E2E de la PR #1).
    git pull
    ```
 
-## Étape 11 — Tout arrêter
+## Étape 12 — Tout arrêter
 
 - Fenêtre n° 2 (application) : **Ctrl + C**.
 - Fenêtre n° 1 (Keycloak) : **Ctrl + C**.
@@ -194,21 +241,24 @@ Votre PostgreSQL continue de tourner comme d’habitude. Les comptes Keycloak so
 
 ## En cas de problème
 
-| Symptôme                                                   | Solution                                                                                                                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm` n’est pas reconnu                                   | Refaire l’étape 1.5 dans un PowerShell administrateur, puis rouvrir PowerShell.                                                                   |
-| `java` n’est pas reconnu                                   | Réinstaller Temurin 21 en cochant « Add to PATH » et « Set JAVA_HOME », puis rouvrir PowerShell.                                                  |
-| Keycloak : « Address already in use » sur 8080             | Un autre logiciel utilise le port 8080 : le fermer, ou nous le signaler. WAMP (ports 80 et 3306) ne gêne pas.                                     |
-| La page de connexion ne s’ouvre pas                        | Keycloak démarre encore, ou sa fenêtre a été fermée : vérifier la fenêtre n° 1.                                                                   |
-| Message `ECONNREFUSED 127.0.0.1:6379` dans la fenêtre n° 2 | Le fichier `.env` n’indique pas `SESSION_STORE=memory` : refaire les étapes 4 et 5, puis relancer `pnpm dev`.                                     |
-| « Connexion impossible » après le mot de passe             | La connexion a expiré (plus de 10 minutes) ou l’application a redémarré : cliquer sur « Réessayer ».                                              |
-| Compte bloqué après plusieurs mots de passe faux           | Protection anti-bruteforce : attendre quelques minutes.                                                                                           |
-| « Service momentanément indisponible » dans Mon espace     | L’API n’est pas démarrée : vérifier la fenêtre n° 2.                                                                                              |
-| `password authentication failed for user "postgres"`       | Le mot de passe est celui choisi à l’installation de PostgreSQL ; s’il est perdu, utiliser pgAdmin ou nous le signaler.                           |
-| Le realm `lenseignement` a changé dans une nouvelle PR     | Arrêter Keycloak, supprimer `C:\Outils\keycloak-26.8.1\data\h2`, recopier le fichier (étape 6.1) et redémarrer. Les comptes de démo sont recréés. |
+| Symptôme                                                       | Solution                                                                                                                                          |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm` n’est pas reconnu                                       | Refaire l’étape 1.5 dans un PowerShell administrateur, puis rouvrir PowerShell.                                                                   |
+| `java` n’est pas reconnu                                       | Réinstaller Temurin 21 en cochant « Add to PATH » et « Set JAVA_HOME », puis rouvrir PowerShell.                                                  |
+| Keycloak : « Address already in use » sur 8080                 | Un autre logiciel utilise le port 8080 : le fermer, ou nous le signaler. WAMP (ports 80 et 3306) ne gêne pas.                                     |
+| La page de connexion ne s’ouvre pas                            | Keycloak démarre encore, ou sa fenêtre a été fermée : vérifier la fenêtre n° 1.                                                                   |
+| Message `ECONNREFUSED 127.0.0.1:6379` dans la fenêtre n° 2     | Le fichier `.env` n’indique pas `SESSION_STORE=memory` : refaire les étapes 4 et 5, puis relancer `pnpm dev`.                                     |
+| « Connexion impossible » après le mot de passe                 | La connexion a expiré (plus de 10 minutes) ou l’application a redémarré : cliquer sur « Réessayer ».                                              |
+| Compte bloqué après plusieurs mots de passe faux               | Protection anti-bruteforce : attendre quelques minutes.                                                                                           |
+| « Service momentanément indisponible » dans Mon espace         | L’API n’est pas démarrée : vérifier la fenêtre n° 2.                                                                                              |
+| `ECONNREFUSED 127.0.0.1:5432` ou `database ... does not exist` | Vérifier le port et le nom de base dans la ligne `DATABASE_URL` du `.env` (étapes 3 et 5).                                                        |
+| `relation "users" does not exist` dans la fenêtre n° 2         | Les tables ne sont pas créées : refaire l’étape 6, puis relancer `pnpm dev`.                                                                      |
+| « Mes classes » n’apparaît pas pour `enseignant.demo`          | Keycloak a gardé l’ancienne configuration : voir la ligne « Le realm a changé » ci-dessous.                                                       |
+| `password authentication failed for user "postgres"`           | Le mot de passe est celui choisi à l’installation de PostgreSQL ; s’il est perdu, utiliser pgAdmin ou nous le signaler.                           |
+| Le realm `lenseignement` a changé dans une nouvelle PR         | Arrêter Keycloak, supprimer `C:\Outils\keycloak-26.8.1\data\h2`, recopier le fichier (étape 7.1) et redémarrer. Les comptes de démo sont recréés. |
 
 ## Variante avec Docker
 
-Sur un poste où Docker Desktop est disponible, les étapes 1.3, 1.4, 5 et 6 sont remplacées par
+Sur un poste où Docker Desktop est disponible, les étapes 1.3, 1.4, 5 et 7 sont remplacées par
 `pnpm infra:up:sans-postgres` (Redis, MinIO et Keycloak dans Docker, PostgreSQL du poste), ou
 `pnpm infra:up` si PostgreSQL n’est pas installé. `pnpm infra:down` arrête les conteneurs.

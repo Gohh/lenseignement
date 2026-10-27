@@ -40,6 +40,11 @@ export function safeReturnTo(value: string | null | undefined): string {
   return value;
 }
 
+/** Pré-remplit l'identifiant sur la page de connexion (paramètre OIDC standard `login_hint`). */
+export function safeLoginHint(value: string | null | undefined): string | undefined {
+  return value && /^[a-z0-9._@-]{1,64}$/i.test(value) ? value : undefined;
+}
+
 /** Lit les rôles du jeton d'accès pour l'affichage uniquement ; l'API reste seule juge des droits. */
 export function rolesFromAccessToken(accessToken: string): string[] {
   try {

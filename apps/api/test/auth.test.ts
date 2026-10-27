@@ -10,7 +10,7 @@ before(async () => {
 });
 
 after(async () => {
-  await ctx.app.close();
+  await ctx.close();
 });
 
 const me = () => request(ctx.app.getHttpServer()).get('/api/v1/me');
@@ -24,7 +24,11 @@ test('GET /me sans jeton : 401 au format stable', async () => {
 test('GET /me avec un jeton valide renvoie le sujet et les rôles', async () => {
   const token = await ctx.sign({ sub: 'eleve-42', roles: ['apprenant'] });
   const res = await me().set('authorization', `Bearer ${token}`).expect(200);
-  assert.deepEqual(res.body, { subject: 'eleve-42', roles: ['apprenant'] });
+  assert.equal(res.body.subject, 'eleve-42');
+  assert.deepEqual(res.body.roles, ['apprenant']);
+  // Première visite : compte créé sans aucun rattachement.
+  assert.match(res.body.userId, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(res.body.memberships, []);
 });
 
 test('les rôles non textuels du jeton sont ignorés', async () => {

@@ -1,5 +1,6 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { serverEnv } from '@/lib/env';
+import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
 import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -10,34 +11,30 @@ const ROLE_LABELS: Record<string, string> = {
   parent: 'Parent ou tuteur',
   enseignant: 'Enseignant ou formateur',
   alphabetiseur: 'Alphabétiseur',
+  'chef-etablissement': 'Chef d’établissement',
   'referent-pedagogique': 'Référent pédagogique',
   'admin-plateforme': 'Administrateur de la plateforme',
 };
 
-/** Vérifie que l'API reconnaît bien le jeton de la session (chaîne complète OIDC → API). */
-async function apiIdentity(accessToken: string): Promise<{ subject: string } | null> {
-  try {
-    const res = await fetch(`${serverEnv().API_INTERNAL_URL}/me`, {
-      headers: { authorization: `Bearer ${accessToken}` },
-      cache: 'no-store',
-    });
-    return res.ok ? ((await res.json()) as { subject: string }) : null;
-  } catch {
-    return null;
-  }
-}
+const cardClass = 'rounded-card border border-line bg-surface p-4';
 
 export default async function MyspacePage() {
   const session = await getSession();
   if (!session) redirect('/auth/login?returnTo=/mon-espace');
 
-  const identity = await apiIdentity(session.accessToken);
+  // Trois lectures indépendantes : l'API ne renvoie que ce que la personne a le droit de voir.
+  const [me, cohorts, children] = await Promise.all([
+    apiGet<Me>(session.accessToken, '/me'),
+    apiGet<CohortSummary[]>(session.accessToken, '/cohorts'),
+    apiGet<Child[]>(session.accessToken, '/me/children'),
+  ]);
   const roles = session.roles.filter((role) => role in ROLE_LABELS);
 
   return (
     <section className="space-y-6">
       <h1 className="text-3xl font-bold">Bonjour, {session.displayName}</h1>
-      <div className="rounded-card border border-line bg-surface p-4">
+
+      <div className={cardClass}>
         <h2 className="text-lg font-bold">Vos profils</h2>
         {roles.length > 0 ? (
           <ul className="mt-2 list-disc pl-6">
@@ -48,10 +45,55 @@ export default async function MyspacePage() {
         ) : (
           <p className="mt-2">Aucun profil n’est encore attribué à votre compte.</p>
         )}
+        {me.ok && me.data.memberships.length > 0 && (
+          <>
+            <h3 className="mt-4 font-bold">Vos établissements</h3>
+            <ul className="mt-2 list-disc pl-6" data-testid="memberships">
+              {me.data.memberships.map((m) => (
+                <li key={`${m.organizationId}-${m.role}`}>
+                  {m.organizationName} : {ROLE_LABELS[m.role] ?? m.role}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <p className="mt-3 text-sm text-ink-muted" data-testid="api-status">
-          {identity ? 'Compte reconnu par le service.' : 'Service momentanément indisponible.'}
+          {me.ok ? 'Compte reconnu par le service.' : 'Service momentanément indisponible.'}
         </p>
       </div>
+
+      {cohorts.ok && cohorts.data.length > 0 && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Mes classes</h2>
+          <ul className="mt-2 space-y-2">
+            {cohorts.data.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/mon-espace/classes/${c.id}`}
+                  className="inline-flex min-h-[44px] items-center font-bold underline"
+                >
+                  {c.name}
+                </Link>{' '}
+                <span className="text-ink-muted">
+                  · {c.organization.name} · {c.learnerCount} élève{c.learnerCount > 1 ? 's' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {children.ok && children.data.length > 0 && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Mes enfants</h2>
+          <ul className="mt-2 list-disc pl-6">
+            {children.data.map((child) => (
+              <li key={child.id}>{child.displayName}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <form method="post" action="/auth/logout">
         <button
           type="submit"

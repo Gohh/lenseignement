@@ -6,6 +6,10 @@ const EnvSchema = z.object({
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
   OIDC_ISSUER_URL: z.string().url().default('http://localhost:8080/realms/lenseignement'),
   OIDC_AUDIENCE: z.string().min(1).default('lenseignement-api'),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .default('postgresql://lenseignement:change-me-dev-only@localhost:5432/lenseignement'),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema>;

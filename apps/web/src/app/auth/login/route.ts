@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import * as client from 'openid-client';
-import { callbackUrl, oidcConfig, safeReturnTo } from '@/lib/oidc';
+import { callbackUrl, oidcConfig, safeLoginHint, safeReturnTo } from '@/lib/oidc';
 import { cookieOptions, LOGIN_STATE_COOKIE } from '@/lib/session';
 import { sessionStore } from '@/lib/session-store';
 
@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const returnTo = safeReturnTo(request.nextUrl.searchParams.get('returnTo'));
+  const loginHint = safeLoginHint(request.nextUrl.searchParams.get('login_hint'));
   const config = await oidcConfig();
 
   const codeVerifier = client.randomPKCECodeVerifier();
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     state,
     nonce,
     ui_locales: 'fr',
+    ...(loginHint ? { login_hint: loginHint } : {}),
   });
 
   const response = NextResponse.redirect(authorizationUrl);

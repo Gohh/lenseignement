@@ -19,7 +19,7 @@ export class ApiErrorFilter implements ExceptionFilter {
     const http = host.switchToHttp();
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
-    const traceId = request.header('x-request-id') ?? randomUUID();
+    const traceId = request.traceId ?? randomUUID();
 
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;

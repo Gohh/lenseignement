@@ -16,6 +16,23 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Base PostgreSQL réelle pour les tests d'accès (API) et la pile E2E.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: lenseignement
+          POSTGRES_PASSWORD: change-me-dev-only
+          POSTGRES_DB: lenseignement_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lenseignement"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://lenseignement:change-me-dev-only@localhost:5432/lenseignement_test
+      E2E_DATABASE_URL: postgresql://lenseignement:change-me-dev-only@localhost:5432/lenseignement_e2e
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,6 +41,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Créer la base E2E
+        run: psql "$TEST_DATABASE_URL" -c 'create database lenseignement_e2e'
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

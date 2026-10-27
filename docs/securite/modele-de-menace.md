@@ -53,3 +53,18 @@ et avant tout pilote avec de vrais utilisateurs.
 - Redirection ouverte après connexion bloquée (chemins internes uniquement), testée en E2E.
 - API : refus par défaut ; jetons expirés, forgés, `alg: none`, mauvaise audience ou mauvais
   émetteur refusés (tests d’intégration).
+
+## Ajouté par le ticket 6 (ADR-003)
+
+- T1 : contrôle d’accès par attributs côté API, à partir de la base (rattachements, classes,
+  liens parentaux vérifiés), jamais à partir des rôles du jeton seuls. Refus par défaut.
+  Testés : lecture de la fiche d’un camarade, d’un élève d’une autre classe, d’un enfant dont le
+  lien est en attente ou révoqué (tests d’intégration et E2E).
+- T2 : un directeur ne voit que les classes de son établissement, un référent celles de sa
+  structure et de ses sous-structures ; l’administrateur technique n’a aucun accès aux élèves.
+- Énumération : classe inexistante, identifiant invalide et accès interdit donnent la même
+  réponse 403 « Accès refusé. ».
+- Traçabilité : chaque décision (accordée ou refusée) sur une donnée d’élève est inscrite dans
+  `audit_logs` avec le `trace_id`, sans nom ni contenu personnel.
+- Révocation immédiate : un rattachement expiré, un lien parental révoqué ou un compte suspendu
+  ferment l’accès dès la requête suivante (pas de cache des droits).

@@ -1,32 +1,32 @@
-import type { INestApplication } from '@nestjs/common';
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import request from 'supertest';
 import { loadConfig } from '../src/config.js';
-import { createTestApp } from './helpers.js';
+import { createTestApp, type TestContext } from './helpers.js';
 
-let app: INestApplication;
+let ctx: TestContext;
+const app = () => ctx.app;
 
 before(async () => {
-  ({ app } = await createTestApp());
+  ctx = await createTestApp();
 });
 
 after(async () => {
-  await app.close();
+  await ctx.close();
 });
 
 test('GET /api/v1/health répond ok', async () => {
-  const res = await request(app.getHttpServer()).get('/api/v1/health').expect(200);
+  const res = await request(app().getHttpServer()).get('/api/v1/health').expect(200);
   assert.equal(res.body.status, 'ok');
 });
 
 test('GET /api/v1/catalog/branches liste les cinq branches', async () => {
-  const res = await request(app.getHttpServer()).get('/api/v1/catalog/branches').expect(200);
+  const res = await request(app().getHttpServer()).get('/api/v1/catalog/branches').expect(200);
   assert.equal(res.body.items.length, 5);
 });
 
 test('une branche inconnue renvoie 404 au format d’erreur stable', async () => {
-  const res = await request(app.getHttpServer())
+  const res = await request(app().getHttpServer())
     .get('/api/v1/catalog/branches/inconnue')
     .set('x-request-id', 'trace-test')
     .expect(404);
@@ -38,7 +38,7 @@ test('une branche inconnue renvoie 404 au format d’erreur stable', async () =>
 });
 
 test('les en-têtes de sécurité sont présents', async () => {
-  const res = await request(app.getHttpServer()).get('/api/v1/health');
+  const res = await request(app().getHttpServer()).get('/api/v1/health');
   assert.ok(res.headers['strict-transport-security']);
   assert.equal(res.headers['x-content-type-options'], 'nosniff');
 });

@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { OIDC_URL, WEB_URL } from './support/urls';
 
 // Connexion via le fournisseur OIDC simulé (tests/e2e/support/mock-oidc.mjs).
 test.describe('Connexion OIDC (ticket 5)', () => {
   test('« Mon espace » exige une connexion puis affiche l’identité vérifiée par l’API', async ({
     page,
   }) => {
-    const authorize = page.waitForRequest((req) =>
-      req.url().startsWith('http://localhost:8090/authorize'),
-    );
+    const authorize = page.waitForRequest((req) => req.url().startsWith(`${OIDC_URL}/authorize`));
     await page.goto('/');
     await page.getByRole('link', { name: 'Mon espace' }).click();
 
@@ -28,8 +27,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
 
     const reauthentications: string[] = [];
     page.on('request', (req) => {
-      if (req.url().startsWith('http://localhost:8090/authorize'))
-        reauthentications.push(req.url());
+      if (req.url().startsWith(`${OIDC_URL}/authorize`)) reauthentications.push(req.url());
     });
     await page.reload();
     await page.reload();
@@ -65,16 +63,14 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     const oldSession = (await context.cookies()).find((c) => c.name === 'lse_session')!.value;
 
     await page.getByRole('button', { name: 'Se déconnecter' }).click();
-    await expect(page).toHaveURL('http://localhost:3000/');
+    await expect(page).toHaveURL(`${WEB_URL}/`);
     expect((await context.cookies()).find((c) => c.name === 'lse_session')).toBeUndefined();
 
     // Rejouer l'ancien identifiant ne rouvre pas la session : retour au fournisseur d'identité.
     await context.addCookies([
       { name: 'lse_session', value: oldSession, domain: 'localhost', path: '/', httpOnly: true },
     ]);
-    const authorize = page.waitForRequest((req) =>
-      req.url().startsWith('http://localhost:8090/authorize'),
-    );
+    const authorize = page.waitForRequest((req) => req.url().startsWith(`${OIDC_URL}/authorize`));
     await page.goto('/mon-espace');
     await authorize;
   });
@@ -87,7 +83,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
 
   test('aucune redirection ouverte après connexion', async ({ page }) => {
     await page.goto('/auth/login?returnTo=//exemple-malveillant.invalid');
-    await expect(page).toHaveURL('http://localhost:3000/mon-espace');
+    await expect(page).toHaveURL(`${WEB_URL}/mon-espace`);
   });
 
   test('la déconnexion depuis une autre origine est refusée', async ({ request }) => {

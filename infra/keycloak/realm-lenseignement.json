@@ -39,6 +39,10 @@
         "description": "Alphabétiseur"
       },
       {
+        "name": "chef-etablissement",
+        "description": "Chef d'établissement (directeur ou directrice)"
+      },
+      {
         "name": "referent-pedagogique",
         "description": "Révise et approuve les contenus"
       },
@@ -97,6 +101,7 @@
   ],
   "users": [
     {
+      "id": "10000000-0000-4000-8000-000000000001",
       "username": "apprenant.demo",
       "enabled": true,
       "emailVerified": true,
@@ -113,6 +118,7 @@
       "realmRoles": ["apprenant"]
     },
     {
+      "id": "10000000-0000-4000-8000-000000000002",
       "username": "enseignant.demo",
       "enabled": true,
       "emailVerified": true,
@@ -129,6 +135,7 @@
       "realmRoles": ["enseignant"]
     },
     {
+      "id": "10000000-0000-4000-8000-000000000003",
       "username": "referent.demo",
       "enabled": true,
       "emailVerified": true,
@@ -145,6 +152,7 @@
       "realmRoles": ["referent-pedagogique"]
     },
     {
+      "id": "10000000-0000-4000-8000-000000000004",
       "username": "admin.demo",
       "enabled": true,
       "emailVerified": true,
@@ -160,6 +168,57 @@
       ],
       "realmRoles": ["admin-plateforme"],
       "requiredActions": ["CONFIGURE_TOTP"]
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000005",
+      "username": "enseignant2.demo",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Aminata",
+      "lastName": "Démo",
+      "email": "enseignant2.demo@exemple.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Demo-lenseignement-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["enseignant"]
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000006",
+      "username": "parent.demo",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Fatou",
+      "lastName": "Démo",
+      "email": "parent.demo@exemple.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Demo-lenseignement-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["parent"]
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000007",
+      "username": "directeur.demo",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bamba",
+      "lastName": "Démo",
+      "email": "directeur.demo@exemple.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Demo-lenseignement-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["chef-etablissement"]
     }
   ]
 }

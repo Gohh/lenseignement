@@ -16,6 +16,16 @@ const USERS = {
     roles: ['enseignant'],
   },
   'parent.demo': { sub: '10000000-0000-4000-8000-000000000006', name: 'Fatou', roles: ['parent'] },
+  'referent.demo': {
+    sub: '10000000-0000-4000-8000-000000000003',
+    name: 'Mariam',
+    roles: ['referent-pedagogique'],
+  },
+  'directeur.demo': {
+    sub: '10000000-0000-4000-8000-000000000007',
+    name: 'Bamba',
+    roles: ['chef-etablissement'],
+  },
 };
 const DEFAULT_USER = 'apprenant.demo';
 

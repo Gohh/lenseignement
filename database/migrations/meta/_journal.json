@@ -36,6 +36,20 @@
       "when": 1793116987681,
       "tag": "0004_cours_immuables",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793119062223,
+      "tag": "0005_relecture",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793119066133,
+      "tag": "0006_relecture_regles",
+      "breakpoints": true
     }
   ]
 }

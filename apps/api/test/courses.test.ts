@@ -46,9 +46,15 @@ test('les structures de rédaction suivent les rattachements', async () => {
 
 test('l’enseignant voit le cours de son école ; l’élève et le parent ne voient rien', async () => {
   const list = await call(SUB.koffi, 'get', '/courses', 200);
-  assert.equal(list.body.items.length, 1);
-  assert.equal(list.body.items[0].latest.title, 'Lire ses premières syllabes (démonstration)');
-  assert.equal(list.body.items[0].latest.status, 'draft');
+  assert.deepEqual(
+    list.body.items
+      .map((c: { latest: { title: string; status: string } }) => [c.latest.title, c.latest.status])
+      .sort(),
+    [
+      ['Compter au marché (démonstration)', 'in_review'],
+      ['Lire ses premières syllabes (démonstration)', 'draft'],
+    ],
+  );
   for (const subject of [SUB.awa, SUB.fatou, SUB.yao]) {
     assert.deepEqual((await call(subject, 'get', '/courses', 200)).body.items, []);
   }
@@ -168,10 +174,36 @@ test('plan du brouillon remplacé d’un bloc', async () => {
   assert.equal(res.body.modules[1].lessons[0].estimatedMinutes, 15);
 });
 
-test('hors brouillon, la version est figée par la base et par l’API', async () => {
-  // Le passage en relecture viendra avec le ticket 9 : on le simule ici directement.
-  await ctx.db.update(courseVersions).set({ status: 'in_review' }).where(eq(courseVersions.id, V1));
+test('envoi en relecture : refusé tant que le brouillon est incomplet', async () => {
+  // La leçon « ma, mi, mo » n'a pas de contenu.
+  const incomplete = await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 400, {
+    revision: 3,
+  });
+  assert.match(incomplete.body.message, /Chaque leçon doit avoir un contenu/);
+  const wf = await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200);
+  assert.deepEqual(wf.body.missing, ['Chaque leçon doit avoir un contenu.']);
 
+  await call(SUB.koffi, 'put', `/course-versions/${V1}/outline`, 200, {
+    revision: 3,
+    modules: [
+      { title: 'Les voyelles', lessons: [{ title: 'Le a et le i', body: 'a… i…' }] },
+      { title: 'Les syllabes', lessons: [{ title: 'ma, mi, mo', body: 'm et a : ma.' }] },
+    ],
+  });
+  await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 409, { revision: 3 });
+  await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 204, { revision: 4 });
+  const after = await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200);
+  assert.deepEqual(after.body.can, {
+    submit: false,
+    approve: false,
+    requestChanges: false,
+    publish: false,
+    withdraw: false,
+  });
+  assert.equal(after.body.history[0].action, 'submitted');
+});
+
+test('hors brouillon, la version est figée par la base et par l’API', async () => {
   await assert.rejects(
     ctx.db.update(lessons).set({ title: 'modifié' }).where(eq(lessons.courseVersionId, V1)),
     (e: { cause?: Error }) => /course_version_immutable/.test(String(e.cause?.message)),
@@ -181,13 +213,103 @@ test('hors brouillon, la version est figée par la base et par l’API', async (
     (e: { cause?: Error }) => /course_version_immutable/.test(String(e.cause?.message)),
   );
   const frozen = await call(SUB.koffi, 'patch', `/course-versions/${V1}`, 409, {
-    revision: 3,
+    revision: 4,
     title: 'Trop tard',
   });
   assert.match(frozen.body.message, /n’est plus un brouillon/);
+  // Pas de nouvelle version tant qu'une version est en cours de validation.
+  const busy = await call(SUB.koffi, 'post', `/courses/${ID.courseSyllabes}/versions`, 409);
+  assert.match(busy.body.message, /en cours de validation/);
 });
 
-test('nouvelle version : copie complète, un seul brouillon à la fois', async () => {
+test('E2E-11 : un rédacteur ne publie pas sans validation (API et base)', async () => {
+  const checklist = { pedagogy: true, accessibility: true, rights: true };
+  // L'auteur n'a pas le rôle de relecteur ni de publieur.
+  await call(SUB.koffi, 'post', `/course-versions/${V1}/approve`, 403, { checklist });
+  await call(SUB.koffi, 'post', `/course-versions/${V1}/publish`, 403);
+  // Même un accès direct à la base ne permet pas de sauter une étape ou de s'approuver soi-même.
+  await assert.rejects(
+    ctx.db
+      .update(courseVersions)
+      .set({ status: 'published', publishedBy: ID.userKoffi, publishedAt: new Date() })
+      .where(eq(courseVersions.id, V1)),
+    (e: { cause?: Error }) => /course_workflow/.test(String(e.cause?.message)),
+  );
+  await assert.rejects(
+    ctx.db
+      .update(courseVersions)
+      .set({ status: 'approved', approvedBy: ID.userKoffi })
+      .where(eq(courseVersions.id, V1)),
+    (e: { cause?: Error }) => /course_workflow/.test(String(e.cause?.message)),
+  );
+  // Un chef d'établissement n'approuve pas : c'est le rôle du référent pédagogique.
+  await call(SUB.bamba, 'post', `/course-versions/${V1}/approve`, 403, { checklist });
+});
+
+test('double validation : la référente approuve, une autre personne publie', async () => {
+  const queue = await call(SUB.mariam, 'get', '/reviews', 200);
+  assert.deepEqual(
+    queue.body.items.map((i: { versionId: string }) => i.versionId).sort(),
+    [ID.courseMarcheV1, V1].sort(),
+  );
+  assert.deepEqual((await call(SUB.koffi, 'get', '/reviews', 200)).body.items, []);
+
+  const incomplete = await call(SUB.mariam, 'post', `/course-versions/${V1}/approve`, 400, {
+    checklist: { pedagogy: true, accessibility: false, rights: true },
+  });
+  assert.match(incomplete.body.message, /trois contrôles/);
+  await call(SUB.mariam, 'post', `/course-versions/${V1}/approve`, 204, {
+    checklist: { pedagogy: true, accessibility: true, rights: true },
+    comment: 'Clair et adapté au CP1.',
+  });
+
+  // La personne qui a approuvé ne publie pas seule.
+  const self = await call(SUB.mariam, 'post', `/course-versions/${V1}/publish`, 403);
+  assert.match(self.body.message, /deuxième personne/);
+  const wf = await call(SUB.bamba, 'get', `/course-versions/${V1}/workflow`, 200);
+  assert.equal(wf.body.can.publish, true);
+  await call(SUB.bamba, 'post', `/course-versions/${V1}/publish`, 204);
+
+  const course = await call(SUB.koffi, 'get', `/courses/${ID.courseSyllabes}`, 200);
+  assert.deepEqual(
+    course.body.versions.map((v: { status: string }) => v.status),
+    ['published'],
+  );
+  const history = await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200);
+  assert.deepEqual(
+    history.body.history.map((h: { action: string }) => h.action),
+    ['submitted', 'approved', 'published'],
+  );
+  // L'historique est en ajout seulement.
+  await assert.rejects(
+    ctx.db.execute(sql`delete from course_review_events`),
+    (e: { cause?: Error }) => /ajout seulement/.test(String(e.cause?.message)),
+  );
+});
+
+test('demande de modifications : motif obligatoire, retour en brouillon chez l’auteur', async () => {
+  const MARCHE = ID.courseMarcheV1;
+  const wf = await call(SUB.mariam, 'get', `/course-versions/${MARCHE}/workflow`, 200);
+  assert.equal(wf.body.can.approve, true);
+  assert.equal(
+    (await call(SUB.bamba, 'get', `/course-versions/${MARCHE}/workflow`, 200)).body.can.approve,
+    false,
+  );
+
+  await call(SUB.mariam, 'post', `/course-versions/${MARCHE}/request-changes`, 400, {
+    comment: 'Non.',
+  });
+  await call(SUB.mariam, 'post', `/course-versions/${MARCHE}/request-changes`, 204, {
+    comment: 'Ajoutez une leçon sur les pièces de monnaie.',
+  });
+  const back = await call(SUB.aminata, 'get', `/course-versions/${MARCHE}/workflow`, 200);
+  assert.equal(back.body.can.submit, true);
+  assert.equal(back.body.history.at(-1).comment, 'Ajoutez une leçon sur les pièces de monnaie.');
+  const version = await call(SUB.aminata, 'get', `/course-versions/${MARCHE}`, 200);
+  assert.equal(version.body.status, 'draft');
+});
+
+test('nouvelle version : copie complète, publication qui remplace, puis retrait', async () => {
   const next = await call(SUB.koffi, 'post', `/courses/${ID.courseSyllabes}/versions`, 201);
   const v2 = await call(SUB.koffi, 'get', `/course-versions/${next.body.versionId}`, 200);
   assert.equal(v2.body.number, 2);
@@ -198,15 +320,37 @@ test('nouvelle version : copie complète, un seul brouillon à la fois', async (
     v2.body.curriculum.competencies.map((c: { code: string }) => c.code),
     ['LECT-02', 'LECT-03'],
   );
-
   await call(SUB.koffi, 'post', `/courses/${ID.courseSyllabes}/versions`, 409);
-
-  // Le brouillon n° 2 se supprime ; la version n° 1 (figée) reste.
-  await call(SUB.koffi, 'delete', `/course-versions/${next.body.versionId}`, 204);
   await call(SUB.koffi, 'delete', `/course-versions/${V1}`, 409);
+
+  const V2 = next.body.versionId as string;
+  await call(SUB.koffi, 'post', `/course-versions/${V2}/submit`, 204, { revision: 1 });
+  await call(SUB.mariam, 'post', `/course-versions/${V2}/approve`, 204, {
+    checklist: { pedagogy: true, accessibility: true, rights: true },
+  });
+  await call(SUB.bamba, 'post', `/course-versions/${V2}/publish`, 204);
   const course = await call(SUB.koffi, 'get', `/courses/${ID.courseSyllabes}`, 200);
   assert.deepEqual(
-    course.body.versions.map((v: { number: number }) => v.number),
-    [1],
+    course.body.versions.map((v: { number: number; status: string }) => [v.number, v.status]),
+    [
+      [2, 'published'],
+      [1, 'archived'],
+    ],
   );
+  const v1History = await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200);
+  assert.equal(v1History.body.history.at(-1).action, 'replaced');
+
+  // Retrait : réservé aux validateurs, avec un motif.
+  await call(SUB.koffi, 'post', `/course-versions/${V2}/withdraw`, 403, {
+    comment: 'Je retire mon cours.',
+  });
+  await call(SUB.bamba, 'post', `/course-versions/${V2}/withdraw`, 204, {
+    comment: 'Erreur signalée dans la leçon 2.',
+  });
+  const final = await call(SUB.koffi, 'get', `/course-versions/${V2}`, 200);
+  assert.equal(final.body.status, 'archived');
+
+  // Un brouillon qui n'est pas la version n° 1 se supprime.
+  const v3 = await call(SUB.koffi, 'post', `/courses/${ID.courseSyllabes}/versions`, 201);
+  await call(SUB.koffi, 'delete', `/course-versions/${v3.body.versionId}`, 204);
 });

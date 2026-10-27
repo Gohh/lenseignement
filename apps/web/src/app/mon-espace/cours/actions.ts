@@ -101,3 +101,66 @@ export async function newVersionAction(form: FormData): Promise<void> {
     `/mon-espace/cours/versions/${result.data.versionId}?message=${encodeURIComponent('Nouvelle version créée.')}`,
   );
 }
+
+// Circuit de validation (ADR-006) : l'API vérifie le rôle et l'indépendance des personnes.
+
+async function reviewStep(
+  form: FormData,
+  step: 'submit' | 'approve' | 'request-changes' | 'publish' | 'withdraw',
+  body: object | undefined,
+  success: string,
+): Promise<void> {
+  const versionId = text(form, 'versionId');
+  const path = `/mon-espace/cours/versions/${versionId}`;
+  const result = await apiSend(
+    await token(path),
+    'POST',
+    `/authoring/course-versions/${versionId}/${step}`,
+    body,
+  );
+  if (!result.ok) back(path, 'erreur', result.message ?? 'Action impossible.');
+  back(path, 'message', success);
+}
+
+export async function submitForReviewAction(form: FormData): Promise<void> {
+  await reviewStep(
+    form,
+    'submit',
+    { revision: Number(text(form, 'revision')) },
+    'Version envoyée en relecture.',
+  );
+}
+
+export async function approveAction(form: FormData): Promise<void> {
+  const checked = (name: string) => form.get(name) === 'on';
+  await reviewStep(
+    form,
+    'approve',
+    {
+      checklist: {
+        pedagogy: checked('pedagogy'),
+        accessibility: checked('accessibility'),
+        rights: checked('rights'),
+      },
+      comment: text(form, 'comment'),
+    },
+    'Version approuvée. Une deuxième personne doit maintenant la publier.',
+  );
+}
+
+export async function requestChangesAction(form: FormData): Promise<void> {
+  await reviewStep(
+    form,
+    'request-changes',
+    { comment: text(form, 'comment') },
+    'Modifications demandées : la version est revenue en brouillon chez son auteur.',
+  );
+}
+
+export async function publishAction(form: FormData): Promise<void> {
+  await reviewStep(form, 'publish', undefined, 'Version publiée.');
+}
+
+export async function withdrawAction(form: FormData): Promise<void> {
+  await reviewStep(form, 'withdraw', { comment: text(form, 'comment') }, 'Version retirée.');
+}

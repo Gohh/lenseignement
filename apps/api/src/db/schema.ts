@@ -5,6 +5,7 @@ import {
   date,
   integer,
   index,
+  jsonb,
   uniqueIndex,
   pgTable,
   primaryKey,
@@ -362,14 +363,23 @@ export const courseVersions = pgTable(
     createdBy: uuid('created_by')
       .notNull()
       .references(() => users.id),
+    /** Circuit de validation (ADR-006) : trois personnes distinctes de l'auteur au publieur. */
+    submittedBy: uuid('submitted_by').references(() => users.id),
+    approvedBy: uuid('approved_by').references(() => users.id),
+    publishedBy: uuid('published_by').references(() => users.id),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique('course_versions_number_unique').on(t.courseId, t.number),
-    uniqueIndex('course_versions_one_draft')
+    // Une seule version en cours de travail (brouillon, relecture ou approuvée) et une seule publiée.
+    uniqueIndex('course_versions_one_open')
       .on(t.courseId)
-      .where(sql`${t.status} = 'draft'`),
+      .where(sql`${t.status} in ('draft','in_review','approved')`),
+    uniqueIndex('course_versions_one_published')
+      .on(t.courseId)
+      .where(sql`${t.status} = 'published'`),
     check(
       'course_versions_status_check',
       sql`${t.status} in ('draft','in_review','approved','published','archived')`,
@@ -420,4 +430,42 @@ export const lessons = pgTable(
     position: integer('position').notNull(),
   },
   (t) => [index('lessons_module_idx').on(t.moduleId)],
+);
+
+export const REVIEW_ACTIONS = [
+  'submitted',
+  'changes_requested',
+  'approved',
+  'published',
+  'replaced',
+  'withdrawn',
+] as const;
+
+/**
+ * Historique du circuit de validation d'une version (ADR-006). Ajout seulement : un déclencheur
+ * refuse toute modification ou suppression.
+ */
+export const courseReviewEvents = pgTable(
+  'course_review_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    courseVersionId: uuid('course_version_id')
+      .notNull()
+      .references(() => courseVersions.id),
+    action: text('action', { enum: REVIEW_ACTIONS }).notNull(),
+    actorUserId: uuid('actor_user_id')
+      .notNull()
+      .references(() => users.id),
+    comment: text('comment').notNull().default(''),
+    /** Contrôles cochés à l'approbation (pédagogie, accessibilité, droits). */
+    checklist: jsonb('checklist').$type<Record<string, boolean>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('course_review_events_version_idx').on(t.courseVersionId),
+    check(
+      'course_review_events_action_check',
+      sql`${t.action} in ('submitted','changes_requested','approved','published','replaced','withdrawn')`,
+    ),
+  ],
 );

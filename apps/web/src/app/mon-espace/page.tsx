@@ -23,6 +23,7 @@ const AUTHOR_ROLES = new Set([
   'referent-pedagogique',
   'chef-etablissement',
 ]);
+const VALIDATOR_ROLES = new Set(['referent-pedagogique', 'chef-etablissement']);
 
 const cardClass = 'rounded-card border border-line bg-surface p-4';
 
@@ -94,12 +95,26 @@ export default async function MyspacePage() {
       {me.ok && me.data.memberships.some((m) => AUTHOR_ROLES.has(m.role)) && (
         <div className={cardClass}>
           <h2 className="text-lg font-bold">Rédaction</h2>
-          <Link
-            href="/mon-espace/cours"
-            className="inline-flex min-h-[44px] items-center font-bold underline"
-          >
-            Mes cours
-          </Link>
+          <ul className="mt-2 space-y-1">
+            <li>
+              <Link
+                href="/mon-espace/cours"
+                className="inline-flex min-h-[44px] items-center font-bold underline"
+              >
+                Mes cours
+              </Link>
+            </li>
+            {me.data.memberships.some((m) => VALIDATOR_ROLES.has(m.role)) && (
+              <li>
+                <Link
+                  href="/mon-espace/relecture"
+                  className="inline-flex min-h-[44px] items-center font-bold underline"
+                >
+                  À relire et à publier
+                </Link>
+              </li>
+            )}
+          </ul>
         </div>
       )}
 

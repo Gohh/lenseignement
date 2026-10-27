@@ -114,3 +114,59 @@ export interface AuthoringOrganization {
   id: string;
   name: string;
 }
+
+/**
+ * Circuit de validation (ADR-006) : l'auteur soumet, un référent pédagogique approuve après trois
+ * contrôles, puis une deuxième personne (référent ou chef d'établissement) publie.
+ */
+export const REVIEW_CHECKS = {
+  pedagogy: 'Exactitude pédagogique et adéquation au programme vérifiées',
+  accessibility: 'Accessibilité vérifiée (texte clair, alternatives, lisibilité)',
+  rights: 'Droits d’utilisation et licence vérifiés',
+} as const;
+export type ReviewCheck = keyof typeof REVIEW_CHECKS;
+
+const Comment = (min: number) =>
+  z.string().trim().min(min, `Commentaire trop court (${min} caractères minimum).`).max(2000);
+
+export const SubmitForReviewSchema = z.object({ revision: z.number().int().positive() });
+
+export const ApproveSchema = z.object({
+  checklist: z.object({
+    pedagogy: z.literal(true, 'Les trois contrôles doivent être cochés.'),
+    accessibility: z.literal(true, 'Les trois contrôles doivent être cochés.'),
+    rights: z.literal(true, 'Les trois contrôles doivent être cochés.'),
+  }),
+  comment: Comment(0).default(''),
+});
+export type ApproveInput = z.infer<typeof ApproveSchema>;
+
+/** Demande de modifications ou retrait : le motif est obligatoire. */
+export const ReasonSchema = z.object({ comment: Comment(10) });
+
+export type ReviewAction =
+  'submitted' | 'changes_requested' | 'approved' | 'published' | 'replaced' | 'withdrawn';
+
+export interface CourseWorkflow {
+  history: Array<{ action: ReviewAction; actorName: string; comment: string; createdAt: string }>;
+  /** Ce que la personne connectée peut faire maintenant sur cette version. */
+  can: {
+    submit: boolean;
+    approve: boolean;
+    requestChanges: boolean;
+    publish: boolean;
+    withdraw: boolean;
+  };
+  /** Ce qui manque avant l'envoi en relecture (vide si tout est prêt). */
+  missing: string[];
+}
+
+export interface ReviewQueueItem {
+  versionId: string;
+  courseId: string;
+  number: number;
+  status: CourseVersionStatus;
+  title: string;
+  organization: { id: string; name: string };
+  updatedAt: string;
+}

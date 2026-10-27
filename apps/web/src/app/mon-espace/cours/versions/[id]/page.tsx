@@ -3,6 +3,7 @@ import type {
   CurriculumSummary,
   CurriculumVersionSummary,
   CourseVersionDetail,
+  CourseWorkflow,
 } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -11,6 +12,7 @@ import { apiGet, publicApiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { updateVersionAction } from '../../actions';
 import { OutlineEditor } from './OutlineEditor';
+import { ReviewPanel } from './ReviewPanel';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Rédiger un cours' };
@@ -52,10 +54,16 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
     redirect(`/auth/login?returnTo=/mon-espace/cours/versions/${encodeURIComponent(id)}`);
   }
   const query = await searchParams;
-  const result = await apiGet<CourseVersionDetail>(
-    session.accessToken,
-    `/authoring/course-versions/${encodeURIComponent(id)}`,
-  );
+  const [result, workflow] = await Promise.all([
+    apiGet<CourseVersionDetail>(
+      session.accessToken,
+      `/authoring/course-versions/${encodeURIComponent(id)}`,
+    ),
+    apiGet<CourseWorkflow>(
+      session.accessToken,
+      `/authoring/course-versions/${encodeURIComponent(id)}/workflow`,
+    ),
+  ]);
   if (!result.ok) {
     return (
       <section className="space-y-6">
@@ -103,14 +111,44 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
             Cette version n’est plus un brouillon : elle ne peut plus être modifiée. Pour la faire
             évoluer, créez une nouvelle version depuis la page du cours.
           </p>
-          {version.modules.map((m, i) => (
-            <div key={i} className="rounded-card border border-line bg-surface p-4">
-              <h2 className="text-lg font-bold">{m.title}</h2>
+          <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr]">
+            <dt className="font-bold">Résumé</dt>
+            <dd>{version.summary || '—'}</dd>
+            <dt className="font-bold">Public visé</dt>
+            <dd>{version.audience || '—'}</dd>
+            <dt className="font-bold">Licence</dt>
+            <dd>{version.licence}</dd>
+            <dt className="font-bold">Programme</dt>
+            <dd>
+              {version.curriculum
+                ? `${version.curriculum.code} — version ${version.curriculum.label}`
+                : 'Aucun'}
+            </dd>
+          </dl>
+          {version.curriculum && (
+            <div>
+              <h2 className="text-lg font-bold">Compétences visées</h2>
               <ul className="mt-2 list-disc pl-6">
-                {m.lessons.map((l, j) => (
-                  <li key={j}>{l.title}</li>
+                {version.curriculum.competencies.map((c) => (
+                  <li key={c.code}>{c.title}</li>
                 ))}
               </ul>
+            </div>
+          )}
+          <h2 className="text-xl font-bold">Plan du cours</h2>
+          {version.modules.map((m, i) => (
+            <div key={i} className="rounded-card border border-line bg-surface p-4">
+              <h3 className="text-lg font-bold">
+                Module {i + 1} : {m.title}
+              </h3>
+              {m.lessons.map((l, j) => (
+                <div key={j} className="mt-3">
+                  <h4 className="font-bold">
+                    Leçon {i + 1}.{j + 1} : {l.title}
+                  </h4>
+                  <p className="whitespace-pre-line">{l.body}</p>
+                </div>
+              ))}
             </div>
           ))}
         </>
@@ -211,6 +249,8 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
           />
         </>
       )}
+
+      {workflow.ok && <ReviewPanel version={version} workflow={workflow.data} />}
     </section>
   );
 }

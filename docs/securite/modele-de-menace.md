@@ -78,3 +78,12 @@ et avant tout pilote avec de vrais utilisateurs.
   déclencheurs PostgreSQL ; les écritures concurrentes sont refusées (révision).
 - T4 : contenus validés par Zod côté API (longueurs bornées), affichés comme texte par React
   (pas de HTML injecté).
+
+## Ajouté par le ticket 9 (ADR-006)
+
+- Intégrité des contenus (E2E-11) : aucun cours n’est publié sans approbation d’un référent
+  pédagogique puis publication par une deuxième personne ; l’auteur ne valide jamais son propre
+  travail. Règle vérifiée par l’API et par un déclencheur PostgreSQL (passages de statut et
+  séparation des personnes), testée en intégration et en E2E.
+- Traçabilité : historique de validation en ajout seulement, en plus de `audit_logs`.
+- Procédure de retrait : une version publiée peut être retirée avec un motif obligatoire.

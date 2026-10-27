@@ -8,6 +8,20 @@
       "when": 1793112921294,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793115628058,
+      "tag": "0001_referentiels",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793115629105,
+      "tag": "0002_referentiels_immuables",
+      "breakpoints": true
     }
   ]
 }

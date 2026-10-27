@@ -1,0 +1,64 @@
+{
+  "curriculum": {
+    "code": "DEMO-ALPHA",
+    "branch": "alphabetisation",
+    "title": "Lire et compter au quotidien (démonstration)",
+    "description": "Parcours FICTIF d'alphabétisation fonctionnelle servant à tester la plateforme."
+  },
+  "version": {
+    "label": "2026",
+    "source": {
+      "title": "Guide d'animation fictif",
+      "issuer": "Équipe projet L'Enseignement (démonstration)",
+      "isOfficial": false
+    }
+  },
+  "levels": [
+    {
+      "code": "ET1",
+      "title": "Étape 1"
+    },
+    {
+      "code": "ET2",
+      "title": "Étape 2"
+    }
+  ],
+  "subjects": [
+    {
+      "code": "ECRIT",
+      "title": "Lire et écrire"
+    },
+    {
+      "code": "NOMB",
+      "title": "Nombres et argent"
+    }
+  ],
+  "competencies": [
+    {
+      "code": "ECRIT-01",
+      "title": "Écrire son nom",
+      "subject": "ECRIT",
+      "level": "ET1"
+    },
+    {
+      "code": "NOMB-01",
+      "title": "Reconnaître les pièces et billets",
+      "subject": "NOMB",
+      "level": "ET1"
+    },
+    {
+      "code": "NOMB-02",
+      "title": "Rendre la monnaie au marché",
+      "subject": "NOMB",
+      "level": "ET2",
+      "prerequisites": ["NOMB-01"]
+    },
+    {
+      "code": "ECRIT-02",
+      "title": "Lire un message court sur téléphone",
+      "subject": "ECRIT",
+      "level": "ET2",
+      "prerequisites": ["ECRIT-01"]
+    }
+  ]
+}

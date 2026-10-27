@@ -1,6 +1,9 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
+  date,
+  integer,
   index,
   pgTable,
   primaryKey,
@@ -179,5 +182,129 @@ export const auditLogs = pgTable(
     index('audit_logs_occurred_idx').on(t.occurredAt),
     index('audit_logs_actor_idx').on(t.actorUserId),
     check('audit_logs_decision_check', sql`${t.decision} in ('allow','deny')`),
+  ],
+);
+
+// --- Référentiels (programmes) versionnés : cahier §6.2, ADR-004 ---------------------------
+
+/** Texte de référence d'une version de programme. Les sources de démonstration ne sont pas officielles. */
+export const policySources = pgTable('policy_sources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  issuer: text('issuer').notNull(),
+  url: text('url'),
+  publishedOn: date('published_on'),
+  isOfficial: boolean('is_official').notNull().default(false),
+  createdAt: createdAt(),
+});
+
+export const curricula = pgTable('curricula', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: text('code').notNull().unique(),
+  branch: text('branch').notNull(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  createdAt: createdAt(),
+});
+
+export const CURRICULUM_VERSION_STATUSES = ['draft', 'published'] as const;
+
+/**
+ * Version d'un programme. Un brouillon est modifiable ; une fois publiée, une version est figée
+ * (déclencheurs PostgreSQL) et seule sa date de fin peut être renseignée, une seule fois,
+ * quand la version suivante entre en vigueur.
+ */
+export const curriculumVersions = pgTable(
+  'curriculum_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    curriculumId: uuid('curriculum_id')
+      .notNull()
+      .references(() => curricula.id),
+    label: text('label').notNull(),
+    status: text('status', { enum: CURRICULUM_VERSION_STATUSES }).notNull().default('draft'),
+    effectiveFrom: date('effective_from'),
+    effectiveTo: date('effective_to'),
+    policySourceId: uuid('policy_source_id').references(() => policySources.id),
+    notes: text('notes'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('curriculum_versions_label_unique').on(t.curriculumId, t.label),
+    check('curriculum_versions_status_check', sql`${t.status} in ('draft','published')`),
+    check(
+      'curriculum_versions_published_dated',
+      sql`${t.status} = 'draft' or (${t.effectiveFrom} is not null and ${t.publishedAt} is not null)`,
+    ),
+    check(
+      'curriculum_versions_period_check',
+      sql`${t.effectiveTo} is null or ${t.effectiveTo} > ${t.effectiveFrom}`,
+    ),
+  ],
+);
+
+const versionId = () =>
+  uuid('version_id')
+    .notNull()
+    .references(() => curriculumVersions.id);
+
+export const levels = pgTable(
+  'levels',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    versionId: versionId(),
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [unique('levels_version_code_unique').on(t.versionId, t.code)],
+);
+
+export const subjects = pgTable(
+  'subjects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    versionId: versionId(),
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [unique('subjects_version_code_unique').on(t.versionId, t.code)],
+);
+
+/** Compétence d'une version. Son `code` est stable d'une version à l'autre. */
+export const competencies = pgTable(
+  'competencies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    versionId: versionId(),
+    subjectId: uuid('subject_id')
+      .notNull()
+      .references(() => subjects.id),
+    levelId: uuid('level_id').references(() => levels.id),
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    position: integer('position').notNull(),
+  },
+  (t) => [unique('competencies_version_code_unique').on(t.versionId, t.code)],
+);
+
+/** Prérequis : `prerequisiteId` doit être acquise avant `competencyId` (même version). */
+export const competencyEdges = pgTable(
+  'competency_edges',
+  {
+    versionId: versionId(),
+    prerequisiteId: uuid('prerequisite_id')
+      .notNull()
+      .references(() => competencies.id),
+    competencyId: uuid('competency_id')
+      .notNull()
+      .references(() => competencies.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.prerequisiteId, t.competencyId] }),
+    check('competency_edges_not_self', sql`${t.prerequisiteId} <> ${t.competencyId}`),
   ],
 );

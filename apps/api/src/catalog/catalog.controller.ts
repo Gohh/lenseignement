@@ -2,7 +2,7 @@ import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 import { BRANCHES, BranchCodeSchema, type Branch } from '@lenseignement/types';
 import { Public } from '../auth/public.decorator.js';
 
-/** Catalogue public : lecture seule, aucune donnée d'apprenant. Données fictives jusqu'au ticket 7. */
+/** Catalogue public : lecture seule, aucune donnée d'apprenant. Les programmes versionnés sont servis par CurriculaController. */
 @Public()
 @Controller('catalog')
 export class CatalogController {

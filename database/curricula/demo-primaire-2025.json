@@ -1,0 +1,72 @@
+{
+  "curriculum": {
+    "code": "DEMO-PRIMAIRE",
+    "branch": "primaire",
+    "title": "Lecture et calcul au CP (démonstration)",
+    "description": "Programme FICTIF servant à tester la plateforme. Il ne reproduit aucun programme officiel."
+  },
+  "levels": [
+    {
+      "code": "CP1",
+      "title": "Cours préparatoire 1re année"
+    },
+    {
+      "code": "CP2",
+      "title": "Cours préparatoire 2e année"
+    }
+  ],
+  "subjects": [
+    {
+      "code": "LECT",
+      "title": "Lecture"
+    },
+    {
+      "code": "CALC",
+      "title": "Calcul"
+    }
+  ],
+  "version": {
+    "label": "2025",
+    "notes": "Première version de démonstration.",
+    "source": {
+      "title": "Note de cadrage fictive n° 1",
+      "issuer": "Équipe projet L'Enseignement (démonstration)",
+      "isOfficial": false
+    }
+  },
+  "competencies": [
+    {
+      "code": "LECT-01",
+      "title": "Reconnaître les lettres de l'alphabet",
+      "subject": "LECT",
+      "level": "CP1"
+    },
+    {
+      "code": "LECT-02",
+      "title": "Lire des syllabes simples",
+      "subject": "LECT",
+      "level": "CP1",
+      "prerequisites": ["LECT-01"]
+    },
+    {
+      "code": "LECT-03",
+      "title": "Lire des mots courts",
+      "subject": "LECT",
+      "level": "CP2",
+      "prerequisites": ["LECT-02"]
+    },
+    {
+      "code": "CALC-01",
+      "title": "Compter jusqu'à 20",
+      "subject": "CALC",
+      "level": "CP1"
+    },
+    {
+      "code": "CALC-02",
+      "title": "Additionner des nombres inférieurs à 10",
+      "subject": "CALC",
+      "level": "CP1",
+      "prerequisites": ["CALC-01"]
+    }
+  ]
+}

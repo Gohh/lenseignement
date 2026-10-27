@@ -41,9 +41,13 @@ export default async function BranchPage({ params }: Props) {
           Voir le programme et les compétences
         </a>
       </p>
-      <p className="rounded-card border border-line bg-surface p-4">
-        Les parcours de démonstration de cet espace arriveront avec les tickets 8 à 13 (cours,
-        leçons texte/audio, quiz et progression).
+      <p>
+        <a
+          href={`/catalogue?branch=${branch.code}`}
+          className="inline-flex min-h-[44px] items-center font-bold text-primary underline underline-offset-4"
+        >
+          Voir les cours publiés de cet espace
+        </a>
       </p>
     </article>
   );

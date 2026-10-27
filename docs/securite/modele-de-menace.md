@@ -87,3 +87,9 @@ et avant tout pilote avec de vrais utilisateurs.
   séparation des personnes), testée en intégration et en E2E.
 - Traçabilité : historique de validation en ajout seulement, en plus de `audit_logs`.
 - Procédure de retrait : une version publiée peut être retirée avec un motif obligatoire.
+
+## Ajouté par le ticket 10 (ADR-007)
+
+- Exposition publique limitée aux versions publiées après double validation ; aucune donnée
+  personnelle (ni auteur ni validateurs) dans le catalogue, vérifié par un test d’intégration.
+- T4 : paramètres de recherche validés (Zod), requêtes paramétrées, motifs LIKE échappés.

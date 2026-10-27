@@ -25,11 +25,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body suppressHydrationWarning>
         <AppShell
           headerActions={
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               <OfflineBadge />
               <a
+                href="/catalogue"
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap px-1 font-bold text-ink underline underline-offset-4"
+              >
+                Catalogue
+              </a>
+              <a
                 href="/mon-espace"
-                className="inline-flex min-h-[44px] items-center rounded-card bg-primary px-4 font-bold text-surface no-underline"
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-card bg-primary px-3 font-bold text-surface no-underline sm:px-4"
               >
                 Mon espace
               </a>

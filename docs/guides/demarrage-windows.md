@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #10 (ticket 14) :
+dans la branche de la PR. Pour la PR #11 (ticket 16) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-14-evenements
+git checkout feat/ticket-16-autorisations-mineurs
 git pull
 pnpm install
 pnpm build
@@ -254,6 +254,13 @@ fenêtre où tourne `pnpm dev`, une ligne `[Outbox] EnrollmentCreated …` puis 
 un évènement, une seule fois. Cliquer de nouveau sur **Suivre ce cours** ou terminer encore la
 même leçon n’en produit pas de nouveau.
 
+Test des fiches élèves (PR #11) : connecté en `parent.demo` (Fatou), cliquer sur **Awa (fictive)**
+dans « Mes enfants » : sa fiche s’ouvre avec sa classe (CP1 A). Ouvrir ensuite
+http://localhost:3000/mon-espace/eleves/40000000-0000-4000-8000-000000000103 (Seydou, dont le
+lien avec Fatou n’est pas encore vérifié) : « Accès refusé », sans aucun nom. Connecté en
+`enseignant.demo`, la même adresse est aussi refusée (Seydou est dans la classe d’une collègue),
+alors que les élèves de sa classe CP1 A s’ouvrent depuis « Mes classes ».
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -276,7 +283,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`82 passed` pour les tests E2E de la PR #9).
+Attendu : aucun test en échec (`94 passed` pour les tests E2E de la PR #11).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

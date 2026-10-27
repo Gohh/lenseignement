@@ -20,7 +20,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
-      <body>
+      {/* Certaines extensions (ex. Grammarly) ajoutent des attributs à <body> avant React :
+          on ignore ces seuls écarts d'attributs, sans masquer ceux du contenu. */}
+      <body suppressHydrationWarning>
         <AppShell
           headerActions={
             <div className="flex items-center gap-3">

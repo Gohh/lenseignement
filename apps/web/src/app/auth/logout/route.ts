@@ -33,5 +33,7 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.redirect(destination, 303);
   response.cookies.set(SESSION_COOKIE, '', { ...sessionCookieOptions(), maxAge: 0 });
+  // Appareil partagé : pages gardées et actions hors ligne effacées avec la session (ADR-012).
+  response.headers.set('Clear-Site-Data', '"cache", "storage"');
   return response;
 }

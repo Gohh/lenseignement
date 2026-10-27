@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import type { CatalogLesson, CourseProgress, QuizLastAttempt } from '@lenseignement/types';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AudioLessonPlayer } from '@/components/AudioLessonPlayer';
-import { buttonClass, Notice, param } from '@/components/Notice';
+import { CompleteLessonForm } from '@/components/CompleteLessonForm';
+import { Notice, param } from '@/components/Notice';
 import { QuizRunner } from '@/components/QuizRunner';
 import { apiGet, apiSend, publicApiGet } from '@/lib/api';
+import { ownerOf } from '@/lib/device-owner';
 import { getSession } from '@/lib/session';
-import { completeLessonAction } from '../../../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +46,9 @@ export default async function LessonPage({ params, searchParams }: Props) {
     ? await apiGet<CourseProgress>(session.accessToken, `/me/courses/${lesson.courseId}/progress`)
     : null;
   const mine = progress?.ok && progress.data.enrolled ? progress.data : null;
-  if (session && mine) {
+  // Téléchargement pour le hors-ligne (« Garder ce cours ») : ce n'est pas une ouverture.
+  const keeping = (await headers()).get('x-lse-keep') === '1';
+  if (session && mine && !keeping) {
     // Mémorise la leçon ouverte pour « Reprendre » ; un échec ne gêne pas la lecture.
     await apiSend(session.accessToken, 'POST', '/me/progress/opened', {
       courseId: lesson.courseId,
@@ -94,10 +98,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
           mode={mine ? 'attempt' : 'check'}
           attemptId={randomUUID()}
           last={last?.ok ? last.data.attempt : null}
+          owner={session && mine ? ownerOf(session.subject) : undefined}
         />
       )}
 
-      {mine &&
+      {session &&
+        mine &&
         (done ? (
           <p
             className="rounded-card border border-line-strong bg-surface p-4 font-bold"
@@ -106,13 +112,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
             ✓ Leçon terminée
           </p>
         ) : (
-          <form action={completeLessonAction}>
-            <input type="hidden" name="courseId" value={lesson.courseId} />
-            <input type="hidden" name="lessonNumber" value={lesson.number} />
-            <button type="submit" className={buttonClass}>
-              J’ai terminé cette leçon
-            </button>
-          </form>
+          <CompleteLessonForm
+            courseId={lesson.courseId}
+            lessonNumber={lesson.number}
+            owner={ownerOf(session.subject)}
+            nextHref={lesson.next ? lessonHref(lesson.next) : `/catalogue/${lesson.courseId}`}
+          />
         ))}
 
       <nav

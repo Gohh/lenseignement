@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #11 (ticket 16) :
+dans la branche de la PR. Pour la PR #12 (ticket 15) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-16-autorisations-mineurs
+git checkout feat/ticket-15-hors-ligne
 git pull
 pnpm install
 pnpm build
@@ -261,6 +261,27 @@ lien avec Fatou n’est pas encore vérifié) : « Accès refusé », sans aucun
 `enseignant.demo`, la même adresse est aussi refusée (Seydou est dans la classe d’une collègue),
 alors que les élèves de sa classe CP1 A s’ouvrent depuis « Mes classes ».
 
+Test du mode hors connexion (PR #12) : il se teste avec la version « construite » du site, plus
+proche de ce qui tournera sur le serveur. Dans la fenêtre n° 2, au lieu de `pnpm dev`, taper
+`pnpm start` (le site est d’abord construit, puis démarré ; attendre la ligne `Ready`).
+
+1. Connecté en `apprenant.demo`, ouvrir « Additionner jusqu’à 10 (démonstration) », cliquer sur
+   **Suivre ce cours** si besoin, puis sur **Garder ce cours sur cet appareil** : « ✓ Ce cours est
+   disponible sans connexion sur cet appareil. »
+2. Couper le site : dans la fenêtre n° 2, `Ctrl + C` (répondre `O` si Windows le demande).
+3. Dans le navigateur, cliquer sur la première leçon : elle s’ouvre quand même. Répondre au quiz
+   et cliquer sur **Valider mes réponses** : « Réponses gardées sur cet appareil, en attente de
+   synchronisation ». Cliquer sur **J’ai terminé cette leçon** : un bandeau indique « 2 actions
+   en attente de synchronisation ».
+4. Relancer `pnpm start`, attendre `Ready`, puis cliquer sur **Synchroniser maintenant** :
+   « ✓ Progression enregistrée. » En rechargeant la leçon : « ✓ Leçon terminée » et « Votre
+   dernier résultat ».
+5. Dans **Mon espace**, la carte « Cet appareil » propose **Effacer mes données sur cet
+   appareil** ; la déconnexion efface aussi tout.
+
+Avec une vraie coupure d’internet (téléphone en mode avion), le badge « Hors ligne » s’affiche et
+l’envoi se fait tout seul au retour du réseau.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -283,7 +304,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`94 passed` pour les tests E2E de la PR #11).
+Attendu : aucun test en échec (`104 passed` pour les tests E2E de la PR #12).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

@@ -1,9 +1,16 @@
 {
+  "id": "/",
   "name": "L’Enseignement",
   "short_name": "Enseignement",
+  "description": "Plateforme éducative mobile, utilisable à faible débit et sans connexion.",
   "lang": "fr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FAFAF5",
-  "theme_color": "#146B46"
+  "theme_color": "#146B46",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
 }

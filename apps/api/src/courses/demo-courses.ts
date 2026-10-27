@@ -24,8 +24,11 @@ interface DemoCourse {
   competencyCodes: string[];
   module: string;
   lessons: Array<{ title: string; body: string }>;
-  /** Envoyé en relecture par son auteur (circuit de validation, ADR-006). */
-  submitted: boolean;
+  /**
+   * Étape du circuit de validation (ADR-006) : brouillon, envoyé en relecture par son auteur, ou
+   * publié après approbation de Mme Mariam (référente) et publication par M. Bamba (directeur).
+   */
+  stage: 'draft' | 'in_review' | 'published';
 }
 
 const DEMO_COURSES: DemoCourse[] = [
@@ -46,7 +49,7 @@ const DEMO_COURSES: DemoCourse[] = [
       },
       { title: 'Lire « ma » et « mi »', body: 'On assemble m et a : ma. Puis m et i : mi.' },
     ],
-    submitted: false,
+    stage: 'draft',
   },
   {
     courseId: ID.courseMarche,
@@ -64,13 +67,48 @@ const DEMO_COURSES: DemoCourse[] = [
         body: 'Range les mangues par paquets de dix, puis compte les paquets : 10, 20, 30.',
       },
     ],
-    submitted: true,
+    stage: 'in_review',
+  },
+  {
+    courseId: ID.courseNombres,
+    versionId: ID.courseNombresV1,
+    author: ID.userKoffi,
+    title: 'Les nombres jusqu’à 50 (démonstration)',
+    summary: 'Cours fictif : compter, comparer et additionner avec des objets du quotidien.',
+    audience: 'Élèves de CP1',
+    estimatedMinutes: 30,
+    competencyCodes: ['CALC-01', 'CALC-02'],
+    module: 'Compter et additionner',
+    lessons: [
+      {
+        title: 'Compter de 10 en 10',
+        body: 'Avec des bâtonnets groupés par dix, compte : 10, 20, 30, 40, 50.',
+      },
+      {
+        title: 'Additionner deux petits nombres',
+        body: 'Trois cailloux et quatre cailloux : combien en tout ? Compte-les ensemble.',
+      },
+    ],
+    stage: 'published',
+  },
+  {
+    courseId: ID.courseMots,
+    versionId: ID.courseMotsV1,
+    author: ID.userAminata,
+    title: 'Lire des mots courts (démonstration)',
+    summary: 'Cours fictif : assembler des syllabes pour lire ses premiers mots.',
+    audience: 'Élèves de CP1',
+    estimatedMinutes: 20,
+    competencyCodes: ['LECT-03'],
+    module: 'Premiers mots',
+    lessons: [{ title: 'Lire « papa » et « mama »', body: 'pa + pa : papa. ma + ma : mama.' }],
+    stage: 'published',
   },
 ];
 
 /**
- * Cours FICTIFS de démonstration, à l'École Les Manguiers : un brouillon de M. Koffi et un cours
- * de Mme Aminata en attente de relecture, reliés au programme de démonstration 2026. Idempotent.
+ * Cours FICTIFS de démonstration, à l'École Les Manguiers, reliés au programme de démonstration
+ * 2026 : un brouillon, un cours en attente de relecture et deux cours publiés (catalogue). Idempotent.
  */
 export async function seedDemoCourses(db: Database): Promise<void> {
   for (const demo of DEMO_COURSES) {
@@ -137,16 +175,21 @@ async function seedCourse(db: Database, demo: DemoCourse): Promise<void> {
         position,
       })),
     );
-    if (demo.submitted) {
-      await tx
-        .update(courseVersions)
-        .set({ status: 'in_review', submittedBy: demo.author })
-        .where(eq(courseVersions.id, demo.versionId));
-      await tx.insert(courseReviewEvents).values({
-        courseVersionId: demo.versionId,
-        action: 'submitted',
-        actorUserId: demo.author,
-      });
+    if (demo.stage === 'draft') return;
+    // Les étapes passent par le déclencheur du circuit de validation, comme dans l'application.
+    const step = (values: Partial<typeof courseVersions.$inferInsert>) =>
+      tx.update(courseVersions).set(values).where(eq(courseVersions.id, demo.versionId));
+    const record = (action: 'submitted' | 'approved' | 'published', actorUserId: string) =>
+      tx
+        .insert(courseReviewEvents)
+        .values({ courseVersionId: demo.versionId, action, actorUserId });
+    await step({ status: 'in_review', submittedBy: demo.author });
+    await record('submitted', demo.author);
+    if (demo.stage === 'published') {
+      await step({ status: 'approved', approvedBy: ID.userMariam });
+      await record('approved', ID.userMariam);
+      await step({ status: 'published', publishedBy: ID.userBamba, publishedAt: new Date() });
+      await record('published', ID.userBamba);
     }
   });
 }

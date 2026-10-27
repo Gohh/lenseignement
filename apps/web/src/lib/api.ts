@@ -103,3 +103,9 @@ export interface Child {
   id: string;
   displayName: string | null;
 }
+
+export interface LearnerDetail {
+  id: string;
+  displayName: string | null;
+  cohorts: Array<{ id: string; code: string; name: string; schoolYear: string }>;
+}

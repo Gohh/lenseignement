@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src test",
-    "test": "tsc -p tsconfig.json --outDir .test-dist && node --test --test-concurrency=1 \".test-dist/test/**/*.test.js\"",
+    "test": "node -e \"require('node:fs').rmSync('.test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.json --outDir .test-dist && node --test --test-concurrency=1 \".test-dist/test/**/*.test.js\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node dist/db/cli.js migrate",
     "db:seed": "node dist/db/cli.js seed"

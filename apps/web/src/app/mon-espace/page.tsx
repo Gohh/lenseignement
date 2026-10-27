@@ -167,7 +167,14 @@ export default async function MyspacePage() {
           <h2 className="text-lg font-bold">Mes enfants</h2>
           <ul className="mt-2 list-disc pl-6">
             {children.data.map((child) => (
-              <li key={child.id}>{child.displayName}</li>
+              <li key={child.id}>
+                <Link
+                  href={`/mon-espace/eleves/${child.id}`}
+                  className="inline-flex min-h-[44px] items-center underline"
+                >
+                  {child.displayName}
+                </Link>
+              </li>
             ))}
           </ul>
         </div>

@@ -112,3 +112,18 @@ et avant tout pilote avec de vrais utilisateurs.
   tentative d'une autre personne est refusé sans rien révéler.
 - Minimisation : seuls le choix, la justesse et le score sont gardés, sans temps de réponse ni
   suivi de navigation. Un visiteur est corrigé sans aucun enregistrement.
+
+## Ajouté par le ticket 16 (tests E2E d'autorisation des mineurs)
+
+Les règles d'accès aux données des élèves sont vérifiées de bout en bout (navigateur → web →
+API → base), sur téléphone et sur ordinateur, dans `tests/e2e/autorisations.spec.ts` :
+
+- E2E-09 : un enseignant n'ouvre ni la classe ni la fiche d'un élève d'une collègue ; la page de
+  refus ne laisse fuiter ni nom de classe, ni nom d'élève, ni année, et elle est identique pour
+  un élève inexistant (pas d'énumération des identifiants).
+- E2E-10 : un parent n'ouvre que la fiche de son enfant au lien vérifié ; un lien en attente ou
+  un autre élève sont refusés, et chaque refus est inscrit dans `audit_logs` avec sa trace, sans
+  nom.
+- E2E-02 : aucun partage parental tant que le lien n'est pas vérifié ; la révocation ferme
+  l'accès dès la requête suivante.
+- Un élève ne lit que sa propre fiche ; sans connexion, la fiche renvoie vers la connexion.

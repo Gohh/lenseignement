@@ -31,7 +31,14 @@ export default async function CohortPage({ params }: { params: Promise<{ id: str
             <h2 className="text-lg font-bold">Élèves</h2>
             <ul className="mt-2 list-disc pl-6">
               {cohort.data.learners.map((learner) => (
-                <li key={learner.id}>{learner.displayName}</li>
+                <li key={learner.id}>
+                  <Link
+                    href={`/mon-espace/eleves/${learner.id}`}
+                    className="inline-flex min-h-[44px] items-center underline"
+                  >
+                    {learner.displayName}
+                  </Link>
+                </li>
               ))}
             </ul>
           </div>

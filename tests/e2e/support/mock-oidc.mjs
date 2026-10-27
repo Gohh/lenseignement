@@ -33,12 +33,16 @@ const DEFAULT_USER = 'apprenant.demo';
 // « nouveau.<suffixe> » : apprenant jamais vu, créé à sa première visite. Chaque test peut ainsi
 // partir d'une progression vide, même si la base E2E n'est pas remise à zéro.
 const NEW_LEARNER = /^nouveau\.[a-z0-9-]{1,40}$/;
+// « nouveau-parent.<suffixe> » : parent jamais vu, sans enfant tant qu'un test ne crée pas le lien.
+const NEW_PARENT = /^nouveau-parent\.[a-z0-9-]{1,40}$/;
 
 function userNamed(username) {
   if (USERS[username]) return USERS[username];
   const hex = createHash('sha256').update(username).digest('hex');
   const sub = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-  return { sub, name: 'Nouvel apprenant', roles: ['apprenant'] };
+  return NEW_PARENT.test(username)
+    ? { sub, name: 'Parent fictif', roles: ['parent'] }
+    : { sub, name: 'Nouvel apprenant', roles: ['apprenant'] };
 }
 
 const port = Number(process.env.MOCK_OIDC_PORT ?? 8090);
@@ -50,7 +54,7 @@ const userByRefreshToken = new Map();
 
 server.service.on('beforeAuthorizeRedirect', ({ url }, req) => {
   const hint = req.query.login_hint;
-  const known = hint in USERS || NEW_LEARNER.test(String(hint));
+  const known = hint in USERS || NEW_LEARNER.test(String(hint)) || NEW_PARENT.test(String(hint));
   userByCode.set(url.searchParams.get('code'), known ? hint : DEFAULT_USER);
 });
 

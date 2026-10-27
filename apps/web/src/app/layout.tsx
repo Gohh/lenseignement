@@ -21,7 +21,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
       <body>
-        <AppShell headerActions={<OfflineBadge />}>{children}</AppShell>
+        <AppShell
+          headerActions={
+            <div className="flex items-center gap-3">
+              <OfflineBadge />
+              <a
+                href="/mon-espace"
+                className="inline-flex min-h-[44px] items-center rounded-card bg-primary px-4 font-bold text-surface no-underline"
+              >
+                Mon espace
+              </a>
+            </div>
+          }
+        >
+          {children}
+        </AppShell>
       </body>
     </html>
   );

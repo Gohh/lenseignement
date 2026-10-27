@@ -1,4 +1,10 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { NextConfig } from 'next';
+
+// Fichier `.env` commun à la racine du dépôt (développement local) ; l'environnement reste prioritaire.
+const rootEnv = resolve(__dirname, '../../.env');
+if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },

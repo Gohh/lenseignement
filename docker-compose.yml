@@ -50,6 +50,19 @@ services:
       timeout: 5s
       retries: 10
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ['start-dev', '--import-realm', '--http-port=8080']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me-dev-only}
+      KC_HEALTH_ENABLED: 'true'
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      # Realm de développement importé au premier démarrage (comptes fictifs uniquement).
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+
 volumes:
   postgres-data:
   redis-data:

@@ -1,20 +1,14 @@
-import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import request from 'supertest';
-import { AppModule } from '../src/app.module.js';
-import { configureApp } from '../src/bootstrap.js';
 import { loadConfig } from '../src/config.js';
+import { createTestApp } from './helpers.js';
 
 let app: INestApplication;
 
 before(async () => {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  app = moduleRef.createNestApplication({ logger: false });
-  configureApp(app, loadConfig({ NODE_ENV: 'test' }));
-  await app.init();
+  ({ app } = await createTestApp());
 });
 
 after(async () => {
@@ -51,4 +45,11 @@ test('les en-têtes de sécurité sont présents', async () => {
 
 test('une configuration invalide est refusée', () => {
   assert.throws(() => loadConfig({ API_PORT: 'abc' }), /Configuration invalide/);
+});
+
+test('un émetteur OIDC non HTTPS est refusé en production', () => {
+  assert.throws(
+    () => loadConfig({ NODE_ENV: 'production', OIDC_ISSUER_URL: 'http://idp.local/realms/x' }),
+    /HTTPS/,
+  );
 });

@@ -8,7 +8,7 @@ secondaire, technique, alphabétisation et formation des enseignants.
 
 Référence : [`docs/LENSEIGNEMENT_CAHIER_DIRECTEUR_DEVELOPPEMENT.md`](docs/LENSEIGNEMENT_CAHIER_DIRECTEUR_DEVELOPPEMENT.md) (cahier directeur v0.1.0).
 Décisions d’architecture : [`docs/architecture/adr`](docs/architecture/adr).
-Guide pas à pas pour Windows : [`docs/guides/demarrage-windows.md`](docs/guides/demarrage-windows.md).
+Guide pas à pas pour Windows, sans Docker : [`docs/guides/demarrage-windows.md`](docs/guides/demarrage-windows.md).
 
 ## Structure
 
@@ -27,7 +27,8 @@ tests/e2e/    Playwright + axe-core
 
 - Node.js 22 (voir `.nvmrc`)
 - pnpm 10 : `corepack enable` puis `corepack prepare pnpm@10.28.0 --activate`
-- Docker Desktop (pour PostgreSQL, Redis et MinIO)
+- PostgreSQL 14+ installé sur le poste, ou Docker Desktop (PostgreSQL, Redis, MinIO, Keycloak)
+- Sans Docker : Java 21 et Keycloak 26.8.1, voir le guide Windows
 
 ## Démarrage
 

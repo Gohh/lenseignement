@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { seedDemoCurricula } from '../curricula/demo-curricula.js';
 import type { Database } from './database.js';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB, SCHOOL_YEAR } from './demo-data.js';
 import {
@@ -17,6 +18,7 @@ import {
  *   Bamba en est le directeur.
  * - École Les Baobabs : CE1-A (Moussa), sans personnel de démonstration (test d'isolation).
  * - Fatou est la mère d'Awa (lien vérifié) ; son lien vers Seydou est en attente.
+ * - Programmes fictifs : voir database/curricula.
  */
 export async function seedDemo(db: Database): Promise<void> {
   await db.transaction(async (tx) => {
@@ -179,4 +181,6 @@ export async function seedDemo(db: Database): Promise<void> {
       ])
       .onConflictDoNothing();
   });
+
+  await seedDemoCurricula(db);
 }

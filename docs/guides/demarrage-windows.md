@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #2 (ticket 6) :
+dans la branche de la PR. Pour la PR #3 (ticket 7) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-6-abac
+git checkout feat/ticket-7-referentiels
 git pull
 pnpm install
 pnpm build
@@ -129,6 +129,8 @@ pnpm --filter @lenseignement/api db:seed
 
 Attendu : `Migrations appliquées.` puis `Données de démonstration fictives insérées.`
 Les deux commandes peuvent être relancées sans risque : elles n’ajoutent que ce qui manque.
+**À refaire après chaque nouvelle PR** qui touche à la base (nouvelles tables ou nouvelles
+données de démonstration).
 
 ## Étape 7 — Démarrer Keycloak (fenêtre PowerShell n° 1)
 
@@ -192,6 +194,11 @@ Test du refus d’accès : connecté en `enseignant.demo`, ouvrir
 http://localhost:3000/mon-espace/classes/30000000-0000-4000-8000-000000000002 (la classe de la
 collègue) : la page doit afficher « **Accès refusé** ».
 
+Test des programmes (sans connexion) : ouvrir http://localhost:3000/branches/primaire/programme.
+Attendu : le bandeau « Programme de démonstration, non officiel », la **version 2026** et la
+compétence « Compter jusqu'à 50 ». Dans « Historique des versions », cliquer sur
+**Version 2025** : la compétence redevient « Compter jusqu'à 20 ».
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -214,11 +221,11 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`32 passed` pour les tests E2E de la PR #2).
+Attendu : aucun test en échec (`38 passed` pour les tests E2E de la PR #3).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 
-1. Ouvrir la PR (ex. https://github.com/Gohh/lenseignement/pull/2).
+1. Ouvrir la PR (ex. https://github.com/Gohh/lenseignement/pull/3).
 2. Onglet **Files changed** pour parcourir les modifications si vous le souhaitez.
 3. Vérifier en bas que les contrôles sont verts (« All checks have passed »).
 4. Cliquer sur **Merge pull request**, puis **Confirm merge**.
@@ -238,6 +245,22 @@ Votre PostgreSQL continue de tourner comme d’habitude. Les comptes Keycloak so
 `C:\Outils\keycloak-26.8.1\data` pour la prochaine fois.
 
 ---
+
+## Administrer les programmes (référentiels)
+
+Un programme s’écrit dans un fichier JSON (modèles : `database/curricula/`). Il est d’abord
+importé comme **brouillon**, invisible du public, puis **publié** avec une date d’effet. Une
+version publiée ne peut plus être modifiée : pour corriger, on publie une nouvelle version.
+
+```powershell
+cd apps\api
+node dist\db\cli.js curriculum:import C:\chemin\programme.json
+node dist\db\cli.js curriculum:publish DEMO-PRIMAIRE 2027 2027-09-01
+cd ..\..
+```
+
+Si le fichier contient une erreur (code en double, matière inconnue, prérequis en boucle…),
+l’import est refusé et le message indique la ligne fautive.
 
 ## En cas de problème
 

@@ -33,6 +33,14 @@ export default async function BranchPage({ params }: Props) {
       <h1 className="text-3xl font-bold">{branch.title}</h1>
       <p className="text-lg">{branch.summary}</p>
       <p className="text-ink-muted">Public : {branch.audience}</p>
+      <p>
+        <a
+          href={`/branches/${branch.code}/programme`}
+          className="inline-flex min-h-[44px] items-center font-bold text-primary underline underline-offset-4"
+        >
+          Voir le programme et les compétences
+        </a>
+      </p>
       <p className="rounded-card border border-line bg-surface p-4">
         Les parcours de démonstration de cet espace arriveront avec les tickets 8 à 13 (cours,
         leçons texte/audio, quiz et progression).

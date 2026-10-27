@@ -1,14 +1,22 @@
 import { loadConfig } from '../config.js';
+import { importCurriculumVersion, publishCurriculumVersion } from '../curricula/curricula.js';
+import { loadCurriculumFile } from '../curricula/curriculum-file.js';
 import { loadRootEnv } from '../load-env.js';
 import { createDatabase } from './database.js';
 import { runMigrations } from './migrate.js';
 import { seedDemo } from './seed.js';
 
+const USAGE = `Usage :
+  node dist/db/cli.js migrate
+  node dist/db/cli.js seed
+  node dist/db/cli.js curriculum:import <fichier.json>
+  node dist/db/cli.js curriculum:publish <code> <version> <AAAA-MM-JJ>`;
+
 /**
- * Commandes de base de données : `node dist/db/cli.js migrate` ou `node dist/db/cli.js seed`.
+ * Commandes de base de données et d'administration des programmes.
  * Le jeu de démonstration est refusé en production.
  */
-async function main(command: string | undefined): Promise<void> {
+async function main([command, ...args]: string[]): Promise<void> {
   loadRootEnv();
   const config = loadConfig();
   const db = createDatabase(config.DATABASE_URL);
@@ -22,15 +30,25 @@ async function main(command: string | undefined): Promise<void> {
       }
       await seedDemo(db);
       process.stdout.write('Données de démonstration fictives insérées.\n');
+    } else if (command === 'curriculum:import' && args.length === 1) {
+      const file = await loadCurriculumFile(args[0]!);
+      await importCurriculumVersion(db, file);
+      process.stdout.write(
+        `Brouillon importé : ${file.curriculum.code} version ${file.version.label}.\n`,
+      );
+    } else if (command === 'curriculum:publish' && args.length === 3) {
+      const [code, label, effectiveFrom] = args as [string, string, string];
+      await publishCurriculumVersion(db, code, label, effectiveFrom);
+      process.stdout.write(`Version publiée : ${code} ${label}, en vigueur le ${effectiveFrom}.\n`);
     } else {
-      throw new Error('Usage : node dist/db/cli.js <migrate|seed>');
+      throw new Error(USAGE);
     }
   } finally {
     await db.$client.end();
   }
 }
 
-main(process.argv[2]).catch((error: unknown) => {
+main(process.argv.slice(2)).catch((error: unknown) => {
   console.error((error as Error).message);
   process.exitCode = 1;
 });

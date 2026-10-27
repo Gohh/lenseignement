@@ -15,6 +15,16 @@ export async function apiGet<T>(accessToken: string, path: string): Promise<ApiR
   }
 }
 
+/** Lecture publique (sans jeton) : catalogue et programmes publiés. */
+export async function publicApiGet<T>(path: string): Promise<ApiResult<T>> {
+  try {
+    const res = await fetch(`${serverEnv().API_INTERNAL_URL}${path}`, { cache: 'no-store' });
+    return res.ok ? { ok: true, data: (await res.json()) as T } : { ok: false, status: res.status };
+  } catch {
+    return { ok: false, status: 503 };
+  }
+}
+
 export interface Membership {
   organizationId: string;
   organizationName: string;

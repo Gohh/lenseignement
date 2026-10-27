@@ -1,0 +1,54 @@
+{
+  "curriculum": {
+    "code": "DEMO-ELEC",
+    "branch": "technique",
+    "title": "Électricité du bâtiment (démonstration)",
+    "description": "Référentiel métier FICTIF servant à tester la plateforme. Il ne reproduit aucun référentiel officiel."
+  },
+  "version": {
+    "label": "2026",
+    "source": {
+      "title": "Fiche métier fictive",
+      "issuer": "Équipe projet L'Enseignement (démonstration)",
+      "isOfficial": false
+    }
+  },
+  "levels": [
+    {
+      "code": "AN1",
+      "title": "1re année"
+    }
+  ],
+  "subjects": [
+    {
+      "code": "SECU",
+      "title": "Sécurité en atelier"
+    },
+    {
+      "code": "INST",
+      "title": "Installation"
+    }
+  ],
+  "competencies": [
+    {
+      "code": "SECU-01",
+      "title": "Identifier les risques électriques",
+      "subject": "SECU",
+      "level": "AN1"
+    },
+    {
+      "code": "SECU-02",
+      "title": "Consigner une installation avant intervention",
+      "subject": "SECU",
+      "level": "AN1",
+      "prerequisites": ["SECU-01"]
+    },
+    {
+      "code": "INST-01",
+      "title": "Câbler un circuit d'éclairage simple",
+      "subject": "INST",
+      "level": "AN1",
+      "prerequisites": ["SECU-02"]
+    }
+  ]
+}

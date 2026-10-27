@@ -28,3 +28,42 @@ export interface LearningPlanItem extends CourseProgress {
   branch: string;
   enrolledAt: string;
 }
+
+/**
+ * Action d'apprentissage envoyée par l'appareil (ticket 14, ADR-011). `operationId` est tiré par
+ * l'appareil une fois pour toutes : un renvoi de la même action est reconnu et n'est pas rejoué.
+ */
+const EventBase = z.object({
+  operationId: z.uuid(),
+  courseId: z.uuid(),
+  /** Heure de l'action sur l'appareil, utile quand elle a été faite hors ligne. */
+  occurredAt: z.iso.datetime({ offset: true }).optional(),
+});
+const LessonNumber = z.number().int().min(1).max(10_000);
+
+export const LearningEventSchema = z.discriminatedUnion('type', [
+  EventBase.extend({ type: z.literal('enrolled') }),
+  EventBase.extend({ type: z.literal('lesson_opened'), lessonNumber: LessonNumber }),
+  EventBase.extend({ type: z.literal('lesson_completed'), lessonNumber: LessonNumber }),
+  EventBase.extend({
+    type: z.literal('quiz_submitted'),
+    lessonNumber: LessonNumber,
+    answers: z
+      .array(z.object({ questionId: z.uuid(), choice: z.number().int().min(0).max(3) }))
+      .min(1)
+      .max(10),
+  }),
+]);
+export type LearningEventInput = z.infer<typeof LearningEventSchema>;
+
+/** Lot d'actions, traitées dans l'ordre : une inscription peut précéder ses leçons terminées. */
+export const LearningEventBatchSchema = z.object({
+  events: z.array(LearningEventSchema).min(1).max(50),
+});
+
+export interface LearningEventResult {
+  operationId: string;
+  /** `applied` : prise en compte ; `duplicate` : déjà reçue ; `rejected` : refusée (message). */
+  status: 'applied' | 'duplicate' | 'rejected';
+  message?: string;
+}

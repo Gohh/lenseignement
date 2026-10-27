@@ -9,3 +9,7 @@ export function createDatabase(url: string): Database {
   const pool = new Pool({ connectionString: url, max: 10, idleTimeoutMillis: 30_000 });
   return drizzle(pool, { schema });
 }
+
+/** Transaction Drizzle, ou base : les fonctions métier acceptent l'une ou l'autre. */
+export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type Executor = Database | Tx;

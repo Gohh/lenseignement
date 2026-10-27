@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #9 (ticket 13) :
+dans la branche de la PR. Pour la PR #10 (ticket 14) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-13-quiz
+git checkout feat/ticket-14-evenements
 git pull
 pnpm install
 pnpm build
@@ -246,6 +246,13 @@ explication. **Recommencer le quiz** vide les réponses. Connecté en `apprenant
 **Suivre ce cours**, le résultat est enregistré : en rechargeant la leçon, « Votre dernier
 résultat » s’affiche. Côté rédaction, connecté en `enseignant.demo`, chaque leçon du plan d’un
 brouillon a un bloc « quiz (facultatif) » avec **Ajouter une question**.
+
+Test des évènements (la PR #10 ajoute deux tables : refaire l’étape 6 avant) : connecté en
+`apprenant.demo`, suivre un cours qu’Awa ne suit pas encore, puis terminer une leçon. Dans la
+fenêtre où tourne `pnpm dev`, une ligne `[Outbox] EnrollmentCreated …` puis une ligne
+`[Outbox] LessonCompleted …` apparaissent dans les secondes qui suivent : chaque progrès produit
+un évènement, une seule fois. Cliquer de nouveau sur **Suivre ce cours** ou terminer encore la
+même leçon n’en produit pas de nouveau.
 
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 

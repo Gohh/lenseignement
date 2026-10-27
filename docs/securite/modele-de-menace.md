@@ -112,3 +112,13 @@ et avant tout pilote avec de vrais utilisateurs.
   tentative d'une autre personne est refusé sans rien révéler.
 - Minimisation : seuls le choix, la justesse et le score sont gardés, sans temps de réponse ni
   suivi de navigation. Un visiteur est corrigé sans aucun enregistrement.
+
+## Ajouté par le ticket 14 (ADR-011)
+
+- Rejeu et réordonnancement (cahier §8) : chaque action porte un identifiant unique par
+  personne ; un rejeu est reconnu et sans effet, l'ordre du lot est respecté, et le serveur reste
+  seul juge (inscription, cours publié, correction des quiz).
+- Intégrité : journal des actions en ajout seulement ; évènements métier écrits dans la même
+  transaction que le changement, donc jamais d'évènement sans changement ni l'inverse.
+- Minimisation : ni réponses de quiz ni nom dans le journal ou l'outbox, seulement des
+  identifiants ; erreurs de livraison tronquées et sans contenu personnel.

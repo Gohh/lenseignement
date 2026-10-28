@@ -31,9 +31,9 @@ export function QuizRunner(props: Props) {
   return (
     <section
       aria-labelledby="quiz"
-      className="space-y-4 rounded-card border border-line bg-surface p-4"
+      className="space-y-4 rounded-big border border-line bg-surface p-5"
     >
-      <h2 id="quiz" className="text-xl font-bold">
+      <h2 id="quiz" className="text-2xl font-extrabold">
         Quiz de la leçon
       </h2>
       {props.last && round.n === 0 && (
@@ -120,8 +120,8 @@ function QuizRound({
         const item = result?.items.find((it) => it.questionId === q.id);
         // Réponses figées après l'envoi ; les boutons d'écoute restent utilisables.
         return (
-          <fieldset key={q.id} className="space-y-1">
-            <legend className="font-bold">
+          <fieldset key={q.id} className="space-y-2">
+            <legend className="font-display text-xl font-bold">
               Question {i + 1} : {q.prompt}
             </legend>
             <SpeakButton
@@ -131,14 +131,14 @@ function QuizRound({
             />
             {q.choices.map((choice, c) => (
               <div key={c} className="flex items-center gap-2">
-                <label className="flex min-h-[44px] flex-1 items-center gap-3">
+                <label className="flex min-h-[56px] flex-1 cursor-pointer items-center gap-3 rounded-card border-2 border-primary-line bg-surface px-4 py-2 text-lg font-bold has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:disabled]:cursor-default">
                   <input
                     type="radio"
                     name={`q-${q.id}`}
                     value={c}
                     required
                     disabled={Boolean(result) || queued}
-                    className="h-5 w-5"
+                    className="h-6 w-6 accent-primary"
                   />
                   {choice}
                 </label>
@@ -146,7 +146,10 @@ function QuizRound({
               </div>
             ))}
             {item && (
-              <div data-testid="quiz-feedback" className="rounded-card border border-line p-3">
+              <div
+                data-testid="quiz-feedback"
+                className={`rounded-card border-2 p-3 ${item.correct ? 'border-primary bg-primary-soft text-ink-strong' : 'border-accent bg-accent-soft text-accent-ink'}`}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-bold">
                     {item.correct
@@ -176,7 +179,12 @@ function QuizRound({
           réessayez quand la connexion revient.
         </p>
       )}
-      <p role="status" aria-live="polite" data-testid="quiz-score" className="text-lg font-bold">
+      <p
+        role="status"
+        aria-live="polite"
+        data-testid="quiz-score"
+        className="font-display text-2xl font-bold text-ink-strong"
+      >
         {score}
       </p>
       {score && <SpeakButton text={score} lang={lang} label="Écouter le résultat" />}
@@ -185,7 +193,11 @@ function QuizRound({
           Recommencer le quiz
         </button>
       ) : (
-        <button type="submit" disabled={pending} className={buttonClass}>
+        <button
+          type="submit"
+          disabled={pending}
+          className={`${buttonClass} min-h-[56px] px-7 text-xl font-display`}
+        >
           {pending ? 'Correction…' : 'Valider mes réponses'}
         </button>
       )}

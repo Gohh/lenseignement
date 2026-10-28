@@ -13,6 +13,7 @@ import { buttonClass, inputClass, Notice, param, STATUS_LABELS } from '@/compone
 import { apiGet, publicApiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { updateVersionAction } from '../../actions';
+import { Circuit } from './Circuit';
 import { OutlineEditor } from './OutlineEditor';
 import { ReviewPanel } from './ReviewPanel';
 
@@ -107,6 +108,7 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
         {version.organization.name} · version {version.number} ·{' '}
         {STATUS_LABELS[version.status] ?? version.status}
       </p>
+      <Circuit version={version} />
       <Notice message={param(query.message)} error={param(query.erreur)} />
 
       {!isDraft ? (
@@ -161,7 +163,9 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
       ) : (
         <>
           <form action={updateVersionAction} className="space-y-4">
-            <h2 className="text-xl font-bold">Informations</h2>
+            <h2 id="informations" className="text-xl font-bold">
+              Informations
+            </h2>
             <input type="hidden" name="versionId" value={version.id} />
             <input type="hidden" name="revision" value={version.revision} />
             <input type="hidden" name="previousProgramme" value={current} />
@@ -261,7 +265,9 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
             </button>
           </form>
 
-          <h2 className="text-xl font-bold">Plan du cours</h2>
+          <h2 id="plan" className="text-xl font-bold">
+            Plan du cours
+          </h2>
           {/* Un seul éditeur par version : il garde ce qui vient d'être enregistré et son message
               « Plan enregistré. », et enregistrer les informations ne fait pas perdre un plan en
               cours de saisie (la révision, elle, suit). */}

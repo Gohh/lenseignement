@@ -2,6 +2,7 @@ import { LEVEL_GROUPS, levelLabel, type CatalogPage } from '@lenseignement/types
 import { Logo, CourseCard } from '@lenseignement/ui';
 import { buttonClass, secondaryButtonClass } from '@/components/Notice';
 import { publicApiGet } from '@/lib/api';
+import { BRANCH_ICONS } from '@/lib/branch-icons';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,14 +59,6 @@ const STEPS = [
   { title: 'Je m’entraîne', text: 'Un petit quiz, et la correction expliquée tout de suite.' },
   { title: 'Je progresse', text: 'Ma progression est gardée, même sans réseau.' },
 ];
-
-const BRANCH_ICONS: Record<string, string> = {
-  primaire: '📘',
-  secondaire: '🎓',
-  technique: '🛠️',
-  alphabetisation: '🔊',
-  'formation-enseignants': '🧑🏾‍🏫',
-};
 
 export default async function HomePage() {
   const catalog = await publicApiGet<CatalogPage>('/catalog/courses');

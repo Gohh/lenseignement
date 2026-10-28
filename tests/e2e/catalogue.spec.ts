@@ -40,7 +40,7 @@ test.describe('Catalogue public (ticket 10)', () => {
     ]);
     await expect(results(page)).toContainText('Alphabétisation Niveau 1');
     await results(page).getByRole('link').click();
-    await expect(page.getByText('Alphabétisation Niveau 1')).toBeVisible();
+    await expect(page.getByText('Alphabétisation Niveau 1', { exact: true }).first()).toBeVisible();
   });
 
   test('filtres par espace et par compétence', async ({ page }) => {

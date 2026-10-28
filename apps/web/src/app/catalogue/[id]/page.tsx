@@ -56,13 +56,18 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
     <article className="space-y-6">
       <Link
         href={`/catalogue?branch=${course.branch}`}
-        className="inline-flex min-h-[44px] items-center underline"
+        className="inline-flex min-h-[44px] items-center font-bold"
       >
         ← Catalogue {branch ? `: ${branch.title}` : ''}
       </Link>
       <Notice message={param(query.message)} error={param(query.erreur)} />
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold">{course.title}</h1>
+        <div>
+          <p className="mb-2 inline-block rounded-full bg-primary-soft px-3 py-0.5 text-sm font-bold text-primary">
+            {(course.level && levelLabel(course.level)) || branch?.title || course.branch}
+          </p>
+          <h1 className="text-4xl font-extrabold">{course.title}</h1>
+        </div>
         <SpeakButton
           text={[
             `${course.title}.`,
@@ -75,9 +80,9 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
           label="Écouter la présentation du cours"
         />
       </div>
-      <p className="text-lg">{course.summary}</p>
+      <p className="max-w-3xl text-xl text-ink-muted">{course.summary}</p>
 
-      <dl className="grid gap-x-4 gap-y-1 rounded-card border border-line bg-surface p-4 sm:grid-cols-[auto_1fr]">
+      <dl className="grid gap-x-6 gap-y-2 rounded-big border border-line bg-surface p-5 sm:grid-cols-[auto_1fr]">
         <dt className="font-bold">Établissement</dt>
         <dd>{course.organization}</dd>
         <dt className="font-bold">Niveau</dt>
@@ -103,7 +108,7 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
 
       {course.competencies.length > 0 && (
         <section aria-labelledby="competences">
-          <h2 id="competences" className="text-xl font-bold">
+          <h2 id="competences" className="text-2xl font-extrabold">
             Compétences visées
           </h2>
           <ul className="mt-2 list-disc pl-6">
@@ -115,7 +120,7 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
       )}
 
       <section aria-labelledby="plan" className="space-y-3">
-        <h2 id="plan" className="text-xl font-bold">
+        <h2 id="plan" className="text-2xl font-extrabold">
           Plan du cours
         </h2>
         <div className="flex flex-wrap items-center gap-3">
@@ -166,11 +171,11 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
           />
         )}
         {course.modules.map((m, i) => (
-          <div key={i} className="rounded-card border border-line bg-surface p-4">
-            <h3 className="font-bold">
+          <div key={i} className="rounded-big border border-line bg-surface p-5">
+            <h3 className="text-xl font-bold">
               Module {i + 1} : {m.title}
             </h3>
-            <ol className="mt-2 list-decimal pl-6">
+            <ol className="mt-2 list-decimal pl-6 marker:font-bold marker:text-primary">
               {m.lessons.map((l, j) => {
                 // Rang de la leçon dans tout le cours, comme dans l'adresse du lecteur.
                 const rank =
@@ -182,7 +187,7 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
                   <li key={j}>
                     <Link
                       href={lessonHref(rank)}
-                      className="inline-flex min-h-[44px] items-center underline"
+                      className="inline-flex min-h-[44px] items-center font-bold text-ink-strong underline-offset-4 hover:underline"
                     >
                       {l.title}
                     </Link>

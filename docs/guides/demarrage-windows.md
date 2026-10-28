@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #24 (nouveau look : leçon et quiz) :
+dans la branche de la PR. Pour la PR #25 (nouveau look : Mon espace) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/look-lecon
+git checkout feat/look-mon-espace
 git pull
 pnpm install
 pnpm build
@@ -359,7 +359,15 @@ Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6
 3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
    classe** ne propose que les niveaux de l’espace du cours.
 
-Test du nouveau look, partie 3 (PR #24, aucune base de données à refaire) :
+Test du nouveau look, partie 4 (PR #25, aucune base de données à refaire) :
+
+1. Se connecter en `apprenant.demo`, puis **Mon espace** : grand « Bonjour », cartes arrondies et,
+   pour chaque cours suivi, une barre de progression.
+2. Sur ordinateur, le menu de Mon espace est à gauche ; la page en cours est en vert clair. Sur
+   téléphone (ou une fenêtre étroite), il devient une barre fixe en bas de l’écran.
+3. Si un cours est commencé, un grand bloc vert « Reprendre où tu en étais » apparaît en haut.
+
+Rappel, partie 3 (PR #24, déjà fusionnée) :
 
 1. Ouvrir un cours, puis une leçon : barre de progression en haut, texte dans une carte blanche.
 2. En bas, le quiz : chaque réponse est un grand bouton ; celui choisi devient vert clair.

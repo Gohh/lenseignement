@@ -30,6 +30,13 @@ export async function GET(request: NextRequest) {
     ...(signup ? { prompt: 'create' } : {}),
   });
 
+  // Keycloak ignore `prompt=create` : son formulaire d'inscription a sa propre adresse, avec les
+  // mêmes paramètres. Un autre fournisseur garde l'adresse d'origine (+ `prompt=create`).
+  const keycloakAuth = '/protocol/openid-connect/auth';
+  if (signup && authorizationUrl.pathname.endsWith(keycloakAuth)) {
+    authorizationUrl.pathname = authorizationUrl.pathname.replace(/\/auth$/, '/registrations');
+  }
+
   const response = NextResponse.redirect(authorizationUrl);
   // Lie le retour au navigateur qui a lancé la connexion (protection contre le login CSRF).
   response.cookies.set(LOGIN_STATE_COOKIE, state, cookieOptions(10 * 60, '/auth'));

@@ -669,3 +669,163 @@ export const outboxEvents = pgTable(
     ),
   ],
 );
+
+// --- Bilan et rattrapage : cahier §6.4 (PNAPAS / remédiation), §7 ; ticket 17, ADR-013 --------
+
+/**
+ * Bilan diagnostique rattaché à une version de programme. Ses questions visent chacune une
+ * compétence de cette version : un résultat se relit toujours avec la version utilisée (E2E-04).
+ */
+export const diagnostics = pgTable('diagnostics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: text('code').notNull().unique(),
+  title: text('title').notNull(),
+  curriculumVersionId: uuid('curriculum_version_id')
+    .notNull()
+    .references(() => curriculumVersions.id),
+  createdAt: createdAt(),
+});
+
+export const DIAGNOSTIC_PHASES = ['diagnostic', 'post_test'] as const;
+
+/** Question du bilan (`diagnostic`) ou du petit test de vérification (`post_test`). Figée. */
+export const diagnosticItems = pgTable(
+  'diagnostic_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    diagnosticId: uuid('diagnostic_id')
+      .notNull()
+      .references(() => diagnostics.id),
+    competencyId: uuid('competency_id')
+      .notNull()
+      .references(() => competencies.id),
+    phase: text('phase', { enum: DIAGNOSTIC_PHASES }).notNull(),
+    position: integer('position').notNull(),
+    prompt: text('prompt').notNull(),
+    choices: jsonb('choices').$type<string[]>().notNull(),
+    correctChoice: integer('correct_choice').notNull(),
+    explanation: text('explanation').notNull().default(''),
+  },
+  (t) => [
+    unique('diagnostic_items_position_unique').on(t.diagnosticId, t.phase, t.position),
+    check('diagnostic_items_phase_check', sql`${t.phase} in ('diagnostic','post_test')`),
+    check(
+      'diagnostic_items_choices_check',
+      sql`jsonb_typeof(${t.choices}) = 'array' and jsonb_array_length(${t.choices}) between 2 and 4`,
+    ),
+    check(
+      'diagnostic_items_correct_check',
+      sql`${t.correctChoice} >= 0 and ${t.correctChoice} < jsonb_array_length(${t.choices})`,
+    ),
+  ],
+);
+
+export const REMEDIATION_STATUSES = ['active', 'completed', 'replaced'] as const;
+export const REMEDIATION_SOURCES = ['rule', 'teacher'] as const;
+
+/**
+ * Plan de rattrapage : la compétence à travailler, le cours conseillé et l'explication donnée.
+ * Une seule orientation en cours par apprenant ; une correction de l'enseignant crée un nouveau
+ * plan et clôt l'ancien (`replaced`), pour garder la trace des deux.
+ */
+export const remediationPlans = pgTable(
+  'remediation_plans',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    diagnosticId: uuid('diagnostic_id')
+      .notNull()
+      .references(() => diagnostics.id),
+    /** Bilan d'où vient la proposition. */
+    diagnosticSessionId: uuid('diagnostic_session_id')
+      .notNull()
+      .references((): AnyPgColumn => diagnosticSessions.id),
+    competencyId: uuid('competency_id')
+      .notNull()
+      .references(() => competencies.id),
+    courseId: uuid('course_id').references(() => courses.id),
+    rationale: jsonb('rationale').$type<string[]>().notNull(),
+    source: text('source', { enum: REMEDIATION_SOURCES }).notNull(),
+    decidedBy: uuid('decided_by').references(() => users.id),
+    reason: text('reason'),
+    status: text('status', { enum: REMEDIATION_STATUSES }).notNull().default('active'),
+    createdAt: createdAt(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('remediation_plans_one_active')
+      .on(t.userId)
+      .where(sql`${t.status} = 'active'`),
+    check('remediation_plans_status_check', sql`${t.status} in ('active','completed','replaced')`),
+    check('remediation_plans_source_check', sql`${t.source} in ('rule','teacher')`),
+    check(
+      'remediation_plans_teacher_check',
+      sql`${t.source} = 'rule' or (${t.decidedBy} is not null and ${t.reason} is not null)`,
+    ),
+  ],
+);
+
+/**
+ * Bilan ou petit test passé par un apprenant. Ajout seulement ; l'identifiant vient de l'appareil
+ * pour qu'un renvoi ne crée pas de doublon. Un petit test est rattaché au plan qu'il vérifie.
+ */
+export const diagnosticSessions = pgTable(
+  'diagnostic_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    diagnosticId: uuid('diagnostic_id')
+      .notNull()
+      .references(() => diagnostics.id),
+    phase: text('phase', { enum: DIAGNOSTIC_PHASES }).notNull(),
+    planId: uuid('plan_id').references(() => remediationPlans.id),
+    score: integer('score').notNull(),
+    total: integer('total').notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('diagnostic_sessions_user_idx').on(t.userId, t.submittedAt),
+    check('diagnostic_sessions_phase_check', sql`${t.phase} in ('diagnostic','post_test')`),
+    check(
+      'diagnostic_sessions_plan_check',
+      sql`(${t.phase} = 'post_test') = (${t.planId} is not null)`,
+    ),
+    check('diagnostic_sessions_score_check', sql`${t.score} >= 0 and ${t.score} <= ${t.total}`),
+  ],
+);
+
+export const diagnosticResponses = pgTable(
+  'diagnostic_responses',
+  {
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => diagnosticSessions.id),
+    itemId: uuid('item_id')
+      .notNull()
+      .references(() => diagnosticItems.id),
+    choice: integer('choice').notNull(),
+    correct: boolean('correct').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sessionId, t.itemId] })],
+);
+
+/** Résultat par compétence d'un bilan ou d'un petit test (cahier : `skill_gaps`). */
+export const skillResults = pgTable(
+  'skill_results',
+  {
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => diagnosticSessions.id),
+    competencyId: uuid('competency_id')
+      .notNull()
+      .references(() => competencies.id),
+    correct: integer('correct').notNull(),
+    total: integer('total').notNull(),
+    mastered: boolean('mastered').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sessionId, t.competencyId] })],
+);

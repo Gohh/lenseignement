@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
+import { AUTHOR_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
 import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -17,15 +18,6 @@ const ROLE_LABELS: Record<string, string> = {
   'referent-pedagogique': 'Référent pédagogique',
   'admin-plateforme': 'Administrateur de la plateforme',
 };
-
-// Affichage seulement : l'API reste seule juge des droits de rédaction.
-const AUTHOR_ROLES = new Set([
-  'enseignant',
-  'alphabetiseur',
-  'referent-pedagogique',
-  'chef-etablissement',
-]);
-const VALIDATOR_ROLES = new Set(['referent-pedagogique', 'chef-etablissement']);
 
 const cardClass = 'rounded-card border border-line bg-surface p-4';
 

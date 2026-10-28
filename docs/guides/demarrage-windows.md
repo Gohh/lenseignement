@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #18 (ticket 20) :
+dans la branche de la PR. Pour la PR #19 (navigation) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-20-tableau-kpi
+git checkout feat/navigation-menu
 git pull
 pnpm install
 pnpm build
@@ -334,6 +334,14 @@ Test des statistiques anonymes (la PR #18 ajoute des élèves fictifs : refaire 
    `http://localhost:3000/mon-espace/statistiques` affiche « Ce tableau est réservé à la direction
    des établissements et aux référents. »
 
+Test de la navigation (PR #19) :
+
+1. Connecté en `directeur.demo`, **Mon espace** : un menu apparaît en haut, avec **Vue
+   d’ensemble**, **Rédiger**, **Relecture** et **Statistiques**. La page en cours est en vert.
+2. Cliquer sur **Statistiques**, puis sur **Relecture** : on passe d’un outil à l’autre sans
+   revenir en arrière.
+3. En `apprenant.demo`, le menu montre **Vue d’ensemble**, **Mon bilan** et **Atelier**.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -356,7 +364,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`127 passed` et `1 skipped` pour les tests E2E).
+Attendu : aucun test en échec (`131 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

@@ -10,6 +10,9 @@ test.describe('Navigation', () => {
     await loginAs(page, 'directeur.demo', '/mon-espace');
     await expect(menu(page).getByRole('link')).toHaveText([
       'Vue d’ensemble',
+      'Ma famille',
+      'Répétiteur',
+      'Équipe',
       'Rédiger',
       'Relecture',
       'Statistiques',
@@ -39,6 +42,8 @@ test.describe('Navigation', () => {
       'Vue d’ensemble',
       'Mon bilan',
       'Atelier',
+      'Ma famille',
+      'Répétiteur',
     ]);
     await expect(menu(page).getByRole('link', { name: 'Atelier' })).toHaveAttribute(
       'aria-current',

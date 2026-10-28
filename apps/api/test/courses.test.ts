@@ -371,3 +371,27 @@ test('nouvelle version : copie complète, publication qui remplace, puis retrait
   const v3 = await call(SUB.koffi, 'post', `/courses/${ID.courseSyllabes}/versions`, 201);
   await call(SUB.koffi, 'delete', `/course-versions/${v3.body.versionId}`, 204);
 });
+
+test('cycles (ADR-019) : l’enseignante limitée au primaire ne voit ni ne touche les autres cycles', async () => {
+  const branchesOf = async (subject: string) =>
+    (await call(subject, 'get', '/organizations', 200)).body.items[0].branches;
+  assert.deepEqual(await branchesOf(SUB.aminata), ['primaire']);
+  assert.equal((await branchesOf(SUB.koffi)).length, 5);
+
+  const titles = async (subject: string) =>
+    (await call(subject, 'get', '/courses', 200)).body.items.map(
+      (c: { branch: string }) => c.branch,
+    );
+  assert.ok((await titles(SUB.koffi)).includes('alphabetisation'));
+  assert.ok(!(await titles(SUB.aminata)).includes('alphabetisation'));
+  assert.ok((await titles(SUB.aminata)).includes('primaire'));
+
+  // Un cours d’un autre cycle : refus uniforme, y compris pour le détail et la création.
+  await call(SUB.aminata, 'get', `/course-versions/${ID.courseMarcheEcoleV1}`, 403);
+  await call(SUB.koffi, 'get', `/course-versions/${ID.courseMarcheEcoleV1}`, 200);
+  await call(SUB.aminata, 'post', '/courses', 403, {
+    organizationId: ID.orgManguiers,
+    branch: 'secondaire',
+    title: 'Un cours hors de son cycle',
+  });
+});

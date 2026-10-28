@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node dist/db/cli.js migrate",
     "db:seed": "node dist/db/cli.js seed",
-    "db:seed:demo": "node dist/db/cli.js seed:demo"
+    "db:seed:demo": "node dist/db/cli.js seed:demo",
+    "db:superadmin": "node dist/db/cli.js superadmin:create"
   },
   "dependencies": {
     "@lenseignement/types": "workspace:*",

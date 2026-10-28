@@ -829,3 +829,102 @@ export const skillResults = pgTable(
   },
   (t) => [primaryKey({ columns: [t.sessionId, t.competencyId] })],
 );
+
+/** Étape de simulation avec son corrigé (jamais envoyé au navigateur). */
+export type SimulationStepDef =
+  | {
+      kind: 'identify';
+      id: string;
+      title: string;
+      instructions: string;
+      questions: Array<{ prompt: string; choices: string[]; correct: number; explanation: string }>;
+    }
+  | {
+      kind: 'equipment';
+      id: string;
+      title: string;
+      instructions: string;
+      options: string[];
+      /** Numéros des équipements à prendre ; les autres sont à laisser. */
+      required: number[];
+      /** Explication pour chaque équipement (prendre ou laisser), dans l'ordre affiché. */
+      explanations: string[];
+    }
+  | {
+      kind: 'order';
+      id: string;
+      title: string;
+      instructions: string;
+      /** Gestes dans l'ordre d'affichage. */
+      gestures: string[];
+      /** Numéros des gestes, du premier au dernier. */
+      correctOrder: number[];
+      /** Pour chaque geste (ordre d'affichage), pourquoi il vient à sa place. */
+      explanations: string[];
+    };
+
+/**
+ * Simulation de sécurité d'atelier (ticket 18, ADR-014) : rattachée à la version exacte du
+ * référentiel métier. Elle vérifie une compétence de sécurité et ouvre, réussie, la séance
+ * pratique encadrée d'une autre compétence. Figée une fois créée.
+ */
+export const safetySimulations = pgTable('safety_simulations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: text('code').notNull().unique(),
+  title: text('title').notNull(),
+  curriculumVersionId: uuid('curriculum_version_id')
+    .notNull()
+    .references(() => curriculumVersions.id),
+  competencyId: uuid('competency_id')
+    .notNull()
+    .references(() => competencies.id),
+  practiceCompetencyId: uuid('practice_competency_id')
+    .notNull()
+    .references(() => competencies.id),
+  steps: jsonb('steps').$type<SimulationStepDef[]>().notNull(),
+  createdAt: createdAt(),
+});
+
+/** Essai de simulation : ajout seulement ; l'identifiant vient de l'appareil (pas de doublon). */
+export const simulationAttempts = pgTable(
+  'simulation_attempts',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    simulationId: uuid('simulation_id')
+      .notNull()
+      .references(() => safetySimulations.id),
+    passed: boolean('passed').notNull(),
+    answers: jsonb('answers').$type<Array<{ stepId: string; choices: number[] }>>().notNull(),
+    results: jsonb('results')
+      .$type<Array<{ stepId: string; title: string; passed: boolean; feedback: string[] }>>()
+      .notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('simulation_attempts_user_idx').on(t.userId, t.simulationId, t.submittedAt)],
+);
+
+/**
+ * Demande de séance pratique encadrée. Permise seulement après un dernier essai réussi
+ * (vérifié aussi par la base) ; une seule par apprenant et par simulation.
+ */
+export const practiceRequests = pgTable(
+  'practice_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    simulationId: uuid('simulation_id')
+      .notNull()
+      .references(() => safetySimulations.id),
+    /** Essai réussi qui a ouvert la séance. */
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => simulationAttempts.id),
+    createdAt: createdAt(),
+  },
+  (t) => [unique('practice_requests_once').on(t.userId, t.simulationId)],
+);

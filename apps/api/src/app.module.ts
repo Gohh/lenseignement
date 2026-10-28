@@ -13,6 +13,7 @@ import { LearnersController } from './learners/learners.controller.js';
 import { LearningController } from './learning/learning.controller.js';
 import { MeController } from './me/me.controller.js';
 import { RemediationController } from './remediation/remediation.controller.js';
+import { SimulationController } from './simulation/simulation.controller.js';
 
 @Module({
   imports: [DatabaseModule, AuthModule, AccessModule],
@@ -27,6 +28,7 @@ import { RemediationController } from './remediation/remediation.controller.js';
     AuthoringController,
     LearningController,
     RemediationController,
+    SimulationController,
   ],
   providers: [OutboxRelayService],
 })

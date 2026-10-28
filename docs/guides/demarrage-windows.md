@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #13 (ticket 17) :
+dans la branche de la PR. Pour la PR #15 (ticket 18) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-17-remediation
+git checkout feat/ticket-18-simulation-securite
 git pull
 pnpm install
 pnpm build
@@ -298,6 +298,20 @@ refaire l’étape 6 avant) :
    **Enregistrer l’orientation**.
 5. En `parent.demo`, la fiche d’Awa montre l’orientation et la raison, sans formulaire.
 
+Test de l’atelier virtuel de sécurité (la PR #15 ajoute des tables et une simulation fictive :
+refaire l’étape 6 avant) :
+
+1. Connecté en `apprenant.demo`, **Mon espace** → **Atelier virtuel : sécurité**. Attendu :
+   « 🔒 Bloquée » pour la séance pratique, et le rappel « ne touche jamais une installation
+   électrique sans ton formateur ».
+2. Faire la simulation avec des erreurs (par exemple cocher « Montre ou bracelet en métal »),
+   puis **Vérifier ma simulation**. Attendu : « Pas encore », ce qu’il faut revoir, et la séance
+   toujours bloquée.
+3. Refaire la simulation sans erreur : matériel (VAT, disjoncteur, cadenas), équipements (gants,
+   lunettes, chaussures), gestes (équipements, couper, cadenas, VAT, commencer). Attendu :
+   « Bravo, simulation réussie ! » et la séance « Ouverte ».
+4. **Demander ma séance pratique encadrée**. Attendu : « ✓ Demande envoyée ».
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -320,7 +334,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`109 passed` et `1 skipped` pour les tests E2E de la PR #13).
+Attendu : aucun test en échec (`113 passed` et `1 skipped` pour les tests E2E de la PR #15).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

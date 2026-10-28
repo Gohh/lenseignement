@@ -160,3 +160,12 @@ API → base), sur téléphone et sur ordinateur, dans `tests/e2e/autorisations.
   Une correction ne réécrit rien : l'ancien plan et son explication sont gardés.
 - Intégrité : questions, bilans, réponses et résultats en ajout seulement ; bonnes réponses jamais
   envoyées avant la correction ; rejeu d'un identifiant de bilan d'une autre personne refusé.
+
+## Ajouté par le ticket 18 (ADR-014)
+
+- Sûreté physique : la simulation n'autorise aucune manipulation ; elle ouvre seulement une
+  demande de séance **encadrée**, rappelée sur la page.
+- Contournement du blocage (E2E-05) : l'API refuse la demande sans dernier essai réussi, et la
+  base la refuse aussi (déclencheur), même en cas d'appel direct.
+- Intégrité : simulations, essais et demandes en ajout seulement ; corrigé jamais envoyé au
+  navigateur ; rejeu d'un identifiant d'essai d'une autre personne refusé.

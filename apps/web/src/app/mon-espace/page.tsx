@@ -131,6 +131,22 @@ export default async function MyspacePage() {
         </div>
       )}
 
+      {session.roles.includes('apprenant') && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Atelier</h2>
+          <Link
+            href="/mon-espace/atelier-securite"
+            className="inline-flex min-h-[44px] items-center font-bold underline"
+          >
+            Atelier virtuel : sécurité
+          </Link>
+          <p className="text-ink-muted">
+            Une simulation pour apprendre les gestes sûrs, avant la séance pratique avec ton
+            formateur.
+          </p>
+        </div>
+      )}
+
       {cohorts.ok && cohorts.data.length > 0 && (
         <div className={cardClass}>
           <h2 className="text-lg font-bold">Mes classes</h2>

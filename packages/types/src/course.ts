@@ -143,6 +143,8 @@ export interface CourseVersionDetail extends CourseVersionSummary {
 export interface AuthoringOrganization {
   id: string;
   name: string;
+  /** Cycles (espaces) où la personne peut rédiger dans cet établissement. */
+  branches: string[];
 }
 
 /**

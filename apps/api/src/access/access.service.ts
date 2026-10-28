@@ -8,7 +8,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Message unique : on ne révèle jamais si la ressource existe (cahier §8.2.3). */
 export const ACCESS_DENIED = 'Accès refusé.';
 
-export type AccessReason = 'self' | 'guardian' | 'scope' | 'out_of_scope' | 'invalid_id';
+export type AccessReason = 'self' | 'guardian' | 'tutor' | 'scope' | 'out_of_scope' | 'invalid_id';
 
 export interface AccessRequest {
   userId: string;
@@ -25,6 +25,8 @@ export interface AuthoringRequest {
   resourceId: string;
   /** Établissement responsable de la ressource ; null si elle n'existe pas. */
   organizationId: string | null;
+  /** Cycle (espace) de la ressource, quand elle en a un : le rôle doit y être accordé (ADR-019). */
+  branch?: string | null;
   traceId?: string;
 }
 
@@ -34,11 +36,31 @@ export const AUTHOR_ROLES = [
   'alphabetiseur',
   'referent-pedagogique',
   'chef-etablissement',
+  'gestionnaire',
 ] as const;
 
 /** Circuit de validation (ADR-006) : qui approuve, et qui publie ou retire. */
 export const REVIEWER_ROLES = ['referent-pedagogique'] as const;
 export const PUBLISHER_ROLES = ['referent-pedagogique', 'chef-etablissement'] as const;
+
+/** Équipe d'une structure (ADR-021) : qui invite, change les cycles et retire les rôles. */
+export const TEAM_ROLES = ['chef-etablissement', 'administrateur', 'superadministrateur'] as const;
+
+/**
+ * Structures dont la personne gère l'équipe : celles qu'elle dirige ou administre (sous-structures
+ * comprises) ; le superadministrateur les gère toutes. Renvoie une sous-requête entre parenthèses.
+ */
+export function teamOrganizationIds(userId: string): SQL {
+  return sql`(
+    select o.id from organizations o
+     where exists (
+       select 1 from memberships m
+        where m.user_id = ${userId}
+          and m.role = 'superadministrateur'
+          and (m.valid_until is null or m.valid_until > now()))
+    union
+    select t.id from ${organizationIdsWithRoles(userId, ['chef-etablissement', 'administrateur'])} t)`;
+}
 
 /** Tableau de chiffres anonymes (ADR-016) : direction d'établissement et référents. */
 export const STATS_ROLES = ['chef-etablissement', 'referent-pedagogique'] as const;
@@ -46,8 +68,15 @@ export const STATS_ROLES = ['chef-etablissement', 'referent-pedagogique'] as con
 /**
  * Structures où une personne a l'un des rôles donnés, sous-structures comprises (un référent
  * régional couvre les écoles de sa région). Renvoie une sous-requête entre parenthèses.
+ * Avec `branch` (un code ou une expression SQL), seuls comptent les rôles accordés pour ce cycle.
  */
-export function organizationIdsWithRoles(userId: string, roles: readonly string[]): SQL {
+export function organizationIdsWithRoles(
+  userId: string,
+  roles: readonly string[],
+  branch?: string | SQL,
+): SQL {
+  const cycle =
+    branch === undefined ? sql`` : sql` and (m.branches is null or ${branch} = any(m.branches))`;
   return sql`(
     with recursive role_orgs as (
       select m.organization_id as id
@@ -57,16 +86,16 @@ export function organizationIdsWithRoles(userId: string, roles: readonly string[
            roles.map((role) => sql`${role}`),
            sql`, `,
          )})
-         and (m.valid_until is null or m.valid_until > now())
+         and (m.valid_until is null or m.valid_until > now())${cycle}
       union
       select o.id from organizations o join role_orgs r on o.parent_id = r.id
     )
     select id from role_orgs)`;
 }
 
-/** Structures où une personne peut rédiger. */
-export function authoringOrganizationIds(userId: string): SQL {
-  return organizationIdsWithRoles(userId, AUTHOR_ROLES);
+/** Structures où une personne peut rédiger (pour un cycle donné, si `branch` est fourni). */
+export function authoringOrganizationIds(userId: string, branch?: string | SQL): SQL {
+  return organizationIdsWithRoles(userId, AUTHOR_ROLES, branch);
 }
 
 /**
@@ -145,7 +174,7 @@ export class AccessService {
       reason = 'invalid_id';
     } else if (request.organizationId) {
       const { rows } = await this.db.execute(
-        sql`select 1 from ${organizationIdsWithRoles(request.userId, roles)} a where a.id = ${request.organizationId}`,
+        sql`select 1 from ${organizationIdsWithRoles(request.userId, roles, request.branch ?? undefined)} a where a.id = ${request.organizationId}`,
       );
       if (rows.length > 0) reason = 'scope';
     }
@@ -204,6 +233,12 @@ export class AccessService {
        where g.guardian_user_id = ${userId}
          and g.learner_user_id = ${resourceId}
          and g.status = 'verified'
+      union all
+      select 'tutor'
+        from tutor_links t
+       where t.tutor_user_id = ${userId}
+         and t.learner_user_id = ${resourceId}
+         and t.status = 'active'
       union all
       select 'scope'
         from cohort_members cm

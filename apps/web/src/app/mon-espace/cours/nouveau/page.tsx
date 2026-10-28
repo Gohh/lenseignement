@@ -21,6 +21,9 @@ export default async function NewCoursePage({ searchParams }: Props) {
     '/authoring/organizations',
   );
   const items = organizations.ok ? organizations.data.items : [];
+  // Seuls les espaces (cycles) accordés à la personne sont proposés ; l’API contrôle aussi.
+  const allowed = new Set(items.flatMap((o) => o.branches));
+  const choices = BRANCHES.filter((b) => allowed.has(b.code));
   const error = param((await searchParams).erreur);
 
   return (
@@ -46,8 +49,8 @@ export default async function NewCoursePage({ searchParams }: Props) {
           </label>
           <label className="block font-bold">
             Espace
-            <select name="branch" className={inputClass} required defaultValue="primaire">
-              {BRANCHES.map((b) => (
+            <select name="branch" className={inputClass} required defaultValue={choices[0]?.code}>
+              {choices.map((b) => (
                 <option key={b.code} value={b.code}>
                   {b.title}
                 </option>

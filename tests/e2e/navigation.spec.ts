@@ -12,6 +12,7 @@ test.describe('Navigation', () => {
       'Vue d’ensemble',
       'Ma famille',
       'Répétiteur',
+      'Équipe',
       'Rédiger',
       'Relecture',
       'Statistiques',

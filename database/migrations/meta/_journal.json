@@ -141,6 +141,13 @@
       "when": 1793201076509,
       "tag": "0019_famille_repetiteur",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793202693954,
+      "tag": "0020_equipe_roles",
+      "breakpoints": true
     }
   ]
 }

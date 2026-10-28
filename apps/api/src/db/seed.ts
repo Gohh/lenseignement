@@ -3,6 +3,7 @@ import { seedDemoCourses } from '../courses/demo-courses.js';
 import { seedDemoCurricula } from '../curricula/demo-curricula.js';
 import { seedDemoDiagnostic } from '../remediation/demo-diagnostic.js';
 import { seedDemoSimulation } from '../simulation/demo-simulation.js';
+import { seedDemoActivity } from '../stats/demo-activity.js';
 import type { Database } from './database.js';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB, SCHOOL_YEAR } from './demo-data.js';
 import {
@@ -24,6 +25,7 @@ import {
  * - Programmes fictifs : voir database/curricula. Un cours fictif en brouillon (M. Koffi).
  * - Bilan de lecture fictif (rattrapage, ticket 17) : voir remediation/demo-diagnostic.ts.
  * - Atelier virtuel fictif (sécurité électrique, ticket 18) : voir simulation/demo-simulation.ts.
+ * - Activité fictive de 12 élèves pour le tableau de chiffres (ticket 20) : stats/demo-activity.ts.
  */
 export async function seedDemo(db: Database): Promise<void> {
   await db.transaction(async (tx) => {
@@ -191,4 +193,5 @@ export async function seedDemo(db: Database): Promise<void> {
   await seedDemoCourses(db);
   await seedDemoDiagnostic(db);
   await seedDemoSimulation(db);
+  await seedDemoActivity(db);
 }

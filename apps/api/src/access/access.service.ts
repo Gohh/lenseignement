@@ -40,6 +40,9 @@ export const AUTHOR_ROLES = [
 export const REVIEWER_ROLES = ['referent-pedagogique'] as const;
 export const PUBLISHER_ROLES = ['referent-pedagogique', 'chef-etablissement'] as const;
 
+/** Tableau de chiffres anonymes (ADR-016) : direction d'établissement et référents. */
+export const STATS_ROLES = ['chef-etablissement', 'referent-pedagogique'] as const;
+
 /**
  * Structures où une personne a l'un des rôles donnés, sous-structures comprises (un référent
  * régional couvre les écoles de sa région). Renvoie une sous-requête entre parenthèses.
@@ -147,6 +150,22 @@ export class AccessService {
       if (rows.length > 0) reason = 'scope';
     }
     await this.audit({ ...request, reason });
+    if (reason !== 'scope') throw new ForbiddenException(ACCESS_DENIED);
+  }
+
+  /**
+   * La personne a l'un des rôles donnés dans au moins une structure (tableau de chiffres :
+   * le périmètre est ensuite celui de ces structures). Refus uniforme et journalisé.
+   */
+  async assertHasAnyRole(
+    request: { userId: string; action: string; traceId?: string },
+    roles: readonly string[],
+  ): Promise<void> {
+    const { rows } = await this.db.execute(
+      sql`select 1 from ${organizationIdsWithRoles(request.userId, roles)} a limit 1`,
+    );
+    const reason: AccessReason = rows.length > 0 ? 'scope' : 'out_of_scope';
+    await this.audit({ ...request, resourceType: 'organization', resourceId: 'stats', reason });
     if (reason !== 'scope') throw new ForbiddenException(ACCESS_DENIED);
   }
 

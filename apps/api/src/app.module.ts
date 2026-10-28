@@ -14,6 +14,7 @@ import { LearningController } from './learning/learning.controller.js';
 import { MeController } from './me/me.controller.js';
 import { RemediationController } from './remediation/remediation.controller.js';
 import { SimulationController } from './simulation/simulation.controller.js';
+import { StatsController } from './stats/stats.controller.js';
 
 @Module({
   imports: [DatabaseModule, AuthModule, AccessModule],
@@ -29,6 +30,7 @@ import { SimulationController } from './simulation/simulation.controller.js';
     LearningController,
     RemediationController,
     SimulationController,
+    StatsController,
   ],
   providers: [OutboxRelayService],
 })

@@ -92,9 +92,12 @@ test('correction sans connexion : score, bonnes réponses et explications', asyn
   );
   assert.match(res.body.items[1].explanation, /quatre et un font cinq/);
   assert.equal(res.body.attemptId, undefined);
-  // Rien n'est enregistré pour un visiteur.
-  const [{ n }] = (await ctx.db.$client.query('select count(*)::int as n from quiz_attempts'))
-    .rows as [{ n: number }];
+  // Rien n'est enregistré pour un visiteur (hors activité fictive du jeu de démonstration).
+  const [{ n }] = (
+    await ctx.db.$client.query(
+      "select count(*)::int as n from quiz_attempts q join users u on u.id = q.user_id where u.oidc_subject not like 'seed:%'",
+    )
+  ).rows as [{ n: number }];
   assert.equal(n, 0);
 });
 

@@ -5,6 +5,7 @@ export * from './course.js';
 export * from './catalog.js';
 export * from './learning.js';
 export * from './levels.js';
+export * from './family.js';
 export * from './quiz.js';
 export * from './remediation.js';
 export * from './simulation.js';

@@ -8,7 +8,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Message unique : on ne révèle jamais si la ressource existe (cahier §8.2.3). */
 export const ACCESS_DENIED = 'Accès refusé.';
 
-export type AccessReason = 'self' | 'guardian' | 'scope' | 'out_of_scope' | 'invalid_id';
+export type AccessReason = 'self' | 'guardian' | 'tutor' | 'scope' | 'out_of_scope' | 'invalid_id';
 
 export interface AccessRequest {
   userId: string;
@@ -213,6 +213,12 @@ export class AccessService {
        where g.guardian_user_id = ${userId}
          and g.learner_user_id = ${resourceId}
          and g.status = 'verified'
+      union all
+      select 'tutor'
+        from tutor_links t
+       where t.tutor_user_id = ${userId}
+         and t.learner_user_id = ${resourceId}
+         and t.status = 'active'
       union all
       select 'scope'
         from cohort_members cm

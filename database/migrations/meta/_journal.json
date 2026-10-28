@@ -134,6 +134,13 @@
       "when": 1793200584796,
       "tag": "0018_cycles_droits",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793201076509,
+      "tag": "0019_famille_repetiteur",
+      "breakpoints": true
     }
   ]
 }

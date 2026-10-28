@@ -26,6 +26,8 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
           { href: '/mon-espace/atelier-securite', label: 'Atelier' },
         ]
       : []),
+    { href: '/mon-espace/famille', label: 'Ma famille' },
+    { href: '/mon-espace/repetiteur', label: 'Répétiteur' },
     ...(has(AUTHOR_ROLES) ? [{ href: '/mon-espace/cours', label: 'Rédiger', section: true }] : []),
     ...(has(VALIDATOR_ROLES)
       ? [

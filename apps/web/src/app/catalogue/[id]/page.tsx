@@ -2,6 +2,7 @@ import { BRANCHES, type CatalogCourseDetail, type CourseProgress } from '@lensei
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { KeepCourseButton } from '@/components/KeepCourseButton';
 import { buttonClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet, publicApiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -43,6 +44,7 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
     : null;
   const mine = progress?.ok ? progress.data : null;
   const lessonHref = (n: number) => `/catalogue/${course.id}/lecons/${n}`;
+  const lessonCount = course.modules.reduce((n, m) => n + m.lessons.length, 0);
 
   return (
     <article className="space-y-6">
@@ -134,6 +136,14 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
             )
           )}
         </div>
+        {lessonCount > 0 && (
+          <KeepCourseButton
+            paths={[
+              `/catalogue/${course.id}`,
+              ...Array.from({ length: lessonCount }, (_, i) => lessonHref(i + 1)),
+            ]}
+          />
+        )}
         {course.modules.map((m, i) => (
           <div key={i} className="rounded-card border border-line bg-surface p-4">
             <h3 className="font-bold">

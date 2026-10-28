@@ -1,6 +1,7 @@
 import type { LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
 import { getSession } from '@/lib/session';
 
@@ -179,6 +180,11 @@ export default async function MyspacePage() {
           </ul>
         </div>
       )}
+
+      <div className={cardClass}>
+        <h2 className="text-lg font-bold">Cet appareil</h2>
+        <DeviceDataPanel />
+      </div>
 
       <form method="post" action="/auth/logout">
         <button

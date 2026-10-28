@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { AppShell } from '@lenseignement/ui';
 import { OfflineBadge } from '@/components/OfflineBadge';
+import { ServiceWorker } from '@/components/ServiceWorker';
+import { SyncStatus } from '@/components/SyncStatus';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -9,6 +11,7 @@ export const metadata: Metadata = {
   description:
     'Plateforme éducative mobile, accessible et utilisable à faible débit : primaire, technique, alphabétisation et formation des enseignants.',
   manifest: '/manifest.webmanifest',
+  icons: { icon: '/icon.svg' },
 };
 
 export const viewport: Viewport = {
@@ -42,8 +45,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           }
         >
+          <SyncStatus />
           {children}
         </AppShell>
+        <ServiceWorker />
       </body>
     </html>
   );

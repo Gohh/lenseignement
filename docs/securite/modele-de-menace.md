@@ -137,3 +137,16 @@ API → base), sur téléphone et sur ordinateur, dans `tests/e2e/autorisations.
 - E2E-02 : aucun partage parental tant que le lien n'est pas vérifié ; la révocation ferme
   l'accès dès la requête suivante.
 - Un élève ne lit que sa propre fiche ; sans connexion, la fiche renvoie vers la connexion.
+
+## Ajouté par le ticket 15 (ADR-012)
+
+- Appareil partagé : les actions hors ligne portent l'empreinte de la personne et ne sont
+  envoyées qu'en son nom ; la déconnexion (`Clear-Site-Data`) et le bouton « Effacer mes données
+  sur cet appareil » vident pages gardées et actions en attente.
+- Minimisation : l'appareil ne garde que des identifiants, numéros de leçon et choix de quiz ;
+  jamais de jeton (le cookie de session reste `httpOnly`), jamais l'espace personnel.
+- Falsification hors ligne (cahier §8) : le serveur reste seul juge ; le quiz n'est corrigé
+  qu'à l'envoi, les bonnes réponses ne sont jamais sur l'appareil, et les rejeux sont reconnus
+  (ADR-011).
+- `POST /api/sync` : contrôle d'origine (pas d'envoi depuis un autre site), session obligatoire,
+  validation stricte des actions.

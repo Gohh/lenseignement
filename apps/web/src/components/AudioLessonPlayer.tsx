@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { splitForSpeech, utteranceFor } from '@/lib/speech';
 import { buttonClass, inputClass, secondaryButtonClass } from './Notice';
 
 type State = 'idle' | 'playing' | 'paused' | 'done';
@@ -13,17 +14,6 @@ const STATUS: Record<State, string> = {
 };
 
 const noop = () => () => {};
-
-/**
- * Découpe le texte en phrases courtes : certains navigateurs coupent une synthèse vocale trop
- * longue, et une phrase à la fois permet de reprendre proprement.
- */
-export function splitForSpeech(text: string): string[] {
-  return text
-    .split(/(?<=[.!?…:;])\s+|\n+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
 
 /**
  * Écoute d'une leçon par la voix de synthèse de l'appareil (ADR-008, cahier §4 « écouter
@@ -56,13 +46,7 @@ export function AudioLessonPlayer({ text, lang }: { text: string; lang: string }
       setState('done');
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(sentence);
-    utterance.lang = lang === 'fr' ? 'fr-FR' : lang;
-    utterance.rate = rate;
-    const voice = window.speechSynthesis
-      .getVoices()
-      .find((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase()));
-    if (voice) utterance.voice = voice;
+    const utterance = utteranceFor(sentence, lang, rate);
     utterance.onend = speakNext;
     utterance.onerror = (event) => {
       // « interrupted » et « canceled » viennent de nos boutons Arrêter ou Écouter.

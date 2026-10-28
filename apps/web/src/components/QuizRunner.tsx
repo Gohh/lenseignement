@@ -5,6 +5,7 @@ import { startTransition, useActionState, useState, type FormEvent } from 'react
 import { submitQuizAction, type QuizState } from '@/app/catalogue/actions';
 import { queueAction } from '@/lib/offline-queue';
 import { buttonClass, secondaryButtonClass } from './Notice';
+import { SpeakButton } from './SpeakButton';
 
 interface Props {
   courseId: string;
@@ -17,6 +18,8 @@ interface Props {
   last: QuizLastAttempt | null;
   /** Empreinte de la personne inscrite : permet de garder la tentative hors ligne (ADR-012). */
   owner?: string;
+  /** Langue du cours, pour l'écoute des questions et réponses (ADR-015). */
+  lang?: string;
 }
 
 type RoundState = QuizState | { ok: 'queued' } | { ok: 'offline' };
@@ -55,6 +58,7 @@ function QuizRound({
   mode,
   attemptId,
   owner,
+  lang = 'fr',
   onRestart,
 }: Props & { onRestart: () => void }) {
   // Tentative gardée sur l'appareil ; l'API la corrigera à l'envoi (ADR-012).
@@ -92,6 +96,11 @@ function QuizRound({
   }, null);
   const result = state?.ok === true ? state.result : null;
   const queued = state?.ok === 'queued';
+  const score = result
+    ? `Résultat : ${result.score} sur ${result.total}${result.score === result.total ? '. Bravo !' : '.'}`
+    : queued
+      ? 'Réponses gardées sur cet appareil, en attente de synchronisation. Le résultat s’affichera quand internet reviendra.'
+      : '';
 
   // Envoi sans remise à zéro du formulaire : les réponses cochées restent visibles (brouillon
   // conservé si le réseau manque, E2E-07).
@@ -109,24 +118,47 @@ function QuizRound({
       <input type="hidden" name="attemptId" value={attemptId} />
       {questions.map((q, i) => {
         const item = result?.items.find((it) => it.questionId === q.id);
+        // Réponses figées après l'envoi ; les boutons d'écoute restent utilisables.
         return (
-          <fieldset key={q.id} className="space-y-1" disabled={Boolean(result) || queued}>
+          <fieldset key={q.id} className="space-y-1">
             <legend className="font-bold">
               Question {i + 1} : {q.prompt}
             </legend>
+            <SpeakButton
+              text={`${q.prompt}\n${q.choices.join('.\n')}.`}
+              lang={lang}
+              label={`Écouter la question ${i + 1}`}
+            />
             {q.choices.map((choice, c) => (
-              <label key={c} className="flex min-h-[44px] items-center gap-3">
-                <input type="radio" name={`q-${q.id}`} value={c} required className="h-5 w-5" />
-                {choice}
-              </label>
+              <div key={c} className="flex items-center gap-2">
+                <label className="flex min-h-[44px] flex-1 items-center gap-3">
+                  <input
+                    type="radio"
+                    name={`q-${q.id}`}
+                    value={c}
+                    required
+                    disabled={Boolean(result) || queued}
+                    className="h-5 w-5"
+                  />
+                  {choice}
+                </label>
+                <SpeakButton text={choice} lang={lang} label={`Écouter la réponse : ${choice}`} />
+              </div>
             ))}
             {item && (
               <div data-testid="quiz-feedback" className="rounded-card border border-line p-3">
-                <p className="font-bold">
-                  {item.correct
-                    ? '✓ Bonne réponse.'
-                    : `✗ La bonne réponse était : ${q.choices[item.correctChoice]}.`}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-bold">
+                    {item.correct
+                      ? '✓ Bonne réponse.'
+                      : `✗ La bonne réponse était : ${q.choices[item.correctChoice]}.`}
+                  </p>
+                  <SpeakButton
+                    text={`${item.correct ? 'Bonne réponse.' : `La bonne réponse était : ${q.choices[item.correctChoice]}.`}\n${item.explanation ?? ''}`}
+                    lang={lang}
+                    label={`Écouter la correction de la question ${i + 1}`}
+                  />
+                </div>
                 {item.explanation && <p>{item.explanation}</p>}
               </div>
             )}
@@ -145,12 +177,9 @@ function QuizRound({
         </p>
       )}
       <p role="status" aria-live="polite" data-testid="quiz-score" className="text-lg font-bold">
-        {result
-          ? `Résultat : ${result.score} sur ${result.total}${result.score === result.total ? '. Bravo !' : '.'}`
-          : queued
-            ? 'Réponses gardées sur cet appareil, en attente de synchronisation. Le résultat s’affichera quand internet reviendra.'
-            : ''}
+        {score}
       </p>
+      {score && <SpeakButton text={score} lang={lang} label="Écouter le résultat" />}
       {queued ? null : result ? (
         <button type="button" onClick={onRestart} className={secondaryButtonClass}>
           Recommencer le quiz

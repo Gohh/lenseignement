@@ -205,8 +205,10 @@ export async function getCatalogLesson(
       number: courseVersions.number,
       title: courseVersions.title,
       language: courseVersions.language,
+      branch: courses.branch,
     })
     .from(courseVersions)
+    .innerJoin(courses, eq(courses.id, courseVersions.courseId))
     .where(and(eq(courseVersions.courseId, courseId), eq(courseVersions.status, 'published')));
   if (!version) return null;
   const ordered = await db
@@ -234,6 +236,7 @@ export async function getCatalogLesson(
   return {
     courseId,
     courseTitle: version.title,
+    branch: version.branch,
     versionNumber: version.number,
     language: version.language,
     number,

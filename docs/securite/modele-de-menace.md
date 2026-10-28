@@ -169,3 +169,8 @@ API → base), sur téléphone et sur ordinateur, dans `tests/e2e/autorisations.
   base la refuse aussi (déclencheur), même en cas d'appel direct.
 - Intégrité : simulations, essais et demandes en ajout seulement ; corrigé jamais envoyé au
   navigateur ; rejeu d'un identifiant d'essai d'une autre personne refusé.
+
+## Ajouté par le ticket 19 (ADR-015)
+
+- Écoute : la voix de synthèse tourne sur l'appareil ; aucun texte ni aucun son n'est envoyé à
+  un service extérieur, et rien n'est enregistré (pas de micro).

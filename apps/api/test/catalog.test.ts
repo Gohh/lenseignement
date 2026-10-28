@@ -26,8 +26,9 @@ test('le catalogue est public et ne montre que les versions publiées', async ()
     'Des lettres aux syllabes (démonstration)',
     'Les nombres jusqu’à 50 (démonstration)',
     'Lire des mots courts (démonstration)',
+    'Marché-école : l’argent du marché (démonstration)',
   ]);
-  assert.equal(res.body.total, 4);
+  assert.equal(res.body.total, 5);
   assert.equal(res.body.page, 1);
   // Ni brouillon (M. Koffi) ni cours en relecture (Mme Aminata).
   await get(`/${ID.courseSyllabes}`, 404);
@@ -55,6 +56,9 @@ test('aucune donnée personnelle dans le catalogue', async () => {
 test('filtres : espace, recherche et compétence', async () => {
   assert.deepEqual(titles((await get('?branch=primaire')).body).length, 4);
   assert.deepEqual((await get('?branch=technique')).body.items, []);
+  assert.deepEqual(titles((await get('?branch=alphabetisation')).body), [
+    'Marché-école : l’argent du marché (démonstration)',
+  ]);
   assert.deepEqual(titles((await get('?q=MOTS')).body), ['Lire des mots courts (démonstration)']);
   assert.deepEqual(titles((await get('?q=additionner')).body), [
     'Additionner jusqu’à 10 (démonstration)',
@@ -87,6 +91,7 @@ test('lecteur : leçon publiée repérée par son rang, avec précédente et sui
   assert.deepEqual(first.body.module, { number: 1, title: 'Compter et additionner' });
   assert.equal(first.body.previous, null);
   assert.equal(first.body.next, 2);
+  assert.equal(first.body.branch, 'primaire');
   const second = await get(`/${ID.courseNombres}/lessons/2`);
   assert.equal(second.body.previous, 1);
   assert.equal(second.body.next, null);
@@ -98,4 +103,19 @@ test('lecteur : leçon publiée repérée par son rang, avec précédente et sui
   // Le contenu d'un brouillon ou d'un cours en relecture n'est jamais servi.
   await get(`/${ID.courseSyllabes}/lessons/1`, 404);
   await get(`/${ID.courseMarche}/lessons/1`, 404);
+});
+
+test('alphabétisation : cours « écouter d’abord » relié au parcours DEMO-ALPHA 2026', async () => {
+  const course = await get(`/${ID.courseMarcheEcole}`);
+  assert.equal(course.body.branch, 'alphabetisation');
+  assert.deepEqual(course.body.curriculum, { code: 'DEMO-ALPHA', label: '2026' });
+  assert.deepEqual(
+    course.body.competencies.map((c: { code: string }) => c.code),
+    ['NOMB-01', 'NOMB-02'],
+  );
+  const lesson = await get(`/${ID.courseMarcheEcole}/lessons/2`);
+  assert.equal(lesson.body.branch, 'alphabetisation');
+  assert.equal(lesson.body.quiz.length, 2);
+  // Phrases courtes : le texte reste simple à écouter et à lire.
+  for (const line of lesson.body.body.split('\n')) assert.ok(line.split(' ').length <= 12, line);
 });

@@ -1,5 +1,5 @@
 import { BRANCHES } from '@lenseignement/types';
-import { AudienceSelector, CourseCard, type AudienceChoice } from '@lenseignement/ui';
+import { AudienceSelector, CourseCard, Logo, type AudienceChoice } from '@lenseignement/ui';
 
 const CHOICES: readonly AudienceChoice[] = [
   {
@@ -31,13 +31,18 @@ const CHOICES: readonly AudienceChoice[] = [
 export default function HomePage() {
   return (
     <div className="space-y-10">
-      <section>
-        <h1 className="text-3xl font-bold leading-tight sm:text-4xl">
-          Apprendre, progresser, se former. Même avec peu de réseau.
-        </h1>
-        <p className="mt-3 max-w-2xl text-ink-muted">
-          Version de démonstration : les contenus affichés sont fictifs.
-        </p>
+      <section className="flex flex-col gap-4 rounded-card bg-primary p-5 text-surface sm:flex-row sm:items-center sm:p-8">
+        <div className="shrink-0">
+          <Logo size={72} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold leading-tight sm:text-4xl">
+            Apprendre, progresser, se former. Même avec peu de réseau.
+          </h1>
+          <p className="mt-3 max-w-2xl">
+            Version de démonstration : les contenus affichés sont fictifs.
+          </p>
+        </div>
       </section>
 
       <AudienceSelector choices={CHOICES} />

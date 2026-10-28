@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Logo } from './Logo.js';
 
 export interface AppShellProps {
   children: ReactNode;
@@ -16,10 +17,14 @@ export function AppShell({ children, headerActions }: AppShellProps) {
       >
         Aller au contenu
       </a>
-      <header className="border-b border-line bg-surface">
+      <header className="border-t-4 border-b border-t-accent border-b-line bg-surface">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <a href="/" className="text-xl font-bold text-primary no-underline">
-            L’Enseignement
+          <a
+            href="/"
+            className="inline-flex min-h-[44px] items-center gap-3 text-xl font-bold text-primary no-underline"
+          >
+            <Logo size={40} />
+            <span className="sr-only sm:not-sr-only">L’Enseignement</span>
           </a>
           {headerActions}
         </div>

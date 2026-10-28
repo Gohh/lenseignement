@@ -1,0 +1,33 @@
+import { colors } from './tokens.js';
+
+export interface LogoProps {
+  /** Côté en pixels. */
+  size?: number;
+}
+
+/** Logo « le livre et le soleil » (choisi le 28/10/2026). Décoratif : le nom l'accompagne. */
+export function Logo({ size = 40 }: LogoProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      width={size}
+      height={size}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect width="512" height="512" rx="112" fill={colors.primary} />
+      <circle cx="256" cy="250" r="92" fill={colors.accent} />
+      <g stroke={colors.surface} strokeWidth="22" strokeLinecap="round">
+        <line x1="256" y1="110" x2="256" y2="138" />
+        <line x1="148" y1="160" x2="168" y2="180" />
+        <line x1="364" y1="160" x2="344" y2="180" />
+      </g>
+      <path
+        d="M86 300 C150 270 210 280 256 316 C302 280 362 270 426 300 L426 412 C362 384 302 392 256 426 C210 392 150 384 86 412 Z"
+        fill={colors.surface}
+      />
+      <path d="M256 316 L256 426" stroke={colors.primary} strokeWidth="12" />
+    </svg>
+  );
+}

@@ -52,11 +52,11 @@ export function CompleteLessonForm({ courseId, lessonNumber, owner, nextHref }: 
 
   if (queued) {
     return (
-      <div className="space-y-2 rounded-card border border-line-strong bg-surface p-4">
+      <div className="space-y-2 rounded-big border-2 border-primary bg-primary-soft p-4">
         <p className="font-bold" data-testid="lesson-status">
           ✓ Leçon terminée sur cet appareil, en attente de synchronisation.
         </p>
-        <Link href={nextHref} className="inline-flex min-h-[44px] items-center font-bold underline">
+        <Link href={nextHref} className={buttonClass}>
           Continuer
         </Link>
       </div>
@@ -66,7 +66,7 @@ export function CompleteLessonForm({ courseId, lessonNumber, owner, nextHref }: 
     <form action={complete}>
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="lessonNumber" value={lessonNumber} />
-      <button type="submit" className={buttonClass}>
+      <button type="submit" className={`${buttonClass} min-h-[56px] px-7 text-xl font-display`}>
         J’ai terminé cette leçon
       </button>
     </form>

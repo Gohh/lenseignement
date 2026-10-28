@@ -31,7 +31,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: lesson ? `${lesson.title} · ${lesson.courseTitle}` : 'Leçon introuvable' };
 }
 
-const linkClass = 'inline-flex min-h-[44px] items-center font-bold underline';
+const linkClass =
+  'inline-flex min-h-[48px] items-center rounded-card border-2 border-primary-line bg-surface px-5 font-bold text-primary no-underline hover:bg-primary-soft';
 
 /** Lecteur de leçon : texte lisible et écoute, sans connexion (ADR-008). */
 export default async function LessonPage({ params, searchParams }: Props) {
@@ -72,19 +73,34 @@ export default async function LessonPage({ params, searchParams }: Props) {
 
   return (
     <article className="mx-auto max-w-prose space-y-6">
-      <Link
-        href={`/catalogue/${lesson.courseId}`}
-        className="inline-flex min-h-[44px] items-center underline"
-      >
-        ← {lesson.courseTitle}
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/catalogue/${lesson.courseId}`}
+          className="inline-flex min-h-[44px] items-center font-bold"
+        >
+          ← {lesson.courseTitle}
+        </Link>
+        <div
+          role="progressbar"
+          aria-label="Avancement dans le cours"
+          aria-valuemin={0}
+          aria-valuemax={lesson.total}
+          aria-valuenow={lesson.number}
+          className="ml-auto h-3 w-28 overflow-hidden rounded-full bg-primary-soft sm:w-48"
+        >
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${Math.round((lesson.number / lesson.total) * 100)}%` }}
+          />
+        </div>
+      </div>
       <Notice error={param(query.erreur)} />
       {audioFirst && player}
       <header className="space-y-1">
         <p className="text-ink-muted">
           Module {lesson.module.number} : {lesson.module.title}
         </p>
-        <h1 className="text-3xl font-bold">{lesson.title}</h1>
+        <h1 className="text-3xl font-extrabold sm:text-4xl">{lesson.title}</h1>
         <p className="text-ink-muted" data-testid="lesson-position">
           Leçon {lesson.number} sur {lesson.total}
           {lesson.estimatedMinutes ? ` · environ ${lesson.estimatedMinutes} minutes` : ''}
@@ -94,7 +110,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
       {!audioFirst && player}
 
       <div
-        className={`whitespace-pre-line leading-relaxed ${audioFirst ? 'text-2xl' : 'text-xl'}`}
+        className={`whitespace-pre-line rounded-big border border-line bg-surface p-5 leading-relaxed sm:p-6 ${audioFirst ? 'text-2xl' : 'text-xl'}`}
         lang={lesson.language}
       >
         {lesson.body}
@@ -117,7 +133,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
         mine &&
         (done ? (
           <p
-            className="rounded-card border border-line-strong bg-surface p-4 font-bold"
+            className="rounded-big border-2 border-primary bg-primary-soft p-4 font-bold text-ink-strong"
             data-testid="lesson-status"
           >
             ✓ Leçon terminée

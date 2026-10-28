@@ -31,9 +31,9 @@ export const STATUS_LABELS: Record<string, string> = {
 export const inputClass =
   'mt-1 block w-full min-h-[44px] rounded-card border border-line-strong bg-surface px-3 py-2 text-ink';
 export const buttonClass =
-  'inline-flex min-h-[44px] items-center rounded-card bg-primary px-5 font-bold text-surface';
+  'inline-flex min-h-[44px] items-center rounded-card bg-primary px-5 font-bold text-surface no-underline shadow-[var(--shadow-press)] transition-transform hover:bg-primary-dark active:translate-y-[3px] active:shadow-none';
 export const secondaryButtonClass =
-  'inline-flex min-h-[44px] items-center rounded-card border border-line-strong bg-surface px-5 font-bold text-ink';
+  'inline-flex min-h-[44px] items-center rounded-card border-2 border-primary bg-surface px-5 font-bold text-primary no-underline hover:bg-primary-soft';
 
 /** Lit un paramètre d'URL simple (?message=… / ?erreur=…). */
 export function param(value: string | string[] | undefined): string | undefined {

@@ -4,9 +4,16 @@ import { expect, test } from '@playwright/test';
 test('E2E-01 : le premier geste utile est accessible en une interaction', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await page.getByRole('link', { name: /je veux apprendre à lire/i }).click();
+  await page.getByRole('link', { name: 'Alphabétisation', exact: true }).click();
   await expect(page).toHaveURL(/\/branches\/alphabetisation$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Alphabétisation' })).toBeVisible();
+});
+
+test('« Choisis ton niveau » mène au catalogue déjà filtré', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Primaire CP2' }).click();
+  await expect(page).toHaveURL(/\/catalogue\?level=cp2$/);
+  await expect(page.getByLabel('Niveau ou classe')).toHaveValue('cp2');
 });
 
 test('le lien d’évitement mène au contenu au clavier', async ({ page }) => {

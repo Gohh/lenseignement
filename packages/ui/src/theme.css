@@ -1,21 +1,33 @@
 /* Thème Tailwind v4 généré à partir de tokens.ts : garder les deux fichiers synchronisés. */
 @theme {
   --color-primary: #146b46;
+  --color-primary-dark: #0e4f33;
+  --color-primary-soft: #eef6f1;
+  --color-primary-line: #cfe3d7;
   --color-focus: #217a53;
   --color-accent: #e97824;
+  --color-accent-soft: #fde9d6;
+  --color-accent-ink: #7a3a0c;
   --color-ink: #17253b;
+  --color-ink-strong: #10301f;
   --color-ink-muted: #4a5a6e;
   --color-background: #fafaf5;
   --color-surface: #ffffff;
-  --color-line: #d9e1e5;
+  --color-line: #e2e7e1;
   --color-line-strong: #64748b;
   --color-error: #a52a32;
   --color-info: #215c9a;
 
   --radius-card: 16px;
   --radius-pill: 20px;
+  --radius-big: 24px;
 
   --font-sans: 'Atkinson Hyperlegible', 'Inter', 'Noto Sans', system-ui, sans-serif;
+  --font-display: 'Baloo 2', 'Atkinson Hyperlegible', system-ui, sans-serif;
+
+  /* Ombre « bouton en relief » : le bouton s'enfonce quand on appuie. */
+  --shadow-press: 0 4px 0 var(--color-primary-dark);
+  --shadow-soft: 0 12px 32px rgb(16 48 31 / 0.12);
 }
 
 @layer base {
@@ -29,6 +41,16 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 1.0625rem;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    line-height: 1.15;
+  }
+  h1,
+  h2 {
+    color: var(--color-ink-strong);
   }
   :focus-visible {
     outline: 3px solid var(--color-focus);

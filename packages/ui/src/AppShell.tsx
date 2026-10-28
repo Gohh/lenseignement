@@ -18,10 +18,10 @@ export function AppShell({ children, headerActions }: AppShellProps) {
         Aller au contenu
       </a>
       <header className="border-t-4 border-b border-t-accent border-b-line bg-surface">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <a
             href="/"
-            className="inline-flex min-h-[44px] items-center gap-3 text-xl font-bold text-primary no-underline"
+            className="inline-flex min-h-[44px] items-center gap-3 font-display text-2xl font-extrabold text-primary no-underline"
           >
             <Logo size={40} />
             <span className="sr-only sm:not-sr-only">L’Enseignement</span>
@@ -29,11 +29,11 @@ export function AppShell({ children, headerActions }: AppShellProps) {
           {headerActions}
         </div>
       </header>
-      <main id="contenu" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+      <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         {children}
       </main>
       <footer className="border-t border-line bg-surface">
-        <p className="mx-auto max-w-5xl px-4 py-4 text-sm text-ink-muted">
+        <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-ink-muted">
           Projet indépendant de démonstration. Aucune affiliation institutionnelle ; les
           attestations délivrées ne sont pas des diplômes d’État.
         </p>

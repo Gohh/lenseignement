@@ -4,13 +4,19 @@
  */
 export const colors = {
   primary: '#146B46',
+  primaryDark: '#0E4F33',
+  primarySoft: '#EEF6F1',
+  primaryLine: '#CFE3D7',
   focus: '#217A53',
   accent: '#E97824',
+  accentSoft: '#FDE9D6',
+  accentInk: '#7A3A0C',
   text: '#17253B',
+  textStrong: '#10301F',
   textMuted: '#4A5A6E',
   background: '#FAFAF5',
   surface: '#FFFFFF',
-  border: '#D9E1E5',
+  border: '#E2E7E1',
   borderStrong: '#64748B',
   error: '#A52A32',
   info: '#215C9A',
@@ -18,7 +24,7 @@ export const colors = {
 
 export type ColorToken = keyof typeof colors;
 
-export const radii = { sm: '12px', md: '16px', lg: '20px' } as const;
+export const radii = { sm: '12px', md: '16px', lg: '20px', xl: '24px' } as const;
 export const motion = { fast: '150ms', base: '200ms', slow: '250ms' } as const;
 export const minTouchTarget = '44px';
 
@@ -53,6 +59,26 @@ export const usedColorPairs: ReadonlyArray<{
   { foreground: 'textMuted', background: 'background', minRatio: 4.5, usage: 'texte secondaire' },
   { foreground: 'surface', background: 'primary', minRatio: 4.5, usage: 'bouton principal' },
   { foreground: 'primary', background: 'surface', minRatio: 4.5, usage: 'lien' },
+  { foreground: 'surface', background: 'primaryDark', minRatio: 4.5, usage: 'bouton survolé' },
+  {
+    foreground: 'primary',
+    background: 'primarySoft',
+    minRatio: 4.5,
+    usage: 'étiquette, menu actif',
+  },
+  {
+    foreground: 'textStrong',
+    background: 'primarySoft',
+    minRatio: 4.5,
+    usage: 'texte sur fond vert clair',
+  },
+  { foreground: 'textStrong', background: 'background', minRatio: 4.5, usage: 'titres' },
+  {
+    foreground: 'accentInk',
+    background: 'accentSoft',
+    minRatio: 4.5,
+    usage: 'étiquette orange clair',
+  },
   { foreground: 'text', background: 'accent', minRatio: 4.5, usage: 'badge réussite' },
   { foreground: 'error', background: 'surface', minRatio: 4.5, usage: 'message d’erreur' },
   { foreground: 'info', background: 'surface', minRatio: 4.5, usage: 'message d’information' },

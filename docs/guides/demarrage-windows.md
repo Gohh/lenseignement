@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #21 (niveaux et classes) :
+dans la branche de la PR. Pour la PR #22 (nouveau look : accueil, polices, boutons) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/niveaux-classes
+git checkout feat/look-socle-accueil
 git pull
 pnpm install
 pnpm build
@@ -359,6 +359,14 @@ Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6
 3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
    classe** ne propose que les niveaux de l’espace du cours.
 
+Test du nouveau look (PR #22, aucune base de données à refaire) :
+
+1. **Accueil** : titres arrondis (police Baloo), grand bouton vert « Commencer à apprendre »,
+   puis quatre cartes **Choisis ton niveau** (École, Secondaire, Alphabétisation, Se former).
+2. Cliquer **CP2** : le catalogue s’ouvre déjà filtré sur ce niveau.
+3. Plus bas : **Cours à découvrir** (cartes avec bandeau vert clair) et **Comment ça marche ?**.
+4. En haut, le menu est en « pilules » : la page en cours est sur fond vert clair.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -381,7 +389,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`133 passed` et `1 skipped` pour les tests E2E).
+Attendu : aucun test en échec (`135 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

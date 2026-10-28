@@ -29,23 +29,26 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body suppressHydrationWarning>
         <AppShell
           headerActions={
-            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <nav
+              aria-label="Menu principal"
+              className="flex flex-wrap items-center justify-end gap-1 sm:gap-2"
+            >
               <OfflineBadge />
               <NavLink
                 href="/catalogue"
                 section
-                className="inline-flex min-h-[44px] items-center whitespace-nowrap px-1 font-bold text-ink underline underline-offset-4 aria-[current=page]:text-primary aria-[current=page]:decoration-2"
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-4 font-bold text-ink no-underline hover:bg-primary-soft aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary"
               >
                 Catalogue
               </NavLink>
               <NavLink
                 href="/mon-espace"
                 section
-                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-card bg-primary px-3 font-bold text-surface no-underline sm:px-4 aria-[current=page]:ring-2 aria-[current=page]:ring-primary aria-[current=page]:ring-offset-2"
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full bg-primary px-4 font-bold text-surface no-underline shadow-[var(--shadow-press)] hover:bg-primary-dark sm:px-5 aria-[current=page]:ring-2 aria-[current=page]:ring-primary aria-[current=page]:ring-offset-2"
               >
                 Mon espace
               </NavLink>
-            </div>
+            </nav>
           }
         >
           <SyncStatus />

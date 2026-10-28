@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const returnTo = safeReturnTo(request.nextUrl.searchParams.get('returnTo'));
   const loginHint = safeLoginHint(request.nextUrl.searchParams.get('login_hint'));
+  // `?inscription=1` ouvre directement le formulaire de création de compte (OIDC `prompt=create`).
+  const signup = request.nextUrl.searchParams.get('inscription') === '1';
   const config = await oidcConfig();
 
   const codeVerifier = client.randomPKCECodeVerifier();
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
     nonce,
     ui_locales: 'fr',
     ...(loginHint ? { login_hint: loginHint } : {}),
+    ...(signup ? { prompt: 'create' } : {}),
   });
 
   const response = NextResponse.redirect(authorizationUrl);

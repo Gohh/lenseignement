@@ -3,7 +3,7 @@
   "displayName": "L'Enseignement (développement)",
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": true,
   "bruteForceProtected": true,

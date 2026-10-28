@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AudioLessonPlayer } from '@/components/AudioLessonPlayer';
 import { CompleteLessonForm } from '@/components/CompleteLessonForm';
-import { Notice, param } from '@/components/Notice';
+import { buttonClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { QuizRunner } from '@/components/QuizRunner';
 import { apiGet, apiSend, publicApiGet } from '@/lib/api';
 import { ownerOf } from '@/lib/device-owner';
@@ -57,6 +57,43 @@ export default async function LessonPage({ params, searchParams }: Props) {
     });
   }
   const done = mine?.completed.includes(lesson.number) ?? false;
+  // Compte demandé après la première leçon (ADR-018) : la suite est réservée aux comptes. Le
+  // téléchargement « Garder ce cours » n'est pas bloqué, pour que le hors ligne reste complet.
+  const here = lessonHref(lesson.number);
+  const signupHref = `/auth/login?inscription=1&returnTo=${encodeURIComponent(here)}`;
+  const loginHref = `/auth/login?returnTo=${encodeURIComponent(here)}`;
+  if (!session && lesson.number > 1 && !keeping) {
+    return (
+      <article className="mx-auto max-w-prose space-y-6">
+        <section
+          aria-labelledby="gate-title"
+          className="space-y-4 rounded-[28px] bg-primary p-6 text-surface sm:p-8"
+        >
+          <h1 id="gate-title" className="text-3xl font-extrabold !text-surface sm:text-4xl">
+            Crée ton compte pour continuer
+          </h1>
+          <p className="text-lg">
+            Tu as terminé la première leçon de « {lesson.courseTitle} ». Avec un compte, ta
+            progression et tes résultats sont gardés, et tu peux reprendre où tu en étais.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <a href={signupHref} className={`${buttonClass} !bg-surface !text-primary`}>
+              Créer mon compte
+            </a>
+            <a
+              href={loginHref}
+              className={`${secondaryButtonClass} !border-surface !bg-transparent !text-surface`}
+            >
+              J’ai déjà un compte
+            </a>
+          </div>
+        </section>
+        <Link href={lessonHref(1)} className={linkClass}>
+          ← Revoir la leçon 1
+        </Link>
+      </article>
+    );
+  }
   // Alphabétisation : « écouter d'abord » (cahier §3.1 D, ADR-015) ; l'écoute passe avant le
   // titre, et le texte est plus grand.
   const audioFirst = lesson.branch === 'alphabetisation';
@@ -146,6 +183,26 @@ export default async function LessonPage({ params, searchParams }: Props) {
             nextHref={lesson.next ? lessonHref(lesson.next) : `/catalogue/${lesson.courseId}`}
           />
         ))}
+
+      {!session && lesson.number === 1 && lesson.total > 1 && (
+        <section
+          aria-labelledby="keep-title"
+          className="space-y-3 rounded-big border-2 border-primary bg-primary-soft p-5"
+        >
+          <h2 id="keep-title" className="text-2xl font-extrabold">
+            Garde ta progression
+          </h2>
+          <p>Crée un compte gratuit pour garder tes résultats et continuer le cours.</p>
+          <div className="flex flex-wrap gap-3">
+            <a href={signupHref} className={buttonClass}>
+              Créer mon compte
+            </a>
+            <a href={loginHref} className={secondaryButtonClass}>
+              J’ai déjà un compte
+            </a>
+          </div>
+        </section>
+      )}
 
       <nav
         aria-label="Leçons du cours"

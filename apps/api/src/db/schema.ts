@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { LEVEL_CODES } from '@lenseignement/types';
+import { BRANCH_CODES, LEVEL_CODES } from '@lenseignement/types';
 import {
   boolean,
   check,
@@ -91,6 +91,8 @@ export const memberships = pgTable(
       .notNull()
       .references(() => organizations.id),
     role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
+    /** Cycles (espaces) accordés ; null = tous les cycles de la structure (ADR-019). */
+    branches: text('branches').array(),
     validUntil: timestamp('valid_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
@@ -100,6 +102,10 @@ export const memberships = pgTable(
     check(
       'memberships_role_check',
       sql`${t.role} in ('chef-etablissement','enseignant','apprenant','alphabetiseur','referent-pedagogique')`,
+    ),
+    check(
+      'memberships_branches_check',
+      sql`${t.branches} is null or ${t.branches} <@ array[${sql.raw(BRANCH_CODES.map((c) => `'${c}'`).join(','))}]::text[]`,
     ),
   ],
 );

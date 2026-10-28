@@ -1,4 +1,5 @@
 import {
+  BRANCH_CODES,
   levelBranch,
   type AuthoringOrganization,
   type CourseDetail,
@@ -88,15 +89,48 @@ export async function organizationOfVersion(
   return row?.organizationId ?? null;
 }
 
+/** Cycle d'un cours ou d'une version, pour le contrôle d'accès par cycle (ADR-019). */
+export async function branchOfCourse(db: Database, courseId: string): Promise<string | null> {
+  if (!UUID.test(courseId)) return null;
+  const [row] = await db
+    .select({ branch: courses.branch })
+    .from(courses)
+    .where(eq(courses.id, courseId));
+  return row?.branch ?? null;
+}
+
+export async function branchOfVersion(db: Database, versionId: string): Promise<string | null> {
+  if (!UUID.test(versionId)) return null;
+  const [row] = await db
+    .select({ branch: courses.branch })
+    .from(courseVersions)
+    .innerJoin(courses, eq(courses.id, courseVersions.courseId))
+    .where(eq(courseVersions.id, versionId));
+  return row?.branch ?? null;
+}
+
+/** Établissements où la personne rédige, avec les cycles qui lui sont accordés dans chacun. */
 export async function listAuthoringOrganizations(
   db: Database,
   userId: string,
 ): Promise<AuthoringOrganization[]> {
-  return db
+  const orgs = await db
     .select({ id: organizations.id, name: organizations.name })
     .from(organizations)
     .where(inArray(organizations.id, authoringOrganizationIds(userId)))
     .orderBy(asc(organizations.name));
+  const perBranch = await Promise.all(
+    BRANCH_CODES.map(async (code) => {
+      const { rows } = await db.execute<{ id: string }>(
+        sql`select id from ${authoringOrganizationIds(userId, code)} a`,
+      );
+      return { code, ids: new Set(rows.map((r) => r.id)) };
+    }),
+  );
+  return orgs.map((o) => ({
+    ...o,
+    branches: perBranch.filter((b) => b.ids.has(o.id)).map((b) => b.code),
+  }));
 }
 
 /** Cours des structures de la personne, avec leur dernière version. */
@@ -120,7 +154,9 @@ export async function listCourses(db: Database, userId: string): Promise<CourseS
         ),
       ),
     )
-    .where(inArray(courses.organizationId, authoringOrganizationIds(userId)))
+    .where(
+      sql`${courses.organizationId} in ${authoringOrganizationIds(userId, sql`${courses.branch}`)}`,
+    )
     .orderBy(desc(courseVersions.updatedAt));
   return rows.map((r) => ({ ...r, latest: toSummary(r.latest) }));
 }

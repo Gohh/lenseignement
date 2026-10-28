@@ -178,7 +178,7 @@ export async function listReviewQueue(db: Database, userId: string): Promise<Rev
     .where(
       and(
         inArray(courseVersions.status, ['in_review', 'approved']),
-        inArray(courses.organizationId, organizationIdsWithRoles(userId, PUBLISHER_ROLES)),
+        sql`${courses.organizationId} in ${organizationIdsWithRoles(userId, PUBLISHER_ROLES, sql`${courses.branch}`)}`,
       ),
     )
     .orderBy(desc(courseVersions.updatedAt));

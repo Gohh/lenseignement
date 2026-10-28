@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { LEVEL_CODES } from '@lenseignement/types';
 import {
   boolean,
   check,
@@ -357,6 +358,8 @@ export const courseVersions = pgTable(
     language: text('language').notNull().default('fr'),
     licence: text('licence').notNull().default('Tous droits réservés'),
     estimatedMinutes: integer('estimated_minutes'),
+    /** Niveau ou classe visé (types `LEVEL_CODES`), null : tous niveaux de l'espace. */
+    level: text('level'),
     /** Version exacte du programme de référence (cahier §6.1). */
     curriculumVersionId: uuid('curriculum_version_id').references(() => curriculumVersions.id),
     revision: integer('revision').notNull().default(1),
@@ -384,6 +387,11 @@ export const courseVersions = pgTable(
       'course_versions_status_check',
       sql`${t.status} in ('draft','in_review','approved','published','archived')`,
     ),
+    check(
+      'course_versions_level_check',
+      sql`${t.level} is null or ${t.level} in (${sql.raw(LEVEL_CODES.map((c) => `'${c}'`).join(','))})`,
+    ),
+    index('course_versions_level_idx').on(t.level),
   ],
 );
 

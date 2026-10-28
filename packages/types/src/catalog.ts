@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BranchCodeSchema } from './branches.js';
+import { LevelCodeSchema } from './levels.js';
 
 /**
  * Catalogue public (cahier §3.2 « Visiteur », ticket 10) : seules les versions **publiées** après
@@ -10,6 +11,7 @@ export const CATALOG_PAGE_SIZE = 12;
 
 export const CatalogQuerySchema = z.object({
   branch: BranchCodeSchema.optional(),
+  level: LevelCodeSchema.optional(),
   q: z.string().trim().max(100).optional(),
   competency: z
     .string()
@@ -30,6 +32,8 @@ export interface CatalogCourse {
   language: string;
   estimatedMinutes: number | null;
   branch: string;
+  /** Niveau ou classe visé (null : tous niveaux de l'espace). */
+  level: string | null;
   organization: string;
   curriculum: { code: string; label: string } | null;
   competencies: Array<{ code: string; title: string }>;

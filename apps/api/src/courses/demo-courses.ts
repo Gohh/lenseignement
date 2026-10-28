@@ -1,3 +1,4 @@
+import type { LevelCode } from '@lenseignement/types';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { DEMO_IDS as ID } from '../db/demo-data.js';
@@ -28,6 +29,8 @@ interface DemoCourse {
   title: string;
   summary: string;
   audience: string;
+  /** Niveau ou classe visé (migration 0017 pour les bases déjà remplies). */
+  level: LevelCode;
   estimatedMinutes: number;
   /** Espace et programme de démonstration (par défaut : primaire, DEMO-PRIMAIRE 2026). */
   branch?: 'primaire' | 'alphabetisation';
@@ -50,6 +53,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Lire ses premières syllabes (démonstration)',
     summary: 'Cours fictif : des lettres aux syllabes, en petites activités de 10 minutes.',
     audience: 'Élèves de CP1',
+    level: 'cp1',
     estimatedMinutes: 40,
     competencyCodes: ['LECT-01', 'LECT-02'],
     module: 'Les voyelles',
@@ -69,6 +73,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Compter au marché (démonstration)',
     summary: 'Cours fictif : compter des fruits et des pièces jusqu’à 50.',
     audience: 'Élèves de CP1',
+    level: 'cp1',
     estimatedMinutes: 30,
     competencyCodes: ['CALC-01'],
     module: 'Compter les fruits',
@@ -87,6 +92,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Les nombres jusqu’à 50 (démonstration)',
     summary: 'Cours fictif : compter, comparer et additionner avec des objets du quotidien.',
     audience: 'Élèves de CP1',
+    level: 'cp1',
     estimatedMinutes: 30,
     competencyCodes: ['CALC-01', 'CALC-02'],
     module: 'Compter et additionner',
@@ -109,6 +115,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Lire des mots courts (démonstration)',
     summary: 'Cours fictif : assembler des syllabes pour lire ses premiers mots.',
     audience: 'Élèves de CP1',
+    level: 'cp1',
     estimatedMinutes: 20,
     competencyCodes: ['LECT-03'],
     module: 'Premiers mots',
@@ -123,6 +130,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Additionner jusqu’à 10 (démonstration)',
     summary: 'Cours fictif : petites additions avec des objets, et un quiz après chaque leçon.',
     audience: 'Élèves de CP1',
+    level: 'cp1',
     estimatedMinutes: 20,
     competencyCodes: ['CALC-02'],
     module: 'Premières additions',
@@ -169,6 +177,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Des lettres aux syllabes (démonstration)',
     summary: 'Cours fictif de rattrapage : revoir les lettres, puis les assembler en syllabes.',
     audience: 'Élèves de CP1 et CP2',
+    level: 'cp2',
     estimatedMinutes: 20,
     competencyCodes: ['LECT-01', 'LECT-02'],
     module: 'Revoir et assembler',
@@ -201,6 +210,7 @@ const DEMO_COURSES: DemoCourse[] = [
     title: 'Marché-école : l’argent du marché (démonstration)',
     summary: 'Cours fictif à écouter : reconnaître l’argent et rendre la monnaie.',
     audience: 'Adultes qui apprennent à lire et à compter (cours du soir)',
+    level: 'alpha-1',
     estimatedMinutes: 20,
     branch: 'alphabetisation',
     curriculum: 'DEMO-ALPHA',
@@ -285,6 +295,7 @@ async function seedCourse(db: Database, demo: DemoCourse): Promise<void> {
       title: demo.title,
       summary: demo.summary,
       audience: demo.audience,
+      level: demo.level,
       estimatedMinutes: demo.estimatedMinutes,
       curriculumVersionId: programme?.id ?? null,
       createdBy: demo.author,

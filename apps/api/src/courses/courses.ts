@@ -1,13 +1,14 @@
-import type {
-  AuthoringOrganization,
-  CourseDetail,
-  CourseOutlineInput,
-  CourseSummary,
-  CourseVersionDetail,
-  CourseVersionStatus,
-  CourseVersionSummary,
-  CreateCourseInput,
-  UpdateCourseVersionInput,
+import {
+  levelBranch,
+  type AuthoringOrganization,
+  type CourseDetail,
+  type CourseOutlineInput,
+  type CourseSummary,
+  type CourseVersionDetail,
+  type CourseVersionStatus,
+  type CourseVersionSummary,
+  type CreateCourseInput,
+  type UpdateCourseVersionInput,
 } from '@lenseignement/types';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { authoringOrganizationIds } from '../access/access.service.js';
@@ -222,6 +223,7 @@ export async function getCourseVersion(
     language: v.language,
     licence: v.licence,
     estimatedMinutes: v.estimatedMinutes,
+    level: v.level,
     curriculum:
       row.curriculumCode && row.curriculumLabel
         ? { code: row.curriculumCode, label: row.curriculumLabel, competencies: linked }
@@ -278,9 +280,19 @@ export async function updateCourseVersion(
   input: UpdateCourseVersionInput,
 ): Promise<CourseVersionDetail> {
   return db.transaction(async (tx) => {
-    await lockDraft(tx, versionId, input.revision);
+    const draft = await lockDraft(tx, versionId, input.revision);
     // `revision` est ensuite remplacée par l'incrément de `bump`.
     const { curriculum, ...fields } = input;
+
+    if (fields.level) {
+      const [course] = await tx
+        .select({ branch: courses.branch })
+        .from(courses)
+        .where(eq(courses.id, draft.courseId));
+      if (course?.branch !== levelBranch(fields.level)) {
+        throw new CourseError('invalid', 'Ce niveau ne correspond pas à l’espace du cours.');
+      }
+    }
 
     let curriculumVersionId: string | null | undefined;
     let competencyIds: string[] = [];
@@ -435,6 +447,7 @@ export async function createNextVersion(
         language: latest.language,
         licence: latest.licence,
         estimatedMinutes: latest.estimatedMinutes,
+        level: latest.level,
         curriculumVersionId: latest.curriculumVersionId,
         createdBy: userId,
       })

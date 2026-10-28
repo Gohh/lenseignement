@@ -38,6 +38,7 @@ const columns = {
   language: courseVersions.language,
   licence: courseVersions.licence,
   estimatedMinutes: courseVersions.estimatedMinutes,
+  level: courseVersions.level,
   branch: courses.branch,
   organization: organizations.name,
   curriculumCode: curricula.code,
@@ -87,6 +88,7 @@ async function enrich(db: Database, rows: Row[]): Promise<CatalogCourse[]> {
     language: r.language,
     estimatedMinutes: r.estimatedMinutes,
     branch: r.branch,
+    level: r.level,
     organization: r.organization,
     curriculum:
       r.curriculumCode && r.curriculumLabel
@@ -103,6 +105,7 @@ async function enrich(db: Database, rows: Row[]): Promise<CatalogCourse[]> {
 export async function searchCatalog(db: Database, query: CatalogQuery): Promise<CatalogPage> {
   const scope: SQL[] = [eq(courseVersions.status, 'published')];
   if (query.branch) scope.push(eq(courses.branch, query.branch));
+  if (query.level) scope.push(eq(courseVersions.level, query.level));
 
   const filters = [...scope];
   if (query.q) {

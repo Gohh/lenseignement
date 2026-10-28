@@ -33,6 +33,7 @@
   --pf-v5-global--link--Color: #146b46;
   --pf-v5-global--link--Color--hover: #0e4f33;
   --pf-v5-global--FontFamily--text: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --keycloak-card-top-color: #e97824;
   --pf-v5-global--FontFamily--heading: 'Baloo 2', 'Atkinson Hyperlegible', system-ui, sans-serif;
 }
 
@@ -69,7 +70,7 @@ html.login-pf,
 /* Carte du formulaire. */
 .pf-v5-c-login__main {
   border: 1px solid #e2e7e1;
-  border-top: 6px solid #e97824;
+  border-top: 1px solid #e2e7e1;
   border-radius: 24px;
   box-shadow: 0 12px 32px rgb(16 48 31 / 0.12);
   background: #fff;

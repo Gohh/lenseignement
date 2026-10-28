@@ -32,6 +32,9 @@ l'appareil, mais pas les questions, les réponses ni la correction.
 
 ## Conséquences
 
+- Voix : le site choisit la voix la plus naturelle de l'appareil pour la langue du cours
+  (voix « Natural/Online » d'Edge et Windows, puis Google, puis la variante de France) et ne
+  coupe la lecture qu'en fin de phrase, pour moins de pauses (retour de GOHH sur PC, 28/10).
 - La prononciation dépend du téléphone. Suite prévue : des **enregistrements de vraies voix**
   (par exemple celle de l'animateur), envoyés par le formateur ; le bouton 🔊 lira alors
   l'enregistrement quand il existe, et la voix de synthèse sinon.

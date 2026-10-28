@@ -70,9 +70,14 @@ html.login-pf,
 /* Carte du formulaire. */
 .pf-v5-c-login__main {
   border: 1px solid #e2e7e1;
-  border-top: 1px solid #e2e7e1;
+  border-top: 0 !important;
+  border-block-start: 0 !important;
   border-radius: 24px;
-  box-shadow: 0 12px 32px rgb(16 48 31 / 0.12);
+  /* Bande orange du haut dessinée en ombre interne : remplace le trait bleu de Keycloak. */
+  box-shadow:
+    inset 0 6px 0 #e97824,
+    0 12px 32px rgb(16 48 31 / 0.12);
+  overflow: hidden;
   background: #fff;
 }
 .pf-v5-c-login__main-header h1,
@@ -80,6 +85,14 @@ html.login-pf,
   font-family: 'Baloo 2', sans-serif;
   font-weight: 800;
   color: #10301f;
+}
+
+/* On cache tout filet ajouté par Keycloak autour de la carte. */
+.pf-v5-c-login__main::before,
+.pf-v5-c-login__main::after,
+.pf-v5-c-login__container::before,
+.pf-v5-c-login__container::after {
+  display: none !important;
 }
 
 /* Champs : grands, bordure marquée. */

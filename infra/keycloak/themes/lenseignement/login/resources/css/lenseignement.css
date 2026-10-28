@@ -1,0 +1,142 @@
+/* Aux couleurs de L'Enseignement : fond clair, vert #146B46, boutons arrondis en relief. */
+@font-face {
+  font-family: 'Baloo 2';
+  font-weight: 800;
+  font-display: swap;
+  src: url('../fonts/baloo-2-latin-800-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/baloo-2-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/atkinson-hyperlegible-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/atkinson-hyperlegible-latin-700-normal.woff2') format('woff2');
+}
+
+:root,
+.login-pf,
+.pf-v5-c-login {
+  --pf-v5-global--primary-color--100: #146b46;
+  --pf-v5-global--primary-color--200: #0e4f33;
+  --pf-v5-global--active-color--100: #146b46;
+  --pf-v5-global--link--Color: #146b46;
+  --pf-v5-global--link--Color--hover: #0e4f33;
+  --pf-v5-global--FontFamily--text: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --keycloak-card-top-color: #e97824;
+  --pf-v5-global--FontFamily--heading: 'Baloo 2', 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+
+/* Fond clair à la place du fond sombre de Keycloak. */
+html.login-pf,
+.login-pf body,
+.pf-v5-c-login {
+  background: #fafaf5 !important;
+  background-image: none !important;
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  color: #17253b;
+}
+
+/* En-tête : logo puis nom du site. */
+#kc-header-wrapper {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 2rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #146b46 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+#kc-header-wrapper::before {
+  content: '';
+  width: 72px;
+  height: 72px;
+  background: url('../img/logo.svg') center / contain no-repeat;
+}
+
+/* Carte du formulaire. */
+.pf-v5-c-login__main {
+  border: 1px solid #e2e7e1;
+  border-top: 0 !important;
+  border-block-start: 0 !important;
+  border-radius: 24px;
+  /* Bande orange du haut dessinée en ombre interne : remplace le trait bleu de Keycloak. */
+  box-shadow:
+    inset 0 6px 0 #e97824,
+    0 12px 32px rgb(16 48 31 / 0.12);
+  overflow: hidden;
+  background: #fff;
+}
+.pf-v5-c-login__main-header h1,
+#kc-page-title {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  color: #10301f;
+}
+
+/* On cache tout filet ajouté par Keycloak autour de la carte. */
+.pf-v5-c-login__main::before,
+.pf-v5-c-login__main::after,
+.pf-v5-c-login__container::before,
+.pf-v5-c-login__container::after {
+  display: none !important;
+}
+
+/* Champs : grands, bordure marquée. */
+.pf-v5-c-form-control,
+.pf-v5-c-form-control input {
+  min-height: 48px;
+  font-size: 1.0625rem;
+  border-radius: 14px;
+}
+.pf-v5-c-form-control {
+  --pf-v5-c-form-control--BorderColor: #64748b;
+  --pf-v5-c-form-control--BorderRadius: 14px;
+}
+.pf-v5-c-form__label-text {
+  font-weight: 700;
+}
+
+/* Bouton principal : vert, arrondi, en relief. */
+.pf-v5-c-button.pf-m-primary {
+  min-height: 56px;
+  border-radius: 18px;
+  background: #146b46;
+  color: #fff;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  box-shadow: 0 5px 0 #0e4f33;
+}
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus {
+  background: #0e4f33;
+}
+.pf-v5-c-button.pf-m-primary:active {
+  transform: translateY(3px);
+  box-shadow: none;
+}
+
+/* Liens, pied de formulaire. */
+a {
+  color: #146b46;
+  font-weight: 700;
+}
+#kc-registration-container,
+.pf-v5-c-login__main-footer-band {
+  background: #eef6f1;
+  border-radius: 0 0 18px 18px;
+}

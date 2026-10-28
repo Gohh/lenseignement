@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #24 (nouveau look : leçon et quiz) :
+dans la branche de la PR. Pour la PR #27 (pages de connexion et d’inscription aux couleurs du site) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/look-lecon
+git checkout feat/theme-keycloak
 git pull
 pnpm install
 pnpm build
@@ -359,7 +359,37 @@ Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6
 3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
    classe** ne propose que les niveaux de l’espace du cours.
 
-Test du nouveau look, partie 3 (PR #24, aucune base de données à refaire) :
+Thème des pages de connexion et d’inscription (PR #27) :
+
+1. Copier le dossier `infra\keycloak\themes\lenseignement` du projet dans le dossier `themes`
+   de Keycloak (`C:\wamp64\www\lenseignement\keycloak-26.8.1\keycloak-26.8.1\themes\`).
+2. Arrêter Keycloak (Ctrl + C) puis le relancer (étape 8).
+3. Dans l’administration (http://localhost:8080/admin) : domaine **l’enseignement** → **Paramètres
+   du domaine** → onglet **Thèmes** → **Thème de connexion** : choisir **lenseignement** →
+   **Enregistrer**.
+4. Ouvrir http://localhost:3000 en navigation privée → **Créer mon compte** : la page doit être
+   claire, avec le logo, du vert et un bouton arrondi.
+
+Test de l’inscription progressive (PR #26). Avant : dans Keycloak (http://localhost:8080/admin),
+realm **lenseignement** → **Paramètres du realm** → onglet **Connexion** → activer **Inscription
+des utilisateurs** (« User registration »), puis enregistrer.
+
+1. Sans être connecté, ouvrir un cours puis **Commencer le cours** : la leçon 1 s’ouvre. En bas, le
+   bloc **Garde ta progression** propose **Créer mon compte**.
+2. Cliquer **Leçon suivante** : la page **Crée ton compte pour continuer** remplace la leçon 2.
+3. **Créer mon compte** ouvre le formulaire de création de compte de Keycloak. **J’ai déjà un
+   compte** ouvre la connexion ; après connexion, on revient à la leçon 2.
+4. Sur l’accueil, un lien **Créer mon compte** est aussi sous les deux grands boutons.
+
+Rappel, partie 4 du nouveau look (PR #25) :
+
+1. Se connecter en `apprenant.demo`, puis **Mon espace** : grand « Bonjour », cartes arrondies et,
+   pour chaque cours suivi, une barre de progression.
+2. Sur ordinateur, le menu de Mon espace est à gauche ; la page en cours est en vert clair. Sur
+   téléphone (ou une fenêtre étroite), il devient une barre fixe en bas de l’écran.
+3. Si un cours est commencé, un grand bloc vert « Reprendre où tu en étais » apparaît en haut.
+
+Rappel, partie 3 (PR #24, déjà fusionnée) :
 
 1. Ouvrir un cours, puis une leçon : barre de progression en haut, texte dans une carte blanche.
 2. En bas, le quiz : chaque réponse est un grand bouton ; celui choisi devient vert clair.
@@ -404,7 +434,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`135 passed` et `1 skipped` pour les tests E2E).
+Attendu : aucun test en échec (`141 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

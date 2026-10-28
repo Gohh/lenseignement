@@ -4,8 +4,9 @@ import { apiGet, type Me } from '@/lib/api';
 import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
 import { getSession } from '@/lib/session';
 
+// Menu latéral sur ordinateur ; barre fixe en bas sur téléphone (maquette « Mon espace »).
 const linkClass =
-  'inline-flex min-h-[44px] items-center whitespace-nowrap rounded-card border border-line bg-surface px-3 font-bold text-ink no-underline hover:border-primary aria-[current=page]:border-primary aria-[current=page]:bg-primary aria-[current=page]:text-surface';
+  'flex min-h-[44px] flex-1 flex-col items-center justify-center whitespace-nowrap rounded-card px-3 text-sm font-bold text-ink-muted no-underline hover:bg-primary-soft aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-4 lg:text-base lg:text-ink';
 
 /** Menu de l'espace personnel, sur chaque page : on passe d'un outil à l'autre en un clic. */
 export default async function MySpaceLayout({ children }: { children: ReactNode }) {
@@ -38,13 +39,18 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
       : []),
   ];
 
+  const single = items.length <= 1;
+
   return (
-    <>
-      {items.length > 1 && (
-        <nav aria-label="Menu de mon espace" className="mb-6">
-          <ul className="flex flex-wrap gap-2" role="list">
+    <div className={single ? undefined : 'pb-24 lg:flex lg:items-start lg:gap-6 lg:pb-0'}>
+      {!single && (
+        <nav
+          aria-label="Menu de mon espace"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-2 pb-2 pt-1 lg:static lg:w-60 lg:flex-none lg:rounded-big lg:border lg:p-3"
+        >
+          <ul className="flex gap-1 overflow-x-auto lg:flex-col" role="list">
             {items.map((item) => (
-              <li key={item.href}>
+              <li key={item.href} className="flex flex-1 lg:flex-none">
                 <NavLink href={item.href} section={item.section} className={linkClass}>
                   {item.label}
                 </NavLink>
@@ -53,7 +59,7 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
           </ul>
         </nav>
       )}
-      {children}
-    </>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
   );
 }

@@ -88,7 +88,7 @@ test.describe('Quiz des leçons (ticket 13)', () => {
   });
 
   test('E2E-16 : quiz corrigé sans violation axe WCAG A/AA', async ({ page }) => {
-    await page.goto(`/catalogue/${COURSE}/lecons/2`);
+    await loginAs(page, 'apprenant.demo', `/catalogue/${COURSE}/lecons/2`);
     await page
       .getByRole('group', { name: /Question 1/ })
       .getByLabel('Quatre')

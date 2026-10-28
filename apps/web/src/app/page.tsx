@@ -92,6 +92,15 @@ export default async function HomePage() {
               Je suis enseignant
             </a>
           </div>
+          <p className="mt-4">
+            <a
+              href="/auth/login?inscription=1"
+              className="inline-flex min-h-[44px] items-center font-bold"
+            >
+              Créer mon compte
+            </a>
+            <span className="text-ink-muted"> · gratuit, pour garder ta progression</span>
+          </p>
           <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ink-muted" role="list">
             <li>✓ Marche sans internet</li>
             <li>✓ Leçons lues à voix haute</li>

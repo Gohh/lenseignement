@@ -22,7 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   'admin-plateforme': 'Administrateur de la plateforme',
 };
 
-const cardClass = 'rounded-card border border-line bg-surface p-4';
+const cardClass = 'rounded-big border border-line bg-surface p-5';
 
 export default async function MyspacePage() {
   const session = await getSession();
@@ -37,13 +37,44 @@ export default async function MyspacePage() {
   ]);
   const followed = plan.ok ? plan.data.items : [];
   const roles = session.roles.filter((role) => role in ROLE_LABELS);
+  const resume = followed.find((c) => c.resumeAt && !c.finished);
 
   return (
     <section className="space-y-6">
-      <h1 className="text-3xl font-bold">Bonjour, {session.displayName}</h1>
+      <div>
+        <p className="font-bold text-ink-muted">
+          {(me.ok && me.data.memberships[0]?.organizationName) || 'Mon espace'}
+        </p>
+        <h1 className="text-4xl font-extrabold">Bonjour, {session.displayName}</h1>
+      </div>
+
+      {resume && (
+        <section
+          aria-labelledby="reprendre-title"
+          className="flex flex-wrap items-center gap-5 rounded-[28px] bg-primary p-6 text-surface"
+        >
+          <div className="min-w-0 flex-1 basis-72">
+            <p id="reprendre-title" className="font-bold">
+              Reprendre où tu en étais
+            </p>
+            <p className="font-display text-3xl font-extrabold leading-tight">{resume.title}</p>
+            <p>
+              {resume.completed.length} leçon{resume.completed.length > 1 ? 's' : ''} sur{' '}
+              {resume.total} terminée{resume.completed.length > 1 ? 's' : ''}
+            </p>
+          </div>
+          <Link
+            href={`/catalogue/${resume.courseId}/lecons/${resume.resumeAt}`}
+            className="inline-flex min-h-[56px] items-center rounded-card bg-surface px-7 font-display text-xl font-bold text-primary no-underline shadow-[0_5px_0_var(--color-primary-dark)]"
+          >
+            Reprendre la leçon {resume.resumeAt}
+            <span className="sr-only"> de « {resume.title} »</span>
+          </Link>
+        </section>
+      )}
 
       <div className={cardClass}>
-        <h2 className="text-lg font-bold">Vos profils</h2>
+        <h2 className="text-xl font-extrabold">Vos profils</h2>
         {roles.length > 0 ? (
           <ul className="mt-2 list-disc pl-6">
             {roles.map((role) => (
@@ -77,7 +108,7 @@ export default async function MyspacePage() {
 
       {(followed.length > 0 || session.roles.includes('apprenant')) && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Mes cours suivis</h2>
+          <h2 className="text-xl font-extrabold">Mes cours suivis</h2>
           {followed.length > 0 ? (
             <ul className="mt-2 space-y-3" data-testid="learning-plan">
               {followed.map((c) => (
@@ -88,6 +119,21 @@ export default async function MyspacePage() {
                   >
                     {c.title}
                   </Link>
+                  <div
+                    role="progressbar"
+                    aria-label={`Avancement de « ${c.title} »`}
+                    aria-valuemin={0}
+                    aria-valuemax={c.total}
+                    aria-valuenow={c.completed.length}
+                    className="my-1 h-3 max-w-sm overflow-hidden rounded-full bg-primary-soft"
+                  >
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{
+                        width: `${c.total ? Math.round((c.completed.length / c.total) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
                   <p className="text-ink-muted">
                     {c.finished
                       ? 'Cours terminé.'
@@ -118,7 +164,7 @@ export default async function MyspacePage() {
 
       {session.roles.includes('apprenant') && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Lecture</h2>
+          <h2 className="text-xl font-extrabold">Lecture</h2>
           <Link
             href="/mon-espace/bilan-lecture"
             className="inline-flex min-h-[44px] items-center font-bold underline"
@@ -133,7 +179,7 @@ export default async function MyspacePage() {
 
       {session.roles.includes('apprenant') && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Atelier</h2>
+          <h2 className="text-xl font-extrabold">Atelier</h2>
           <Link
             href="/mon-espace/atelier-securite"
             className="inline-flex min-h-[44px] items-center font-bold underline"
@@ -149,7 +195,7 @@ export default async function MyspacePage() {
 
       {cohorts.ok && cohorts.data.length > 0 && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Mes classes</h2>
+          <h2 className="text-xl font-extrabold">Mes classes</h2>
           <ul className="mt-2 space-y-2">
             {cohorts.data.map((c) => (
               <li key={c.id}>
@@ -170,7 +216,7 @@ export default async function MyspacePage() {
 
       {me.ok && me.data.memberships.some((m) => AUTHOR_ROLES.has(m.role)) && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Rédaction</h2>
+          <h2 className="text-xl font-extrabold">Rédaction</h2>
           <ul className="mt-2 space-y-1">
             <li>
               <Link
@@ -196,7 +242,7 @@ export default async function MyspacePage() {
 
       {me.ok && me.data.memberships.some((m) => VALIDATOR_ROLES.has(m.role)) && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Pilotage</h2>
+          <h2 className="text-xl font-extrabold">Pilotage</h2>
           <Link
             href="/mon-espace/statistiques"
             className="inline-flex min-h-[44px] items-center font-bold underline"
@@ -211,7 +257,7 @@ export default async function MyspacePage() {
 
       {children.ok && children.data.length > 0 && (
         <div className={cardClass}>
-          <h2 className="text-lg font-bold">Mes enfants</h2>
+          <h2 className="text-xl font-extrabold">Mes enfants</h2>
           <ul className="mt-2 list-disc pl-6">
             {children.data.map((child) => (
               <li key={child.id}>
@@ -228,7 +274,7 @@ export default async function MyspacePage() {
       )}
 
       <div className={cardClass}>
-        <h2 className="text-lg font-bold">Cet appareil</h2>
+        <h2 className="text-xl font-extrabold">Cet appareil</h2>
         <DeviceDataPanel />
       </div>
 

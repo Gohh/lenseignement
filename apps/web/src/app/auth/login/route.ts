@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const returnTo = safeReturnTo(request.nextUrl.searchParams.get('returnTo'));
   const loginHint = safeLoginHint(request.nextUrl.searchParams.get('login_hint'));
+  // `?inscription=1` ouvre directement le formulaire de création de compte (OIDC `prompt=create`).
+  const signup = request.nextUrl.searchParams.get('inscription') === '1';
   const config = await oidcConfig();
 
   const codeVerifier = client.randomPKCECodeVerifier();
@@ -25,7 +27,15 @@ export async function GET(request: NextRequest) {
     nonce,
     ui_locales: 'fr',
     ...(loginHint ? { login_hint: loginHint } : {}),
+    ...(signup ? { prompt: 'create' } : {}),
   });
+
+  // Keycloak ignore `prompt=create` : son formulaire d'inscription a sa propre adresse, avec les
+  // mêmes paramètres. Un autre fournisseur garde l'adresse d'origine (+ `prompt=create`).
+  const keycloakAuth = '/protocol/openid-connect/auth';
+  if (signup && authorizationUrl.pathname.endsWith(keycloakAuth)) {
+    authorizationUrl.pathname = authorizationUrl.pathname.replace(/\/auth$/, '/registrations');
+  }
 
   const response = NextResponse.redirect(authorizationUrl);
   // Lie le retour au navigateur qui a lancé la connexion (protection contre le login CSRF).

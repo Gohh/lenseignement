@@ -56,7 +56,7 @@ export default async function CataloguePage({ searchParams }: Props) {
       <h1 className="text-4xl font-extrabold">Catalogue des cours</h1>
       <p className="max-w-2xl text-lg text-ink-muted">
         Tous les cours affichés ont été relus par un référent pédagogique puis publiés par une
-        deuxième personne. Version de démonstration : les contenus sont fictifs.
+        deuxième personne.
       </p>
 
       {/* Formulaire GET classique : fonctionne sans JavaScript et sur réseau faible. */}

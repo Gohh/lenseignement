@@ -58,7 +58,7 @@ export default async function ReadingCheckPage({
       <Notice message={param(query.message)} error={param(query.erreur)} />
       <p className="text-ink-muted">
         {diagnostic.title} · programme {diagnostic.curriculum.code}, version{' '}
-        {diagnostic.curriculum.label}. Exercices fictifs de démonstration.
+        {diagnostic.curriculum.label}.
       </p>
 
       {latest && (

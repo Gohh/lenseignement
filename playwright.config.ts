@@ -36,7 +36,7 @@ export default defineConfig({
     },
     {
       command:
-        'pnpm --filter @lenseignement/api db:migrate && pnpm --filter @lenseignement/api db:seed && pnpm --filter @lenseignement/api start',
+        'pnpm --filter @lenseignement/api db:migrate && pnpm --filter @lenseignement/api db:seed:demo && pnpm --filter @lenseignement/api start',
       url: `${API_URL}/health`,
       reuseExistingServer: false,
       timeout: 60_000,

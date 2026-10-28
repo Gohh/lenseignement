@@ -68,9 +68,6 @@ export default async function HomePage() {
     <div className="space-y-12">
       <section className="flex flex-col gap-8 py-4 lg:flex-row lg:items-center lg:gap-12">
         <div className="flex-1">
-          <p className="mb-4 inline-block rounded-full bg-accent-soft px-4 py-1 text-sm font-bold text-accent-ink">
-            Version de démonstration · contenus fictifs
-          </p>
           <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">
             Apprendre à son rythme, même avec peu de réseau.
           </h1>

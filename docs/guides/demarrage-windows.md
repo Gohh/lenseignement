@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #19 (navigation) :
+dans la branche de la PR. Pour la PR #20 (logo) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/navigation-menu
+git checkout feat/logo-visuel
 git pull
 pnpm install
 pnpm build
@@ -341,6 +341,13 @@ Test de la navigation (PR #19) :
 2. Cliquer sur **Statistiques**, puis sur **Relecture** : on passe d’un outil à l’autre sans
    revenir en arrière.
 3. En `apprenant.demo`, le menu montre **Vue d’ensemble**, **Mon bilan** et **Atelier**.
+
+Test du logo (PR #20) :
+
+1. Page d’accueil : le logo (un livre ouvert sous un soleil orange) apparaît en haut à gauche et
+   dans le grand bandeau vert ; une fine bande orange borde le haut de la page.
+2. L’onglet du navigateur montre le même logo (si l’ancien « E » reste, appuyer sur Ctrl + F5).
+3. Sur téléphone, seul le logo reste en haut à gauche, pour laisser la place aux boutons.
 
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 

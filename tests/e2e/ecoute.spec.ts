@@ -97,7 +97,7 @@ test.describe('Alphabétisation : écouter d’abord (ticket 19)', () => {
     await page.addInitScript(() => {
       delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis;
     });
-    await page.goto(`/catalogue/${COURSE}/lecons/2`);
+    await loginAs(page, 'apprenant.demo', `/catalogue/${COURSE}/lecons/2`);
     await expect(page.getByText('La lecture à voix haute n’est pas disponible')).toBeVisible();
     await expect(page.getByRole('button', { name: /Écouter la question/ })).toHaveCount(0);
     await expect(page.getByRole('group', { name: /Question 1/ })).toBeVisible();
@@ -105,7 +105,7 @@ test.describe('Alphabétisation : écouter d’abord (ticket 19)', () => {
 
   test('E2E-16 : leçon « écouter d’abord » sans violation axe WCAG A/AA', async ({ page }) => {
     await recordSpeech(page);
-    await page.goto(`/catalogue/${COURSE}/lecons/2`);
+    await loginAs(page, 'apprenant.demo', `/catalogue/${COURSE}/lecons/2`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Rendre la monnaie');
     const scan = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

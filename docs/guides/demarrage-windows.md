@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #25 (nouveau look : Mon espace) :
+dans la branche de la PR. Pour la PR #26 (inscription progressive) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/look-mon-espace
+git checkout feat/inscription-progressive
 git pull
 pnpm install
 pnpm build
@@ -359,7 +359,18 @@ Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6
 3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
    classe** ne propose que les niveaux de l’espace du cours.
 
-Test du nouveau look, partie 4 (PR #25, aucune base de données à refaire) :
+Test de l’inscription progressive (PR #26). Avant : dans Keycloak (http://localhost:8080/admin),
+realm **lenseignement** → **Paramètres du realm** → onglet **Connexion** → activer **Inscription
+des utilisateurs** (« User registration »), puis enregistrer.
+
+1. Sans être connecté, ouvrir un cours puis **Commencer le cours** : la leçon 1 s’ouvre. En bas, le
+   bloc **Garde ta progression** propose **Créer mon compte**.
+2. Cliquer **Leçon suivante** : la page **Crée ton compte pour continuer** remplace la leçon 2.
+3. **Créer mon compte** ouvre le formulaire de création de compte de Keycloak. **J’ai déjà un
+   compte** ouvre la connexion ; après connexion, on revient à la leçon 2.
+4. Sur l’accueil, un lien **Créer mon compte** est aussi sous les deux grands boutons.
+
+Rappel, partie 4 du nouveau look (PR #25) :
 
 1. Se connecter en `apprenant.demo`, puis **Mon espace** : grand « Bonjour », cartes arrondies et,
    pour chaque cours suivi, une barre de progression.
@@ -412,7 +423,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`135 passed` et `1 skipped` pour les tests E2E).
+Attendu : aucun test en échec (`141 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

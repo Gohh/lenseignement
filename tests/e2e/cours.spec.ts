@@ -24,6 +24,8 @@ test.describe('Rédaction des cours (ticket 8)', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Cours créé.' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(page.getByTestId('version-status')).toContainText('version 1 · Brouillon');
+    // Le circuit situe le cours : un brouillon vide commence au plan.
+    await expect(page.getByTestId('circuit-current')).toHaveText('Étape 1 sur 6 : Plan');
 
     // Programme de référence, puis compétences de cette version exacte.
     await page

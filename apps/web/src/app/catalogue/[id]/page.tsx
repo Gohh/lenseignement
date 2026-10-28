@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { KeepCourseButton } from '@/components/KeepCourseButton';
 import { buttonClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { SpeakButton } from '@/components/SpeakButton';
 import { apiGet, publicApiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { enrollAction } from '../actions';
@@ -55,7 +56,20 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
         ← Catalogue {branch ? `: ${branch.title}` : ''}
       </Link>
       <Notice message={param(query.message)} error={param(query.erreur)} />
-      <h1 className="text-3xl font-bold">{course.title}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="text-3xl font-bold">{course.title}</h1>
+        <SpeakButton
+          text={[
+            `${course.title}.`,
+            course.summary,
+            ...course.modules
+              .flatMap((m) => m.lessons)
+              .map((l, i) => `Leçon ${i + 1} : ${l.title}.`),
+          ].join('\n')}
+          lang={course.language}
+          label="Écouter la présentation du cours"
+        />
+      </div>
       <p className="text-lg">{course.summary}</p>
 
       <dl className="grid gap-x-4 gap-y-1 rounded-card border border-line bg-surface p-4 sm:grid-cols-[auto_1fr]">

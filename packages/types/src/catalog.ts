@@ -61,6 +61,8 @@ export interface CatalogCourseDetail extends CatalogCourse {
 export interface CatalogLesson {
   courseId: string;
   courseTitle: string;
+  /** Espace du cours : en alphabétisation, la leçon s'affiche « écouter d'abord » (ADR-015). */
+  branch: string;
   versionNumber: number;
   language: string;
   number: number;

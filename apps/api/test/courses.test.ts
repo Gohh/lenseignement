@@ -57,6 +57,7 @@ test('l’enseignant voit le cours de son école ; l’élève et le parent ne v
       ['Les nombres jusqu’à 50 (démonstration)', 'published'],
       ['Lire des mots courts (démonstration)', 'published'],
       ['Lire ses premières syllabes (démonstration)', 'draft'],
+      ['Marché-école : l’argent du marché (démonstration)', 'published'],
     ],
   );
   for (const subject of [SUB.awa, SUB.fatou, SUB.yao]) {

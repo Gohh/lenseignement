@@ -29,6 +29,9 @@ interface DemoCourse {
   summary: string;
   audience: string;
   estimatedMinutes: number;
+  /** Espace et programme de démonstration (par défaut : primaire, DEMO-PRIMAIRE 2026). */
+  branch?: 'primaire' | 'alphabetisation';
+  curriculum?: string;
   competencyCodes: string[];
   module: string;
   lessons: Array<{ title: string; body: string; quiz?: DemoQuestion[] }>;
@@ -189,12 +192,60 @@ const DEMO_COURSES: DemoCourse[] = [
     ],
     stage: 'published',
   },
+  {
+    // Cours ajouté au ticket 19 : parcours « écouter d'abord » pour adultes (cahier §4.3
+    // « marché-école »), phrases courtes, chaque texte s'écoute (ADR-015).
+    courseId: ID.courseMarcheEcole,
+    versionId: ID.courseMarcheEcoleV1,
+    author: ID.userKoffi,
+    title: 'Marché-école : l’argent du marché (démonstration)',
+    summary: 'Cours fictif à écouter : reconnaître l’argent et rendre la monnaie.',
+    audience: 'Adultes qui apprennent à lire et à compter (cours du soir)',
+    estimatedMinutes: 20,
+    branch: 'alphabetisation',
+    curriculum: 'DEMO-ALPHA',
+    competencyCodes: ['NOMB-01', 'NOMB-02'],
+    module: 'Au marché',
+    lessons: [
+      {
+        title: 'Les pièces et les billets',
+        body: 'Au marché, on paie avec des pièces et des billets.\n🪙 La pièce de 100 francs est petite et ronde.\n💵 Le billet de 1 000 francs est en papier.\nDix pièces de 100 francs font 1 000 francs.',
+        quiz: [
+          {
+            prompt: 'Combien de pièces de 100 francs font 1 000 francs ?',
+            choices: ['5 pièces', '10 pièces', '20 pièces'],
+            correct: 1,
+            explanation: '100, 200, 300… jusqu’à 1 000 : il faut dix pièces.',
+          },
+        ],
+      },
+      {
+        title: 'Rendre la monnaie',
+        body: 'Les tomates coûtent 300 francs.\nLa cliente donne une pièce de 500 francs.\nLe vendeur rend 200 francs, car 300 et 200 font 500.',
+        quiz: [
+          {
+            prompt: 'Les tomates coûtent 300 francs. Je donne 500 francs. Combien me rend-on ?',
+            choices: ['100 francs', '200 francs', '300 francs'],
+            correct: 1,
+            explanation: '300 et 200 font 500 : on rend 200 francs.',
+          },
+          {
+            prompt: 'Le pain coûte 150 francs. Je donne 200 francs. Combien me rend-on ?',
+            choices: ['50 francs', '100 francs', '150 francs'],
+            correct: 0,
+            explanation: '150 et 50 font 200 : on rend 50 francs.',
+          },
+        ],
+      },
+    ],
+    stage: 'published',
+  },
 ];
 
 /**
- * Cours FICTIFS de démonstration, à l'École Les Manguiers, reliés au programme de démonstration
- * 2026 : un brouillon, un cours en attente de relecture et quatre cours publiés (catalogue), dont
- * deux avec des quiz. Idempotent.
+ * Cours FICTIFS de démonstration, à l'École Les Manguiers, reliés aux programmes de démonstration
+ * 2026 : un brouillon, un cours en attente de relecture et cinq cours publiés (catalogue), dont
+ * trois avec des quiz et un en alphabétisation. Idempotent.
  */
 export async function seedDemoCourses(db: Database): Promise<void> {
   for (const demo of DEMO_COURSES) {
@@ -209,7 +260,7 @@ async function seedCourse(db: Database, demo: DemoCourse): Promise<void> {
       .values({
         id: demo.courseId,
         organizationId: ID.orgManguiers,
-        branch: 'primaire',
+        branch: demo.branch ?? 'primaire',
         createdBy: demo.author,
       })
       .onConflictDoNothing()
@@ -220,7 +271,12 @@ async function seedCourse(db: Database, demo: DemoCourse): Promise<void> {
       .select({ id: curriculumVersions.id })
       .from(curriculumVersions)
       .innerJoin(curricula, eq(curricula.id, curriculumVersions.curriculumId))
-      .where(and(eq(curricula.code, 'DEMO-PRIMAIRE'), eq(curriculumVersions.label, '2026')));
+      .where(
+        and(
+          eq(curricula.code, demo.curriculum ?? 'DEMO-PRIMAIRE'),
+          eq(curriculumVersions.label, '2026'),
+        ),
+      );
 
     await tx.insert(courseVersions).values({
       id: demo.versionId,

@@ -56,6 +56,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
     });
   }
   const done = mine?.completed.includes(lesson.number) ?? false;
+  // Alphabétisation : « écouter d'abord » (cahier §3.1 D, ADR-015) ; l'écoute passe avant le
+  // titre, et le texte est plus grand.
+  const audioFirst = lesson.branch === 'alphabetisation';
+  const player = (
+    <AudioLessonPlayer text={`${lesson.title}.\n${lesson.body}`} lang={lesson.language} />
+  );
   const last =
     session && mine && lesson.quiz.length > 0
       ? await apiGet<{ attempt: QuizLastAttempt | null }>(
@@ -73,6 +79,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
         ← {lesson.courseTitle}
       </Link>
       <Notice error={param(query.erreur)} />
+      {audioFirst && player}
       <header className="space-y-1">
         <p className="text-ink-muted">
           Module {lesson.module.number} : {lesson.module.title}
@@ -84,9 +91,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
         </p>
       </header>
 
-      <AudioLessonPlayer text={`${lesson.title}.\n${lesson.body}`} lang={lesson.language} />
+      {!audioFirst && player}
 
-      <div className="whitespace-pre-line text-xl leading-relaxed" lang={lesson.language}>
+      <div
+        className={`whitespace-pre-line leading-relaxed ${audioFirst ? 'text-2xl' : 'text-xl'}`}
+        lang={lesson.language}
+      >
         {lesson.body}
       </div>
 
@@ -99,6 +109,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
           attemptId={randomUUID()}
           last={last?.ok ? last.data.attempt : null}
           owner={session && mine ? ownerOf(session.subject) : undefined}
+          lang={lesson.language}
         />
       )}
 

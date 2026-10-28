@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #15 (ticket 18) :
+dans la branche de la PR. Pour la PR #16 (ticket 19) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-18-simulation-securite
+git checkout feat/ticket-19-alphabetisation-audio
 git pull
 pnpm install
 pnpm build
@@ -312,6 +312,16 @@ refaire l’étape 6 avant) :
    « Bravo, simulation réussie ! » et la séance « Ouverte ».
 4. **Demander ma séance pratique encadrée**. Attendu : « ✓ Demande envoyée ».
 
+Test de l’écoute pour les adultes (la PR #16 ajoute un cours fictif : refaire l’étape 6 avant ;
+monter le son de l’ordinateur) :
+
+1. **Catalogue** → espace **Alphabétisation** → **Marché-école : l’argent du marché**. Le bouton
+   🔊 à côté du titre lit la présentation du cours.
+2. Connecté en `apprenant.demo`, **Suivre ce cours**, puis **Commencer le cours**. Attendu : le
+   cadre « Écouter la leçon » est tout en haut ; **Écouter** lit la leçon.
+3. Dans le quiz, chaque 🔊 lit la question ou une réponse. Choisir **10 pièces**, **Valider mes
+   réponses**, puis 🔊 à côté du résultat et de la correction.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -334,7 +344,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`113 passed` et `1 skipped` pour les tests E2E de la PR #15).
+Attendu : aucun test en échec (`119 passed` et `1 skipped` pour les tests E2E de la PR #16).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

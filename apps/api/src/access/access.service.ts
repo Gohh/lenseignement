@@ -36,11 +36,31 @@ export const AUTHOR_ROLES = [
   'alphabetiseur',
   'referent-pedagogique',
   'chef-etablissement',
+  'gestionnaire',
 ] as const;
 
 /** Circuit de validation (ADR-006) : qui approuve, et qui publie ou retire. */
 export const REVIEWER_ROLES = ['referent-pedagogique'] as const;
 export const PUBLISHER_ROLES = ['referent-pedagogique', 'chef-etablissement'] as const;
+
+/** Équipe d'une structure (ADR-021) : qui invite, change les cycles et retire les rôles. */
+export const TEAM_ROLES = ['chef-etablissement', 'administrateur', 'superadministrateur'] as const;
+
+/**
+ * Structures dont la personne gère l'équipe : celles qu'elle dirige ou administre (sous-structures
+ * comprises) ; le superadministrateur les gère toutes. Renvoie une sous-requête entre parenthèses.
+ */
+export function teamOrganizationIds(userId: string): SQL {
+  return sql`(
+    select o.id from organizations o
+     where exists (
+       select 1 from memberships m
+        where m.user_id = ${userId}
+          and m.role = 'superadministrateur'
+          and (m.valid_until is null or m.valid_until > now()))
+    union
+    select t.id from ${organizationIdsWithRoles(userId, ['chef-etablissement', 'administrateur'])} t)`;
+}
 
 /** Tableau de chiffres anonymes (ADR-016) : direction d'établissement et référents. */
 export const STATS_ROLES = ['chef-etablissement', 'referent-pedagogique'] as const;

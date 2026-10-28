@@ -15,6 +15,7 @@ import { LearningController } from './learning/learning.controller.js';
 import { MeController } from './me/me.controller.js';
 import { RemediationController } from './remediation/remediation.controller.js';
 import { SimulationController } from './simulation/simulation.controller.js';
+import { TeamController } from './team/team.controller.js';
 import { StatsController } from './stats/stats.controller.js';
 
 @Module({
@@ -33,6 +34,7 @@ import { StatsController } from './stats/stats.controller.js';
     SimulationController,
     StatsController,
     FamilyController,
+    TeamController,
   ],
   providers: [OutboxRelayService],
 })

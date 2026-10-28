@@ -82,6 +82,9 @@ export const MEMBERSHIP_ROLES = [
   'apprenant',
   'alphabetiseur',
   'referent-pedagogique',
+  'gestionnaire',
+  'administrateur',
+  'superadministrateur',
 ] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
@@ -107,7 +110,7 @@ export const memberships = pgTable(
     index('memberships_user_idx').on(t.userId),
     check(
       'memberships_role_check',
-      sql`${t.role} in ('chef-etablissement','enseignant','apprenant','alphabetiseur','referent-pedagogique')`,
+      sql`${t.role} in (${sql.raw(MEMBERSHIP_ROLES.map((r) => `'${r}'`).join(','))})`,
     ),
     check(
       'memberships_branches_check',
@@ -130,6 +133,29 @@ export const cohorts = pgTable(
     createdAt: createdAt(),
   },
   (t) => [unique('cohorts_org_code_year_unique').on(t.organizationId, t.code, t.schoolYear)],
+);
+
+/** Invitation à rejoindre l'équipe d'une structure avec un rôle et des cycles (ADR-021). */
+export const membershipInvitations = pgTable(
+  'membership_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    code: text('code').notNull().unique(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
+    /** Cycles accordés ; null = tous. */
+    branches: text('branches').array(),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedByUserId: uuid('used_by_user_id').references(() => users.id),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('membership_invitations_org_idx').on(t.organizationId)],
 );
 
 export const COHORT_MEMBER_ROLES = ['enseignant', 'apprenant'] as const;

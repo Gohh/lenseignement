@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
 import { apiGet, type Me } from '@/lib/api';
-import { AUTHOR_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
+import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
 import { getSession } from '@/lib/session';
 
 const linkClass =
@@ -28,6 +28,7 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
       : []),
     { href: '/mon-espace/famille', label: 'Ma famille' },
     { href: '/mon-espace/repetiteur', label: 'Répétiteur' },
+    ...(has(TEAM_ROLES) ? [{ href: '/mon-espace/equipe', label: 'Équipe' }] : []),
     ...(has(AUTHOR_ROLES) ? [{ href: '/mon-espace/cours', label: 'Rédiger', section: true }] : []),
     ...(has(VALIDATOR_ROLES)
       ? [

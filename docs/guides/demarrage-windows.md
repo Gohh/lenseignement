@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #26 (inscription progressive) :
+dans la branche de la PR. Pour la PR #27 (pages de connexion et d’inscription aux couleurs du site) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/inscription-progressive
+git checkout feat/theme-keycloak
 git pull
 pnpm install
 pnpm build
@@ -358,6 +358,17 @@ Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6
    indique « Niveau : Alphabétisation Niveau 1 ».
 3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
    classe** ne propose que les niveaux de l’espace du cours.
+
+Thème des pages de connexion et d’inscription (PR #27) :
+
+1. Copier le dossier `infra\keycloak\themes\lenseignement` du projet dans le dossier `themes`
+   de Keycloak (`C:\wamp64\www\lenseignement\keycloak-26.8.1\keycloak-26.8.1\themes\`).
+2. Arrêter Keycloak (Ctrl + C) puis le relancer (étape 8).
+3. Dans l’administration (http://localhost:8080/admin) : domaine **l’enseignement** → **Paramètres
+   du domaine** → onglet **Thèmes** → **Thème de connexion** : choisir **lenseignement** →
+   **Enregistrer**.
+4. Ouvrir http://localhost:3000 en navigation privée → **Créer mon compte** : la page doit être
+   claire, avec le logo, du vert et un bouton arrondi.
 
 Test de l’inscription progressive (PR #26). Avant : dans Keycloak (http://localhost:8080/admin),
 realm **lenseignement** → **Paramètres du realm** → onglet **Connexion** → activer **Inscription

@@ -127,6 +127,13 @@
       "when": 1793186404812,
       "tag": "0017_niveaux_regles",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793200584796,
+      "tag": "0018_cycles_droits",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { seedDemoCourses } from '../courses/demo-courses.js';
 import { seedDemoCurricula } from '../curricula/demo-curricula.js';
 import { seedDemoDiagnostic } from '../remediation/demo-diagnostic.js';
@@ -134,6 +134,18 @@ export async function seedDemo(db: Database): Promise<void> {
         { userId: ID.learnerMoussa, organizationId: ID.orgBaobabs, role: 'apprenant' },
       ])
       .onConflictDoNothing();
+
+    // Démonstration du filtrage par cycle (ADR-019) : l'enseignante ne rédige que dans le primaire.
+    await tx
+      .update(memberships)
+      .set({ branches: ['primaire'] })
+      .where(
+        and(
+          eq(memberships.userId, ID.userAminata),
+          eq(memberships.organizationId, ID.orgManguiers),
+          eq(memberships.role, 'enseignant'),
+        ),
+      );
 
     await tx
       .insert(cohorts)

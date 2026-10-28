@@ -44,6 +44,8 @@ import {
   getCourseVersion,
   listAuthoringOrganizations,
   listCourses,
+  branchOfCourse,
+  branchOfVersion,
   organizationOfCourse,
   organizationOfVersion,
   replaceOutline,
@@ -103,6 +105,7 @@ export class AuthoringController {
       resourceType: 'course',
       resourceId: courseId,
       organizationId: await organizationOfCourse(this.db, courseId),
+      branch: await branchOfCourse(this.db, courseId),
     });
   }
 
@@ -119,6 +122,7 @@ export class AuthoringController {
         resourceType: 'course_version',
         resourceId: versionId,
         organizationId: await organizationOfVersion(this.db, versionId),
+        branch: await branchOfVersion(this.db, versionId),
       },
       roles,
     );
@@ -144,6 +148,7 @@ export class AuthoringController {
       resourceType: 'organization',
       resourceId: input.organizationId,
       organizationId: input.organizationId,
+      branch: input.branch,
     });
     return createCourse(this.db, userId, input);
   }

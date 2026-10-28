@@ -194,6 +194,21 @@ export default async function MyspacePage() {
         </div>
       )}
 
+      {me.ok && me.data.memberships.some((m) => VALIDATOR_ROLES.has(m.role)) && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Pilotage</h2>
+          <Link
+            href="/mon-espace/statistiques"
+            className="inline-flex min-h-[44px] items-center font-bold underline"
+          >
+            Statistiques anonymes
+          </Link>
+          <p className="text-ink-muted">
+            Des chiffres sur vos structures, sans aucun nom : cours, rattrapage, atelier.
+          </p>
+        </div>
+      )}
+
       {children.ok && children.data.length > 0 && (
         <div className={cardClass}>
           <h2 className="text-lg font-bold">Mes enfants</h2>

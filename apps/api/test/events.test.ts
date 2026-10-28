@@ -125,7 +125,9 @@ test('lot renvoyé (réseau coupé puis rétabli) : rien n’est rejoué', async
     ['duplicate', 'duplicate', 'duplicate', 'duplicate'],
   );
   const [{ n }] = (
-    await ctx.db.execute<{ n: number }>(sql`select count(*)::int as n from quiz_attempts`)
+    await ctx.db.execute<{ n: number }>(
+      sql`select count(*)::int as n from quiz_attempts where user_id = ${await userIdOf(ALI)}`,
+    )
   ).rows as [{ n: number }];
   assert.equal(n, 1);
   assert.deepEqual(await outboxOf(await userIdOf(ALI)), {

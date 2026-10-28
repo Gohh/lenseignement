@@ -174,3 +174,11 @@ API → base), sur téléphone et sur ordinateur, dans `tests/e2e/autorisations.
 
 - Écoute : la voix de synthèse tourne sur l'appareil ; aucun texte ni aucun son n'est envoyé à
   un service extérieur, et rien n'est enregistré (pas de micro).
+
+## Ajouté par le ticket 20 (ADR-016)
+
+- Données de mineurs : le tableau ne renvoie que des nombres, jamais de nom ni d'identifiant
+  d'élève ; les groupes de moins de 5 personnes sont masqués (nombres et pourcentages).
+- Accès : réservé à la direction et aux référents, sur leur périmètre ; refus journalisés.
+- Recoupement entre deux lectures proches : risque résiduel accepté en V1 (lecteurs peu
+  nombreux et identifiés), à revoir avant d'ouvrir le tableau à d'autres profils.

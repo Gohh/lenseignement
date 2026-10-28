@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #16 (ticket 19) :
+dans la branche de la PR. Pour la PR #18 (ticket 20) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-19-alphabetisation-audio
+git checkout feat/ticket-20-tableau-kpi
 git pull
 pnpm install
 pnpm build
@@ -322,6 +322,18 @@ monter le son de l’ordinateur) :
 3. Dans le quiz, chaque 🔊 lit la question ou une réponse. Choisir **10 pièces**, **Valider mes
    réponses**, puis 🔊 à côté du résultat et de la correction.
 
+Test des statistiques anonymes (la PR #18 ajoute des élèves fictifs : refaire l’étape 6 avant) :
+
+1. Connecté en `directeur.demo`, **Mon espace** → carte **Pilotage** → **Statistiques
+   anonymes**.
+2. Attendu pour « Additionner jusqu’à 10 » : 12 inscrits, 10 ont commencé, 7 ont terminé, 85 % de bonnes
+   réponses. Aucun nom d’élève sur la page.
+3. Les cours suivis par moins de 5 personnes affichent « moins de 5 » et « pas assez de
+   personnes ».
+4. En `enseignant.demo`, pas de carte **Pilotage** ; l’adresse
+   `http://localhost:3000/mon-espace/statistiques` affiche « Ce tableau est réservé à la direction
+   des établissements et aux référents. »
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -344,7 +356,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`121 passed` et `1 skipped` pour les tests E2E).
+Attendu : aucun test en échec (`127 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

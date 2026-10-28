@@ -344,7 +344,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`119 passed` et `1 skipped` pour les tests E2E de la PR #16).
+Attendu : aucun test en échec (`121 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

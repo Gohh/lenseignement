@@ -44,7 +44,7 @@ test.describe('Lecteur de leçons (ticket 11)', () => {
     await expect(page.getByTestId('audio-status')).toHaveText('Lecture terminée.');
     const spoken = await page.evaluate(() => (window as unknown as { spoken: string[] }).spoken);
     expect(spoken[0]).toBe('fr-FR|Compter de 10 en 10.');
-    expect(spoken.length).toBeGreaterThan(2);
+    expect(spoken.length).toBeGreaterThanOrEqual(2);
     await expect(page.getByRole('button', { name: 'Réécouter' })).toBeVisible();
   });
 

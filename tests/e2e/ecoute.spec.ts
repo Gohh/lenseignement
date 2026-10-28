@@ -49,7 +49,7 @@ test.describe('Alphabétisation : écouter d’abord (ticket 19)', () => {
     // Présentation du cours, à écouter.
     await forget(page);
     await page.getByRole('button', { name: 'Écouter la présentation du cours' }).click();
-    await expect.poll(() => heard(page)).toContain('Rendre la monnaie.');
+    await expect.poll(() => heard(page)).toContain('Leçon 2 : Rendre la monnaie.');
     await page.getByRole('button', { name: 'Suivre ce cours' }).click();
     await page.goto(`/catalogue/${COURSE}/lecons/1`);
 
@@ -85,12 +85,12 @@ test.describe('Alphabétisation : écouter d’abord (ticket 19)', () => {
     // Résultat et correction, à écouter aussi.
     await forget(page);
     await page.getByRole('button', { name: 'Écouter le résultat' }).click();
-    await expect.poll(() => heard(page)).toEqual(['Résultat :', '1 sur 1.', 'Bravo !']);
+    await expect.poll(() => heard(page)).toEqual(['Résultat : 1 sur 1.', 'Bravo !']);
     await forget(page);
     await page.getByRole('button', { name: 'Écouter la correction de la question 1' }).click();
     await expect
       .poll(() => heard(page))
-      .toEqual(['Bonne réponse.', '100, 200, 300…', 'jusqu’à 1 000 :', 'il faut dix pièces.']);
+      .toEqual(['Bonne réponse.', '100, 200, 300…', 'jusqu’à 1 000 : il faut dix pièces.']);
   });
 
   test('sans voix sur l’appareil, la leçon et le quiz restent lisibles', async ({ page }) => {
@@ -111,5 +111,53 @@ test.describe('Alphabétisation : écouter d’abord (ticket 19)', () => {
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
     expect(scan.violations).toEqual([]);
+  });
+
+  test('la voix la plus naturelle de l’appareil est choisie', async ({ page }) => {
+    await page.addInitScript(() => {
+      const used: string[] = [];
+      (window as unknown as { used: string[] }).used = used;
+      const voice = (name: string, lang: string, isDefault = false) =>
+        ({
+          name,
+          lang,
+          default: isDefault,
+          localService: true,
+          voiceURI: name,
+        }) as SpeechSynthesisVoice;
+      const synth = {
+        speak(u: SpeechSynthesisUtterance) {
+          used.push(u.voice?.name ?? '');
+          setTimeout(() => u.onend?.(new Event('end') as SpeechSynthesisEvent), 10);
+        },
+        cancel() {},
+        pause() {},
+        resume() {},
+        getVoices: () => [
+          voice('Microsoft Hortense - French (France)', 'fr-FR', true),
+          voice('Microsoft David - English', 'en-US'),
+          voice('Microsoft Denise Online (Natural) - French (France)', 'fr-FR'),
+          voice('Google français', 'fr-FR'),
+        ],
+      };
+      Object.defineProperty(window, 'speechSynthesis', { value: synth });
+      // Voix simulées : la vraie phrase n'accepte que de vraies voix de l'appareil.
+      (window as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance =
+        class {
+          text: string;
+          lang = '';
+          rate = 1;
+          voice: SpeechSynthesisVoice | null = null;
+          onend: ((e: Event) => void) | null = null;
+          constructor(text: string) {
+            this.text = text;
+          }
+        };
+    });
+    await page.goto(`/catalogue/${COURSE}/lecons/1`);
+    await page.getByRole('button', { name: 'Écouter', exact: true }).click();
+    await expect(page.getByTestId('audio-status')).toHaveText('Lecture terminée.');
+    const used = await page.evaluate(() => (window as unknown as { used: string[] }).used);
+    expect(new Set(used)).toEqual(new Set(['Microsoft Denise Online (Natural) - French (France)']));
   });
 });

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { AppShell } from '@lenseignement/ui';
+import { NavLink } from '@/components/NavLink';
 import { OfflineBadge } from '@/components/OfflineBadge';
 import { ServiceWorker } from '@/components/ServiceWorker';
 import { SyncStatus } from '@/components/SyncStatus';
@@ -30,18 +31,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           headerActions={
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               <OfflineBadge />
-              <a
+              <NavLink
                 href="/catalogue"
-                className="inline-flex min-h-[44px] items-center whitespace-nowrap px-1 font-bold text-ink underline underline-offset-4"
+                section
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap px-1 font-bold text-ink underline underline-offset-4 aria-[current=page]:text-primary aria-[current=page]:decoration-2"
               >
                 Catalogue
-              </a>
-              <a
+              </NavLink>
+              <NavLink
                 href="/mon-espace"
-                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-card bg-primary px-3 font-bold text-surface no-underline sm:px-4"
+                section
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-card bg-primary px-3 font-bold text-surface no-underline sm:px-4 aria-[current=page]:ring-2 aria-[current=page]:ring-primary aria-[current=page]:ring-offset-2"
               >
                 Mon espace
-              </a>
+              </NavLink>
             </div>
           }
         >

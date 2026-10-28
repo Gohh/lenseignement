@@ -363,7 +363,9 @@ Test du nouveau look, partie 4 (PR #25, aucune base de données à refaire) :
 
 1. Se connecter en `apprenant.demo`, puis **Mon espace** : grand « Bonjour », cartes arrondies et,
    pour chaque cours suivi, une barre de progression.
-2. Le menu de Mon espace est en pilules ; la page en cours est en vert.
+2. Sur ordinateur, le menu de Mon espace est à gauche ; la page en cours est en vert clair. Sur
+   téléphone (ou une fenêtre étroite), il devient une barre fixe en bas de l’écran.
+3. Si un cours est commencé, un grand bloc vert « Reprendre où tu en étais » apparaît en haut.
 
 Rappel, partie 3 (PR #24, déjà fusionnée) :
 

@@ -34,10 +34,41 @@ export default async function MyspacePage() {
   ]);
   const followed = plan.ok ? plan.data.items : [];
   const roles = session.roles.filter((role) => role in ROLE_LABELS);
+  const resume = followed.find((c) => c.resumeAt && !c.finished);
 
   return (
     <section className="space-y-6">
-      <h1 className="text-4xl font-extrabold">Bonjour, {session.displayName}</h1>
+      <div>
+        <p className="font-bold text-ink-muted">
+          {(me.ok && me.data.memberships[0]?.organizationName) || 'Mon espace'}
+        </p>
+        <h1 className="text-4xl font-extrabold">Bonjour, {session.displayName}</h1>
+      </div>
+
+      {resume && (
+        <section
+          aria-labelledby="reprendre-title"
+          className="flex flex-wrap items-center gap-5 rounded-[28px] bg-primary p-6 text-surface"
+        >
+          <div className="min-w-0 flex-1 basis-72">
+            <p id="reprendre-title" className="font-bold">
+              Reprendre où tu en étais
+            </p>
+            <p className="font-display text-3xl font-extrabold leading-tight">{resume.title}</p>
+            <p>
+              {resume.completed.length} leçon{resume.completed.length > 1 ? 's' : ''} sur{' '}
+              {resume.total} terminée{resume.completed.length > 1 ? 's' : ''}
+            </p>
+          </div>
+          <Link
+            href={`/catalogue/${resume.courseId}/lecons/${resume.resumeAt}`}
+            className="inline-flex min-h-[56px] items-center rounded-card bg-surface px-7 font-display text-xl font-bold text-primary no-underline shadow-[0_5px_0_var(--color-primary-dark)]"
+          >
+            Reprendre la leçon {resume.resumeAt}
+            <span className="sr-only"> de « {resume.title} »</span>
+          </Link>
+        </section>
+      )}
 
       <div className={cardClass}>
         <h2 className="text-xl font-extrabold">Vos profils</h2>

@@ -4,12 +4,14 @@ import { loadCurriculumFile } from '../curricula/curriculum-file.js';
 import { loadRootEnv } from '../load-env.js';
 import { createDatabase } from './database.js';
 import { runMigrations } from './migrate.js';
+import { createSuperadmin } from './superadmin.js';
 import { seedBase, seedDemo } from './seed.js';
 
 const USAGE = `Usage :
   node dist/db/cli.js migrate
   node dist/db/cli.js seed
   node dist/db/cli.js seed:demo
+  node dist/db/cli.js superadmin:create <identifiant-keycloak>
   node dist/db/cli.js curriculum:import <fichier.json>
   node dist/db/cli.js curriculum:publish <code> <version> <AAAA-MM-JJ>`;
 
@@ -37,6 +39,9 @@ async function main([command, ...args]: string[]): Promise<void> {
       }
       await seedDemo(db);
       process.stdout.write('Données de démonstration fictives insérées.\n');
+    } else if (command === 'superadmin:create' && args.length === 1) {
+      await createSuperadmin(db, args[0]!);
+      process.stdout.write('Superadministrateur créé.\n');
     } else if (command === 'curriculum:import' && args.length === 1) {
       const file = await loadCurriculumFile(args[0]!);
       await importCurriculumVersion(db, file);

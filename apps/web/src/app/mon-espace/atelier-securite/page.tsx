@@ -47,8 +47,7 @@ export default async function SafetyWorkshopPage({
       <Notice message={param(query.message)} error={param(query.erreur)} />
       <p className="text-ink-muted">
         {simulation.title} · référentiel {simulation.curriculum.code}, version{' '}
-        {simulation.curriculum.label}. Compétence : {simulation.competency.title}. Exercice fictif
-        de démonstration.
+        {simulation.curriculum.label}. Compétence : {simulation.competency.title}.
       </p>
       <p className="rounded-card border-2 border-line-strong bg-surface p-4 font-bold">
         Ici, tu t’entraînes sans danger. Dans un vrai atelier, ne touche jamais une installation

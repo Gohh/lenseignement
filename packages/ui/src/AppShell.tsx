@@ -34,8 +34,8 @@ export function AppShell({ children, headerActions }: AppShellProps) {
       </main>
       <footer className="border-t border-line bg-surface">
         <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-ink-muted">
-          Projet indépendant de démonstration. Aucune affiliation institutionnelle ; les
-          attestations délivrées ne sont pas des diplômes d’État.
+          Projet indépendant. Aucune affiliation institutionnelle ; les attestations délivrées ne
+          sont pas des diplômes d’État.
         </p>
       </footer>
     </div>

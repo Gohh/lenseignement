@@ -16,6 +16,73 @@ import {
 } from './schema.js';
 
 /**
+ * Jeu de départ pour le développement : une structure, une direction régionale et les sept comptes
+ * de connexion (mêmes identifiants que le jeu de démonstration), sans élève, classe, cours,
+ * programme ni activité. Idempotent.
+ */
+export async function seedBase(db: Database): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(organizations)
+      .values([
+        { id: ID.orgRegion, name: 'Direction régionale', type: 'authority' },
+        {
+          id: ID.orgManguiers,
+          name: 'École Les Manguiers',
+          type: 'school',
+          parentId: ID.orgRegion,
+        },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(users)
+      .values([
+        { id: ID.userAwa, oidcSubject: SUB.awa, accountType: 'minor', displayName: 'Awa' },
+        { id: ID.userKoffi, oidcSubject: SUB.koffi, accountType: 'staff', displayName: 'M. Koffi' },
+        {
+          id: ID.userMariam,
+          oidcSubject: SUB.mariam,
+          accountType: 'staff',
+          displayName: 'Mme Mariam',
+        },
+        { id: ID.userYao, oidcSubject: SUB.yao, accountType: 'staff', displayName: 'Yao' },
+        {
+          id: ID.userAminata,
+          oidcSubject: SUB.aminata,
+          accountType: 'staff',
+          displayName: 'Mme Aminata',
+        },
+        { id: ID.userFatou, oidcSubject: SUB.fatou, accountType: 'adult', displayName: 'Fatou' },
+        { id: ID.userBamba, oidcSubject: SUB.bamba, accountType: 'staff', displayName: 'M. Bamba' },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(memberships)
+      .values([
+        { userId: ID.userBamba, organizationId: ID.orgManguiers, role: 'chef-etablissement' },
+        { userId: ID.userKoffi, organizationId: ID.orgManguiers, role: 'enseignant' },
+        { userId: ID.userAminata, organizationId: ID.orgManguiers, role: 'enseignant' },
+        { userId: ID.userMariam, organizationId: ID.orgRegion, role: 'referent-pedagogique' },
+        { userId: ID.userAwa, organizationId: ID.orgManguiers, role: 'apprenant' },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .update(memberships)
+      .set({ branches: ['primaire'] })
+      .where(
+        and(
+          eq(memberships.userId, ID.userAminata),
+          eq(memberships.organizationId, ID.orgManguiers),
+          eq(memberships.role, 'enseignant'),
+        ),
+      );
+  });
+}
+
+/**
  * Insère le jeu de démonstration fictif. Idempotent : peut être relancé sans doublon.
  *
  * - École Les Manguiers : CP1-A (Koffi, Awa, Kouamé, Aya) et CP1-B (Aminata, Seydou) ;

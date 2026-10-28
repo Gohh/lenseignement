@@ -4,11 +4,12 @@ import { loadCurriculumFile } from '../curricula/curriculum-file.js';
 import { loadRootEnv } from '../load-env.js';
 import { createDatabase } from './database.js';
 import { runMigrations } from './migrate.js';
-import { seedDemo } from './seed.js';
+import { seedBase, seedDemo } from './seed.js';
 
 const USAGE = `Usage :
   node dist/db/cli.js migrate
   node dist/db/cli.js seed
+  node dist/db/cli.js seed:demo
   node dist/db/cli.js curriculum:import <fichier.json>
   node dist/db/cli.js curriculum:publish <code> <version> <AAAA-MM-JJ>`;
 
@@ -25,6 +26,12 @@ async function main([command, ...args]: string[]): Promise<void> {
       await runMigrations(db);
       process.stdout.write('Migrations appliquées.\n');
     } else if (command === 'seed') {
+      if (config.NODE_ENV === 'production') {
+        throw new Error('Le jeu de départ est interdit en production.');
+      }
+      await seedBase(db);
+      process.stdout.write('Comptes de départ insérés (sans données d’exemple).\n');
+    } else if (command === 'seed:demo') {
       if (config.NODE_ENV === 'production') {
         throw new Error('Le jeu de démonstration fictif est interdit en production.');
       }

@@ -120,14 +120,15 @@ DATABASE_URL=postgresql://lenseignement:change-me-dev-only@localhost:5430/lensei
 Enregistrer et fermer. (Sans Redis, les sessions sont gardées en mémoire : vous serez
 simplement déconnecté à chaque redémarrage de l’application. Ce mode est refusé en production.)
 
-## Étape 6 — Créer les tables et les données de démonstration
+## Étape 6 — Créer les tables et les comptes de départ
 
 ```powershell
 pnpm --filter @lenseignement/api db:migrate
 pnpm --filter @lenseignement/api db:seed
 ```
 
-Attendu : `Migrations appliquées.` puis `Données de démonstration fictives insérées.`
+Attendu : `Migrations appliquées.` puis `Comptes de départ insérés (sans données d’exemple).`
+(Pour ajouter aussi les données d’exemple fictives : `pnpm --filter @lenseignement/api db:seed:demo`.)
 Les deux commandes peuvent être relancées sans risque : elles n’ajoutent que ce qui manque.
 **À refaire après chaque nouvelle PR** qui touche à la base (nouvelles tables ou nouvelles
 données de démonstration).

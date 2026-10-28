@@ -91,8 +91,7 @@ export default async function ProgrammePage({ params, searchParams }: Props) {
                   className="rounded-card border border-line-strong bg-surface p-4 font-bold"
                   data-testid="non-officiel"
                 >
-                  Programme de démonstration, non officiel : il ne remplace aucun programme du
-                  ministère.
+                  Programme non officiel : il ne remplace aucun programme du ministère.
                 </p>
               )}
               <p data-testid="version-courante">

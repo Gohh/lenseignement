@@ -48,7 +48,7 @@ export default async function StatsPage() {
           <p className="rounded-card border-2 border-line-strong bg-surface p-4">
             Aucun nom ici : seulement des nombres. Un groupe de moins de {stats.data.threshold}{' '}
             personnes s’affiche « moins de {stats.data.threshold} », pour que personne ne soit
-            reconnu. Données fictives de démonstration.
+            reconnu.
           </p>
           <p className="text-ink-muted" data-testid="stats-scope">
             Structures : {stats.data.organizations.join(', ')}.

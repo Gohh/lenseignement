@@ -5,7 +5,7 @@ import { AUTHOR_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
 import { getSession } from '@/lib/session';
 
 const linkClass =
-  'inline-flex min-h-[44px] items-center whitespace-nowrap rounded-card border border-line bg-surface px-3 font-bold text-ink no-underline hover:border-primary aria-[current=page]:border-primary aria-[current=page]:bg-primary aria-[current=page]:text-surface';
+  'inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full border-2 border-primary-line bg-surface px-4 font-bold text-ink-strong no-underline hover:border-primary aria-[current=page]:border-primary aria-[current=page]:bg-primary aria-[current=page]:text-surface';
 
 /** Menu de l'espace personnel, sur chaque page : on passe d'un outil à l'autre en un clic. */
 export default async function MySpaceLayout({ children }: { children: ReactNode }) {

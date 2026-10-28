@@ -9,6 +9,7 @@ import { CourseCard } from '@lenseignement/ui';
 import Link from 'next/link';
 import { buttonClass, inputClass } from '@/components/Notice';
 import { publicApiGet } from '@/lib/api';
+import { BRANCH_ICONS } from '@/lib/branch-icons';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Catalogue des cours' };
@@ -52,8 +53,8 @@ export default async function CataloguePage({ searchParams }: Props) {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-3xl font-bold">Catalogue des cours</h1>
-      <p className="max-w-2xl text-ink-muted">
+      <h1 className="text-4xl font-extrabold">Catalogue des cours</h1>
+      <p className="max-w-2xl text-lg text-ink-muted">
         Tous les cours affichés ont été relus par un référent pédagogique puis publiés par une
         deuxième personne. Version de démonstration : les contenus sont fictifs.
       </p>
@@ -64,7 +65,7 @@ export default async function CataloguePage({ searchParams }: Props) {
         action="/catalogue"
         role="search"
         aria-label="Filtrer les cours"
-        className="grid gap-4 rounded-card border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+        className="grid gap-4 rounded-big border border-line bg-surface p-5 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
       >
         <label className="block font-bold">
           Espace
@@ -128,17 +129,20 @@ export default async function CataloguePage({ searchParams }: Props) {
               ? 'Aucun cours ne correspond à votre recherche.'
               : `${result.data.total} cours trouvé${result.data.total > 1 ? 's' : ''}`}
           </p>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
             {result.data.items.map((course) => (
               <li key={course.id}>
                 <CourseCard
                   href={`/catalogue/${course.id}`}
                   title={course.title}
                   summary={course.summary}
-                  meta={[
+                  tag={
                     course.level
-                      ? levelLabel(course.level)
-                      : (BRANCH_TITLES.get(course.branch) ?? course.branch),
+                      ? (levelLabel(course.level) ?? undefined)
+                      : BRANCH_TITLES.get(course.branch)
+                  }
+                  illustration={BRANCH_ICONS[course.branch] ?? '📘'}
+                  meta={[
                     course.audience,
                     `${course.lessonCount} leçon${course.lessonCount > 1 ? 's' : ''}`,
                     minutes(course.estimatedMinutes),
@@ -165,7 +169,8 @@ function Pagination({
 }) {
   const pages = Math.ceil(page.total / page.pageSize);
   if (pages <= 1) return null;
-  const linkClass = 'inline-flex min-h-[44px] items-center font-bold underline';
+  const linkClass =
+    'inline-flex min-h-[44px] items-center rounded-full border-2 border-primary-line bg-surface px-4 font-bold text-primary no-underline hover:bg-primary-soft';
   return (
     <nav aria-label="Pages du catalogue" className="flex flex-wrap items-center gap-4">
       {page.page > 1 && (

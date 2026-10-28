@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #22 (nouveau look : accueil, polices, boutons) :
+dans la branche de la PR. Pour la PR #23 (nouveau look : catalogue et fiches de cours) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/look-socle-accueil
+git checkout feat/look-catalogue
 git pull
 pnpm install
 pnpm build
@@ -359,7 +359,15 @@ Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6
 3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
    classe** ne propose que les niveaux de l’espace du cours.
 
-Test du nouveau look (PR #22, aucune base de données à refaire) :
+Test du nouveau look, partie 2 (PR #23, aucune base de données à refaire) :
+
+1. **Catalogue** : les cours sont des cartes arrondies avec un bandeau vert clair, une étiquette
+   (niveau ou espace) et le nombre de leçons.
+2. Ouvrir un cours : grand titre, étiquette de niveau, boutons verts en relief, plan du cours.
+3. **Accueil** → une carte d’espace (ex. Alphabétisation) : bandeau vert, puces de niveau et deux
+   boutons.
+
+Rappel, partie 1 (PR #22, déjà fusionnée) :
 
 1. **Accueil** : titres arrondis (police Baloo), grand bouton vert « Commencer à apprendre »,
    puis quatre cartes **Choisis ton niveau** (École, Secondaire, Alphabétisation, Se former).

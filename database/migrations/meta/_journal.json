@@ -127,6 +127,27 @@
       "when": 1793186404812,
       "tag": "0017_niveaux_regles",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793200584796,
+      "tag": "0018_cycles_droits",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793201076509,
+      "tag": "0019_famille_repetiteur",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793202693954,
+      "tag": "0020_equipe_roles",
+      "breakpoints": true
     }
   ]
 }

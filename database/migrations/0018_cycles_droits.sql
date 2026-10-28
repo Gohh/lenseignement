@@ -1,0 +1,2 @@
+ALTER TABLE "memberships" ADD COLUMN "branches" text[];--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_branches_check" CHECK ("memberships"."branches" is null or "memberships"."branches" <@ array['primaire','secondaire','technique','alphabetisation','formation-enseignants']::text[]);

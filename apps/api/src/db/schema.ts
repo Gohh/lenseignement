@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { LEVEL_CODES } from '@lenseignement/types';
+import { BRANCH_CODES, LEVEL_CODES } from '@lenseignement/types';
 import {
   boolean,
   check,
@@ -60,6 +60,8 @@ export const users = pgTable(
     accountType: text('account_type', { enum: ACCOUNT_TYPES }).notNull().default('unknown'),
     /** Nom d'usage affiché aux personnes autorisées (enseignant, parent). */
     displayName: text('display_name'),
+    /** Niveau ou classe d'un enfant ajouté par son parent (ADR-020). */
+    level: text('level'),
     status: text('status').notNull().default('active'),
     createdAt: createdAt(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
@@ -67,6 +69,10 @@ export const users = pgTable(
   (t) => [
     check('users_account_type_check', sql`${t.accountType} in ('minor','adult','staff','unknown')`),
     check('users_status_check', sql`${t.status} in ('active','suspended')`),
+    check(
+      'users_level_check',
+      sql`${t.level} is null or ${t.level} in (${sql.raw(LEVEL_CODES.map((c) => `'${c}'`).join(','))})`,
+    ),
   ],
 );
 
@@ -76,6 +82,9 @@ export const MEMBERSHIP_ROLES = [
   'apprenant',
   'alphabetiseur',
   'referent-pedagogique',
+  'gestionnaire',
+  'administrateur',
+  'superadministrateur',
 ] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
@@ -91,6 +100,8 @@ export const memberships = pgTable(
       .notNull()
       .references(() => organizations.id),
     role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
+    /** Cycles (espaces) accordés ; null = tous les cycles de la structure (ADR-019). */
+    branches: text('branches').array(),
     validUntil: timestamp('valid_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
@@ -99,7 +110,11 @@ export const memberships = pgTable(
     index('memberships_user_idx').on(t.userId),
     check(
       'memberships_role_check',
-      sql`${t.role} in ('chef-etablissement','enseignant','apprenant','alphabetiseur','referent-pedagogique')`,
+      sql`${t.role} in (${sql.raw(MEMBERSHIP_ROLES.map((r) => `'${r}'`).join(','))})`,
+    ),
+    check(
+      'memberships_branches_check',
+      sql`${t.branches} is null or ${t.branches} <@ array[${sql.raw(BRANCH_CODES.map((c) => `'${c}'`).join(','))}]::text[]`,
     ),
   ],
 );
@@ -118,6 +133,29 @@ export const cohorts = pgTable(
     createdAt: createdAt(),
   },
   (t) => [unique('cohorts_org_code_year_unique').on(t.organizationId, t.code, t.schoolYear)],
+);
+
+/** Invitation à rejoindre l'équipe d'une structure avec un rôle et des cycles (ADR-021). */
+export const membershipInvitations = pgTable(
+  'membership_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    code: text('code').notNull().unique(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
+    /** Cycles accordés ; null = tous. */
+    branches: text('branches').array(),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedByUserId: uuid('used_by_user_id').references(() => users.id),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('membership_invitations_org_idx').on(t.organizationId)],
 );
 
 export const COHORT_MEMBER_ROLES = ['enseignant', 'apprenant'] as const;
@@ -165,6 +203,55 @@ export const guardianLinks = pgTable(
     check('guardian_links_status_check', sql`${t.status} in ('pending','verified','revoked')`),
     check('guardian_links_not_self', sql`${t.guardianUserId} <> ${t.learnerUserId}`),
   ],
+);
+
+export const TUTOR_LINK_STATUSES = ['active', 'revoked'] as const;
+
+/**
+ * Répétiteur → apprenant, confié par un parent (ADR-020). Accès en lecture seule, tant que le lien
+ * est actif ; le parent peut le retirer à tout moment.
+ */
+export const tutorLinks = pgTable(
+  'tutor_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tutorUserId: uuid('tutor_user_id')
+      .notNull()
+      .references(() => users.id),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    grantedByUserId: uuid('granted_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', { enum: TUTOR_LINK_STATUSES }).notNull().default('active'),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('tutor_links_pair_unique').on(t.tutorUserId, t.learnerUserId),
+    index('tutor_links_learner_idx').on(t.learnerUserId),
+    check('tutor_links_status_check', sql`${t.status} in ('active','revoked')`),
+    check('tutor_links_not_self', sql`${t.tutorUserId} <> ${t.learnerUserId}`),
+  ],
+);
+
+/** Invitation à remettre au répétiteur : code à usage unique, limité dans le temps. */
+export const tutorInvitations = pgTable(
+  'tutor_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    code: text('code').notNull().unique(),
+    guardianUserId: uuid('guardian_user_id')
+      .notNull()
+      .references(() => users.id),
+    learnerUserIds: uuid('learner_user_ids').array().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedByUserId: uuid('used_by_user_id').references(() => users.id),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tutor_invitations_guardian_idx').on(t.guardianUserId)],
 );
 
 /** Journal des décisions d'accès aux données d'apprenants (cahier §8.2.6). Sans contenu personnel. */

@@ -16,6 +16,9 @@ const ROLE_LABELS: Record<string, string> = {
   alphabetiseur: 'Alphabétiseur',
   'chef-etablissement': 'Chef d’établissement',
   'referent-pedagogique': 'Référent pédagogique',
+  gestionnaire: 'Gestionnaire',
+  administrateur: 'Administrateur',
+  superadministrateur: 'Superadministrateur',
   'admin-plateforme': 'Administrateur de la plateforme',
 };
 
@@ -93,6 +96,11 @@ export default async function MyspacePage() {
             </ul>
           </>
         )}
+        <p className="mt-3">
+          <a href="/mon-espace/rejoindre" className="font-bold underline">
+            J’ai un code pour rejoindre une équipe
+          </a>
+        </p>
         <p className="mt-3 text-sm text-ink-muted" data-testid="api-status">
           {me.ok ? 'Compte reconnu par le service.' : 'Service momentanément indisponible.'}
         </p>

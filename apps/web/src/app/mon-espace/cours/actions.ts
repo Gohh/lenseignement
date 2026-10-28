@@ -1,6 +1,6 @@
 'use server';
 
-import type { CourseOutlineInput, UpdateCourseVersionInput } from '@lenseignement/types';
+import type { CourseOutlineInput, LevelCode, UpdateCourseVersionInput } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -53,6 +53,8 @@ export async function updateVersionAction(form: FormData): Promise<void> {
     audience: text(form, 'audience'),
     licence: text(form, 'licence'),
     estimatedMinutes: minutes ? Number(minutes) : null,
+    // Champ absent (espace sans niveaux) : on ne touche pas au niveau.
+    ...(form.has('level') ? { level: (text(form, 'level') || null) as LevelCode | null } : {}),
     curriculum:
       code && label
         ? {

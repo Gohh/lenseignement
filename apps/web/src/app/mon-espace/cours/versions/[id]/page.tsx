@@ -1,9 +1,11 @@
-import type {
-  CurriculumDetail,
-  CurriculumSummary,
-  CurriculumVersionSummary,
-  CourseVersionDetail,
-  CourseWorkflow,
+import {
+  LEVEL_GROUPS,
+  levelLabel,
+  type CurriculumDetail,
+  type CurriculumSummary,
+  type CurriculumVersionSummary,
+  type CourseVersionDetail,
+  type CourseWorkflow,
 } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -76,6 +78,8 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
     );
   }
   const version = result.data;
+  // Niveaux proposés : seulement ceux de l'espace du cours (aucun en technique ni en formation).
+  const levelGroups = LEVEL_GROUPS.filter((group) => group.branch === version.branch);
   const isDraft = version.status === 'draft';
   const options = isDraft ? await programmeOptions(version.branch) : [];
   const current = version.curriculum
@@ -114,6 +118,8 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
           <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr]">
             <dt className="font-bold">Résumé</dt>
             <dd>{version.summary || '—'}</dd>
+            <dt className="font-bold">Niveau</dt>
+            <dd>{(version.level && levelLabel(version.level)) || 'Tous niveaux'}</dd>
             <dt className="font-bold">Public visé</dt>
             <dd>{version.audience || '—'}</dd>
             <dt className="font-bold">Licence</dt>
@@ -179,6 +185,23 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
                 defaultValue={version.summary}
               />
             </label>
+            {levelGroups.length > 0 && (
+              <label className="block font-bold">
+                Niveau ou classe
+                <select name="level" className={inputClass} defaultValue={version.level ?? ''}>
+                  <option value="">Tous niveaux</option>
+                  {levelGroups.map((group) => (
+                    <optgroup key={group.code} label={group.title}>
+                      {group.levels.map((level) => (
+                        <option key={level.code} value={level.code}>
+                          {group.title} {level.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="block font-bold">
               Public visé
               <input name="audience" className={inputClass} defaultValue={version.audience} />

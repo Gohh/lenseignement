@@ -1,0 +1,3 @@
+ALTER TABLE "course_versions" ADD COLUMN "level" text;--> statement-breakpoint
+CREATE INDEX "course_versions_level_idx" ON "course_versions" USING btree ("level");--> statement-breakpoint
+ALTER TABLE "course_versions" ADD CONSTRAINT "course_versions_level_check" CHECK ("course_versions"."level" is null or "course_versions"."level" in ('mat-1','mat-2','mat-3','cp1','cp2','ce1','ce2','cm1','cm2','6e','5e','4e','3e','2nde','1re','tle','alpha-1','alpha-2','alpha-3'));

@@ -1,4 +1,10 @@
-import { BRANCHES, CatalogQuerySchema, type CatalogPage } from '@lenseignement/types';
+import {
+  BRANCHES,
+  CatalogQuerySchema,
+  LEVEL_GROUPS,
+  levelLabel,
+  type CatalogPage,
+} from '@lenseignement/types';
 import { CourseCard } from '@lenseignement/ui';
 import Link from 'next/link';
 import { buttonClass, inputClass } from '@/components/Notice';
@@ -20,6 +26,7 @@ function readFilters(params: SearchParams) {
   const single = (v: string | string[] | undefined) => (typeof v === 'string' && v ? v : undefined);
   const parsed = CatalogQuerySchema.safeParse({
     branch: single(params.branch),
+    level: single(params.level),
     q: single(params.q),
     competency: single(params.competency),
     page: single(params.page),
@@ -57,7 +64,7 @@ export default async function CataloguePage({ searchParams }: Props) {
         action="/catalogue"
         role="search"
         aria-label="Filtrer les cours"
-        className="grid gap-4 rounded-card border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+        className="grid gap-4 rounded-card border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
       >
         <label className="block font-bold">
           Espace
@@ -67,6 +74,21 @@ export default async function CataloguePage({ searchParams }: Props) {
               <option key={b.code} value={b.code}>
                 {b.title}
               </option>
+            ))}
+          </select>
+        </label>
+        <label className="block font-bold">
+          Niveau ou classe
+          <select name="level" defaultValue={filters.level ?? ''} className={inputClass}>
+            <option value="">Tous les niveaux</option>
+            {LEVEL_GROUPS.map((group) => (
+              <optgroup key={group.code} label={group.title}>
+                {group.levels.map((level) => (
+                  <option key={level.code} value={level.code}>
+                    {group.title} {level.title}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -114,7 +136,9 @@ export default async function CataloguePage({ searchParams }: Props) {
                   title={course.title}
                   summary={course.summary}
                   meta={[
-                    BRANCH_TITLES.get(course.branch) ?? course.branch,
+                    course.level
+                      ? levelLabel(course.level)
+                      : (BRANCH_TITLES.get(course.branch) ?? course.branch),
                     course.audience,
                     `${course.lessonCount} leçon${course.lessonCount > 1 ? 's' : ''}`,
                     minutes(course.estimatedMinutes),

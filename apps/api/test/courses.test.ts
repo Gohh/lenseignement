@@ -132,9 +132,19 @@ test('modification du brouillon : programme exact, compétences, révision', asy
   const updated = await call(SUB.koffi, 'patch', `/course-versions/${V1}`, 200, {
     revision: 1,
     title: 'Lire ses premières syllabes',
+    level: 'cp2',
     curriculum: { code: 'DEMO-PRIMAIRE', label: '2025', competencyCodes: ['LECT-02', 'LECT-03'] },
   });
   assert.equal(updated.body.revision, 2);
+  assert.equal(updated.body.level, 'cp2');
+
+  // Le niveau doit appartenir à l'espace du cours, et à la liste connue.
+  const wrongLevel = await call(SUB.koffi, 'patch', `/course-versions/${V1}`, 400, {
+    revision: 2,
+    level: '6e',
+  });
+  assert.equal(wrongLevel.body.message, 'Ce niveau ne correspond pas à l’espace du cours.');
+  await call(SUB.koffi, 'patch', `/course-versions/${V1}`, 400, { revision: 2, level: 'cp9' });
   assert.equal(updated.body.title, 'Lire ses premières syllabes');
   assert.deepEqual(
     updated.body.curriculum.competencies.map((c: { code: string }) => c.code),
@@ -213,10 +223,12 @@ test('hors brouillon, la version est figée par la base et par l’API', async (
     ctx.db.update(lessons).set({ title: 'modifié' }).where(eq(lessons.courseVersionId, V1)),
     (e: { cause?: Error }) => /course_version_immutable/.test(String(e.cause?.message)),
   );
-  await assert.rejects(
-    ctx.db.update(courseVersions).set({ title: 'modifié' }).where(eq(courseVersions.id, V1)),
-    (e: { cause?: Error }) => /course_version_immutable/.test(String(e.cause?.message)),
-  );
+  for (const change of [{ title: 'modifié' }, { level: 'cm2' }]) {
+    await assert.rejects(
+      ctx.db.update(courseVersions).set(change).where(eq(courseVersions.id, V1)),
+      (e: { cause?: Error }) => /course_version_immutable/.test(String(e.cause?.message)),
+    );
+  }
   const frozen = await call(SUB.koffi, 'patch', `/course-versions/${V1}`, 409, {
     revision: 4,
     title: 'Trop tard',

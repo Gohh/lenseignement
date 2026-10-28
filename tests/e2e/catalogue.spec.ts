@@ -30,6 +30,19 @@ test.describe('Catalogue public (ticket 10)', () => {
     await expect(page.getByText('Lire « papa » et « mama »')).toBeVisible();
   });
 
+  test('filtre par niveau ou classe', async ({ page }) => {
+    await page.goto('/catalogue');
+    await page.getByLabel('Niveau ou classe').selectOption({ label: 'Alphabétisation Niveau 1' });
+    await page.getByRole('button', { name: 'Filtrer' }).click();
+    await expect(page).toHaveURL(/level=alpha-1/);
+    await expect(results(page).getByRole('link')).toHaveText([
+      'Marché-école : l’argent du marché (démonstration)',
+    ]);
+    await expect(results(page)).toContainText('Alphabétisation Niveau 1');
+    await results(page).getByRole('link').click();
+    await expect(page.getByText('Alphabétisation Niveau 1')).toBeVisible();
+  });
+
   test('filtres par espace et par compétence', async ({ page }) => {
     await page.goto('/catalogue?branch=technique');
     await expect(page.getByTestId('catalogue-count')).toHaveText(

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BranchCodeSchema } from './branches.js';
+import { LevelCodeSchema } from './levels.js';
 
 /**
  * Rédaction des cours (cahier §6.2 « Catalogue », §7). Un cours a des versions numérotées ;
@@ -39,6 +40,8 @@ export const UpdateCourseVersionSchema = z.object({
     .optional(),
   licence: Text(120).min(1).optional(),
   estimatedMinutes: z.number().int().min(1).max(10_000).nullable().optional(),
+  /** Niveau ou classe visé, dans l'espace du cours (null : tous niveaux). */
+  level: LevelCodeSchema.nullable().optional(),
   /** Programme de référence : version exacte, et compétences visées dans cette version. */
   curriculum: z
     .object({
@@ -119,6 +122,7 @@ export interface CourseVersionDetail extends CourseVersionSummary {
   language: string;
   licence: string;
   estimatedMinutes: number | null;
+  level: string | null;
   curriculum: {
     code: string;
     label: string;

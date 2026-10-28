@@ -1,4 +1,9 @@
-import { BRANCHES, type CatalogCourseDetail, type CourseProgress } from '@lenseignement/types';
+import {
+  BRANCHES,
+  levelLabel,
+  type CatalogCourseDetail,
+  type CourseProgress,
+} from '@lenseignement/types';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -75,6 +80,8 @@ export default async function CatalogCoursePage({ params, searchParams }: Props)
       <dl className="grid gap-x-4 gap-y-1 rounded-card border border-line bg-surface p-4 sm:grid-cols-[auto_1fr]">
         <dt className="font-bold">Établissement</dt>
         <dd>{course.organization}</dd>
+        <dt className="font-bold">Niveau</dt>
+        <dd>{(course.level && levelLabel(course.level)) || 'Tous niveaux'}</dd>
         <dt className="font-bold">Public</dt>
         <dd>{course.audience || '—'}</dd>
         <dt className="font-bold">Durée estimée</dt>

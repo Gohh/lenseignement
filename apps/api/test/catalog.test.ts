@@ -76,8 +76,21 @@ test('filtres : espace, recherche et compétence', async () => {
   );
 });
 
+test('filtre par niveau ou classe', async () => {
+  assert.deepEqual(titles((await get('?level=cp2')).body), [
+    'Des lettres aux syllabes (démonstration)',
+  ]);
+  assert.deepEqual(titles((await get('?level=alpha-1')).body), [
+    'Marché-école : l’argent du marché (démonstration)',
+  ]);
+  assert.equal((await get('?level=cp1')).body.total, 3);
+  assert.deepEqual((await get('?level=tle')).body.items, []);
+  assert.equal((await get(`/${ID.courseLettres}`)).body.level, 'cp2');
+});
+
 test('paramètres invalides refusés', async () => {
   await get('?branch=inconnue', 400);
+  await get('?level=cp9', 400);
   await get('?competency=<script>', 400);
   await get('?page=0', 400);
   assert.deepEqual((await get('?page=2')).body.items, []);

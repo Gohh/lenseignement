@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #20 (logo) :
+dans la branche de la PR. Pour la PR #21 (niveaux et classes) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/logo-visuel
+git checkout feat/niveaux-classes
 git pull
 pnpm install
 pnpm build
@@ -349,6 +349,16 @@ Test du logo (PR #20) :
 2. L’onglet du navigateur montre le même logo (si l’ancien « E » reste, appuyer sur Ctrl + F5).
 3. Sur téléphone, seul le logo reste en haut à gauche, pour laisser la place aux boutons.
 
+Test des niveaux et classes (la PR #21 ajoute une colonne : refaire l’étape 6 avant) :
+
+1. **Catalogue** : un nouveau choix **Niveau ou classe** liste Maternelle (1re à 3e section),
+   Primaire (CP1 à CM2), Collège (6e à 3e), Lycée (2nde à Terminale) et Alphabétisation
+   (niveaux 1 à 3).
+2. Choisir **Alphabétisation Niveau 1**, puis **Filtrer** : seul « Marché-école » reste. Sa fiche
+   indique « Niveau : Alphabétisation Niveau 1 ».
+3. En `enseignant.demo`, **Mon espace** → **Rédiger** → un brouillon : le champ **Niveau ou
+   classe** ne propose que les niveaux de l’espace du cours.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -371,7 +381,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`131 passed` et `1 skipped` pour les tests E2E).
+Attendu : aucun test en échec (`133 passed` et `1 skipped` pour les tests E2E).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

@@ -12,6 +12,7 @@ import { HealthController } from './health/health.controller.js';
 import { LearnersController } from './learners/learners.controller.js';
 import { LearningController } from './learning/learning.controller.js';
 import { MeController } from './me/me.controller.js';
+import { RemediationController } from './remediation/remediation.controller.js';
 
 @Module({
   imports: [DatabaseModule, AuthModule, AccessModule],
@@ -25,6 +26,7 @@ import { MeController } from './me/me.controller.js';
     LearnersController,
     AuthoringController,
     LearningController,
+    RemediationController,
   ],
   providers: [OutboxRelayService],
 })

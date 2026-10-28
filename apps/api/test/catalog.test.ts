@@ -23,10 +23,11 @@ test('le catalogue est public et ne montre que les versions publiées', async ()
   const res = await get('');
   assert.deepEqual(titles(res.body), [
     'Additionner jusqu’à 10 (démonstration)',
+    'Des lettres aux syllabes (démonstration)',
     'Les nombres jusqu’à 50 (démonstration)',
     'Lire des mots courts (démonstration)',
   ]);
-  assert.equal(res.body.total, 3);
+  assert.equal(res.body.total, 4);
   assert.equal(res.body.page, 1);
   // Ni brouillon (M. Koffi) ni cours en relecture (Mme Aminata).
   await get(`/${ID.courseSyllabes}`, 404);
@@ -52,7 +53,7 @@ test('aucune donnée personnelle dans le catalogue', async () => {
 });
 
 test('filtres : espace, recherche et compétence', async () => {
-  assert.deepEqual(titles((await get('?branch=primaire')).body).length, 3);
+  assert.deepEqual(titles((await get('?branch=primaire')).body).length, 4);
   assert.deepEqual((await get('?branch=technique')).body.items, []);
   assert.deepEqual(titles((await get('?q=MOTS')).body), ['Lire des mots courts (démonstration)']);
   assert.deepEqual(titles((await get('?q=additionner')).body), [
@@ -67,7 +68,7 @@ test('filtres : espace, recherche et compétence', async () => {
   const facets = (await get('?branch=primaire')).body.competencies;
   assert.deepEqual(
     facets.map((c: { code: string }) => c.code),
-    ['CALC-01', 'CALC-02', 'LECT-03'],
+    ['CALC-01', 'CALC-02', 'LECT-01', 'LECT-02', 'LECT-03'],
   );
 });
 

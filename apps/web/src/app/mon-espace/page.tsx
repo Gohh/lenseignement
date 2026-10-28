@@ -116,6 +116,21 @@ export default async function MyspacePage() {
         </div>
       )}
 
+      {session.roles.includes('apprenant') && (
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold">Lecture</h2>
+          <Link
+            href="/mon-espace/bilan-lecture"
+            className="inline-flex min-h-[44px] items-center font-bold underline"
+          >
+            Mon bilan de lecture
+          </Link>
+          <p className="text-ink-muted">
+            Quelques questions pour voir ce que tu sais lire, puis un rattrapage adapté.
+          </p>
+        </div>
+      )}
+
       {cohorts.ok && cohorts.data.length > 0 && (
         <div className={cardClass}>
           <h2 className="text-lg font-bold">Mes classes</h2>

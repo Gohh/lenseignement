@@ -1,7 +1,12 @@
+import type { RemediationOverview } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { PlanCard, SkillResults } from '@/components/Remediation';
 import { apiGet, type LearnerDetail } from '@/lib/api';
+import { READING_DIAGNOSTIC as CODE } from '@/lib/remediation';
 import { getSession } from '@/lib/session';
+import { overrideRemediationAction } from '../../bilan-lecture/actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Fiche élève' };
@@ -10,8 +15,15 @@ export const metadata = { title: 'Fiche élève' };
  * Fiche d'un élève (mineur le plus souvent) : lui-même, son parent au lien vérifié ou le personnel
  * de son périmètre. L'API décide ; un refus et un élève inexistant s'affichent de la même façon.
  */
-export default async function LearnerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LearnerPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const query = (await searchParams) ?? {};
   const session = await getSession();
   if (!session) redirect(`/auth/login?returnTo=/mon-espace/eleves/${encodeURIComponent(id)}`);
 
@@ -19,6 +31,12 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
     session.accessToken,
     `/learners/${encodeURIComponent(id)}`,
   );
+  const remediation = learner.ok
+    ? await apiGet<RemediationOverview>(
+        session.accessToken,
+        `/learners/${encodeURIComponent(id)}/remediation/${CODE}`,
+      )
+    : null;
 
   return (
     <section className="space-y-6">
@@ -28,6 +46,7 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
       {learner.ok ? (
         <>
           <h1 className="text-3xl font-bold">{learner.data.displayName}</h1>
+          <Notice message={param(query.message)} error={param(query.erreur)} />
           <div className="rounded-card border border-line bg-surface p-4">
             <h2 className="text-lg font-bold">Classes</h2>
             {learner.data.cohorts.length > 0 ? (
@@ -42,6 +61,7 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
               <p className="mt-2">Aucune classe pour l’instant.</p>
             )}
           </div>
+          {remediation?.ok && <ReadingSection learnerId={id} data={remediation.data} />}
         </>
       ) : (
         <>
@@ -50,5 +70,67 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
         </>
       )}
     </section>
+  );
+}
+
+/** Rattrapage en lecture (ADR-013) : bilan, orientation expliquée, correction par l'enseignant. */
+function ReadingSection({ learnerId, data }: { learnerId: string; data: RemediationOverview }) {
+  return (
+    <div
+      className="space-y-4 rounded-card border border-line bg-surface p-4"
+      data-testid="learner-reading"
+    >
+      <h2 className="text-lg font-bold">Rattrapage en lecture</h2>
+      {!data.latest ? (
+        <p>Pas encore de bilan de lecture.</p>
+      ) : (
+        <>
+          <SkillResults results={data.latest.results} />
+          {data.plan ? (
+            <PlanCard plan={data.plan} />
+          ) : (
+            <p className="font-bold">Tout est acquis dans le dernier bilan.</p>
+          )}
+          {data.postTest && (
+            <p>
+              Dernier petit test : {data.postTest.score} sur {data.postTest.total}
+              {data.postTest.mastered ? ' (acquis).' : '.'}
+            </p>
+          )}
+          {data.canAdjust && (
+            <form
+              action={overrideRemediationAction}
+              className="space-y-3 border-t border-line pt-3"
+            >
+              <h3 className="font-bold">Corriger l’orientation</h3>
+              <input type="hidden" name="learnerId" value={learnerId} />
+              <label className="block">
+                Compétence à travailler
+                <select name="competencyCode" required className={inputClass}>
+                  {data.latest.results.map((r) => (
+                    <option key={r.code} value={r.code}>
+                      {r.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                Pourquoi ce choix ? (visible par l’élève et sa famille)
+                <textarea
+                  name="reason"
+                  required
+                  minLength={5}
+                  maxLength={500}
+                  className={inputClass}
+                />
+              </label>
+              <button type="submit" className={secondaryButtonClass}>
+                Enregistrer l’orientation
+              </button>
+            </form>
+          )}
+        </>
+      )}
+    </div>
   );
 }

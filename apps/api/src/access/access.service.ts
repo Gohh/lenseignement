@@ -113,6 +113,23 @@ export class AccessService {
     }
   }
 
+  /**
+   * Décision pédagogique sur un apprenant (corriger son orientation de rattrapage) : réservée au
+   * personnel de son périmètre ; ni l'apprenant lui-même ni son parent. Refus uniforme et journalisé.
+   */
+  async assertCanGuide(request: AccessRequest): Promise<void> {
+    const decided = await this.decide(request);
+    const reason: AccessReason =
+      decided === 'scope' || decided === 'invalid_id' ? decided : 'out_of_scope';
+    await this.audit({ ...request, reason });
+    if (reason !== 'scope') throw new ForbiddenException(ACCESS_DENIED);
+  }
+
+  /** Vrai si la personne fait partie du personnel du périmètre de l'apprenant (sans journal). */
+  async isInScope(request: AccessRequest): Promise<boolean> {
+    return (await this.decide(request)) === 'scope';
+  }
+
   /** Rédaction de cours : réservée aux structures de la personne. Refus uniforme et journalisé. */
   async assertCanAuthor(request: AuthoringRequest): Promise<void> {
     await this.assertHasRole(request, AUTHOR_ROLES);

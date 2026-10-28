@@ -85,6 +85,20 @@
       "when": 1793138940468,
       "tag": "0011_evenements_regles",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793172445124,
+      "tag": "0012_remediation",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793172456469,
+      "tag": "0013_remediation_regles",
+      "breakpoints": true
     }
   ]
 }

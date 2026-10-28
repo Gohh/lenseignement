@@ -157,12 +157,44 @@ const DEMO_COURSES: DemoCourse[] = [
     ],
     stage: 'published',
   },
+  {
+    // Cours ajouté au ticket 17 : le rattrapage en lecture a besoin d'un cours publié sur les
+    // lettres et les syllabes (le cours « Lire ses premières syllabes » reste un brouillon).
+    courseId: ID.courseLettres,
+    versionId: ID.courseLettresV1,
+    author: ID.userKoffi,
+    title: 'Des lettres aux syllabes (démonstration)',
+    summary: 'Cours fictif de rattrapage : revoir les lettres, puis les assembler en syllabes.',
+    audience: 'Élèves de CP1 et CP2',
+    estimatedMinutes: 20,
+    competencyCodes: ['LECT-01', 'LECT-02'],
+    module: 'Revoir et assembler',
+    lessons: [
+      {
+        title: 'Revoir les lettres m, p, l',
+        body: 'Le m a deux ponts. Le p a une canne qui descend. Le l est un grand bâton.',
+      },
+      {
+        title: 'Assembler une consonne et une voyelle',
+        body: 'On dit le son de la consonne, puis celui de la voyelle : l et a, la ; t et o, to.',
+        quiz: [
+          {
+            prompt: 'p et a se lisent :',
+            choices: ['ap', 'pa', 'po'],
+            correct: 1,
+            explanation: 'On lit d’abord le p, puis le a : pa.',
+          },
+        ],
+      },
+    ],
+    stage: 'published',
+  },
 ];
 
 /**
  * Cours FICTIFS de démonstration, à l'École Les Manguiers, reliés au programme de démonstration
- * 2026 : un brouillon, un cours en attente de relecture et trois cours publiés (catalogue), dont
- * un avec des quiz. Idempotent.
+ * 2026 : un brouillon, un cours en attente de relecture et quatre cours publiés (catalogue), dont
+ * deux avec des quiz. Idempotent.
  */
 export async function seedDemoCourses(db: Database): Promise<void> {
   for (const demo of DEMO_COURSES) {

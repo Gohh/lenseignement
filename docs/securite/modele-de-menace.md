@@ -150,3 +150,13 @@ API → base), sur téléphone et sur ordinateur, dans `tests/e2e/autorisations.
   (ADR-011).
 - `POST /api/sync` : contrôle d'origine (pas d'envoi depuis un autre site), session obligatoire,
   validation stricte des actions.
+
+## Ajouté par le ticket 17 (ADR-013)
+
+- Données de mineurs : résultats par compétence visibles par l'élève, son parent vérifié et le
+  personnel de son périmètre seulement (mêmes règles que la fiche élève) ; aucun classement entre
+  élèves.
+- Décision pédagogique : seule l'équipe du périmètre corrige l'orientation ; refus journalisés.
+  Une correction ne réécrit rien : l'ancien plan et son explication sont gardés.
+- Intégrité : questions, bilans, réponses et résultats en ajout seulement ; bonnes réponses jamais
+  envoyées avant la correction ; rejeu d'un identifiant de bilan d'une autre personne refusé.

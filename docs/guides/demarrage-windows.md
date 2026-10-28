@@ -83,12 +83,12 @@ cd lenseignement
 ## Étape 4 — Récupérer la version à tester (fenêtre n° 2)
 
 Chaque PR a une branche. **À faire avant le fichier `.env`** : certains réglages n’existent que
-dans la branche de la PR. Pour la PR #12 (ticket 15) :
+dans la branche de la PR. Pour la PR #13 (ticket 17) :
 
 ```powershell
 cd C:\Projets\lenseignement
 git fetch origin
-git checkout feat/ticket-15-hors-ligne
+git checkout feat/ticket-17-remediation
 git pull
 pnpm install
 pnpm build
@@ -282,6 +282,22 @@ proche de ce qui tournera sur le serveur. Dans la fenêtre n° 2, au lieu de `pn
 Avec une vraie coupure d’internet (téléphone en mode avion), le badge « Hors ligne » s’affiche et
 l’envoi se fait tout seul au retour du réseau.
 
+Test du rattrapage en lecture (la PR #13 ajoute des tables, un bilan et un cours fictifs :
+refaire l’étape 6 avant) :
+
+1. Connecté en `apprenant.demo`, **Mon espace** → **Mon bilan de lecture**. Répondre juste aux
+   deux questions de lettres et aux deux de compréhension, et se tromper sur les syllabes et les
+   mots, puis **Envoyer mon bilan**.
+2. Attendu : « À travailler : Lire des syllabes simples », la liste « Pourquoi ? » (les mots
+   demandent d’abord les syllabes) et le bouton **Ouvrir le cours : Des lettres aux syllabes**.
+3. Le **petit test de vérification** : se tromper une fois (« Pas encore… »), puis répondre juste
+   (« Bravo, c’est acquis ! »).
+4. Refaire le bilan avec les mêmes erreurs, se déconnecter, puis se connecter en
+   `enseignant.demo` : **Mes classes** → **CP1 A** → **Awa (fictive)**. La carte « Rattrapage en
+   lecture » montre le bilan et le « Pourquoi ? ». Choisir une autre compétence, écrire la raison,
+   **Enregistrer l’orientation**.
+5. En `parent.demo`, la fiche d’Awa montre l’orientation et la raison, sans formulaire.
+
 ## Étape 10 — Lancer les tests automatiques (facultatif, fenêtre n° 3)
 
 Les tests utilisent leurs propres ports (3100, 4100 et 8190) et les bases `lenseignement_test` et
@@ -304,7 +320,7 @@ pnpm exec playwright install chromium   # une seule fois
 pnpm test:e2e
 ```
 
-Attendu : aucun test en échec (`104 passed` pour les tests E2E de la PR #12).
+Attendu : aucun test en échec (`109 passed` et `1 skipped` pour les tests E2E de la PR #13).
 
 ## Étape 11 — Valider et fusionner la PR sur GitHub
 

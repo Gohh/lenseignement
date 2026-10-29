@@ -24,6 +24,7 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
           { href: '/mon-espace/atelier-securite', label: 'Atelier' },
           { href: '/mon-espace/classe', label: 'Ma classe' },
           { href: '/mon-espace/devoirs', label: 'Mes devoirs' },
+          { href: '/mon-espace/reussites', label: 'Mes réussites' },
           { href: '/mon-espace/aide', label: 'Aide et tutorat' },
         ]
       : []),

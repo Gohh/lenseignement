@@ -76,7 +76,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     ...(author || validator ? [{ href: '/mon-espace/travail', label: 'Mon travail' }] : []),
     ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
     ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
-    ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement')
+    ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement') || admin
       ? [{ href: '/mon-espace/questions', label: 'Questions des élèves' }]
       : []),
     ...(validator || team ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }] : []),

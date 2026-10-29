@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import request from 'supertest';
-import { DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
+import { and, eq } from 'drizzle-orm';
+import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
+import { memberships } from '../src/db/schema.js';
 import { createTestApp, type TestContext } from './helpers.js';
 
 let ctx: TestContext;
@@ -63,4 +65,30 @@ test('une question de l’apprenant arrive à l’enseignant de sa classe, qui y
   assert.equal(answered.unseen, true);
   await call(SUB.awa, 'post', '/me/help-questions/seen', 201);
   assert.equal((await call(SUB.awa, 'get', '/me/help-badge', 200)).body.answers, 0);
+});
+
+test('un élève sans classe : la question est vue par un administrateur de la plateforme', async () => {
+  const { id } = (
+    await call('apprenant-sans-classe', 'post', '/me/help-questions', 201, {
+      kind: 'other',
+      body: 'Personne ne me connaît encore.',
+    })
+  ).body;
+  // Koffi n'enseigne pas à cet élève.
+  const koffi = (await call(SUB.koffi, 'get', '/help/inbox', 200)).body.items;
+  assert.ok(!koffi.some((q: { id: string }) => q.id === id));
+  // Un superadministrateur voit et répond.
+  await ctx.db
+    .insert(memberships)
+    .values({ userId: ID.userYao, organizationId: ID.orgRegion, role: 'superadministrateur' })
+    .onConflictDoNothing();
+  try {
+    const admin = (await call(SUB.yao, 'get', '/help/inbox', 200)).body.items;
+    assert.ok(admin.some((q: { id: string }) => q.id === id));
+    await call(SUB.yao, 'post', `/help/questions/${id}/answer`, 201, { answer: 'Bienvenue !' });
+  } finally {
+    await ctx.db
+      .delete(memberships)
+      .where(and(eq(memberships.userId, ID.userYao), eq(memberships.role, 'superadministrateur')));
+  }
 });

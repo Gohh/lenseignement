@@ -26,7 +26,12 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
       : []),
     ...(parent ? [{ href: '/mon-espace/famille', label: 'Ma famille' }] : []),
     ...(tutor ? [{ href: '/mon-espace/repetiteur', label: 'Mes élèves' }] : []),
-    ...(has(TEAM_ROLES) ? [{ href: '/mon-espace/equipe', label: 'Équipe' }] : []),
+    ...(has(TEAM_ROLES)
+      ? [
+          { href: '/mon-espace/equipe', label: 'Équipe' },
+          { href: '/mon-espace/configuration', label: 'Configuration' },
+        ]
+      : []),
     ...(has(AUTHOR_ROLES) ? [{ href: '/mon-espace/cours', label: 'Rédiger', section: true }] : []),
     ...(has(VALIDATOR_ROLES)
       ? [

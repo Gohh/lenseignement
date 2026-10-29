@@ -52,6 +52,9 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await expect(
       member.getByLabel('Rôle').getByRole('option', { name: 'Direction de l’établissement' }),
     ).toHaveCount(0);
+    // Configuration : il voit son école, sans formulaire de création (aucune DRENA dans sa zone).
+    await member.goto('/mon-espace/configuration');
+    await expect(member.getByRole('heading', { level: 1, name: 'Configuration' })).toBeVisible();
     await expect(member.getByRole('heading', { name: 'Créer un établissement' })).toHaveCount(0);
 
     // Devenu administrateur : il crée une direction régionale, puis une école dessous, puis importe.
@@ -61,7 +64,7 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
         where u.oidc_subject = $1 and o.type = 'authority' and o.name like 'Direction régionale de démonstration%'`,
       [subjectOf(username)],
     );
-    await member.goto('/mon-espace/equipe');
+    await member.goto('/mon-espace/configuration');
     const stamp = `${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
     const drena = `DRENA Essai ${stamp}`;
     const form = member.locator('form', { hasText: 'Créer un établissement' });
@@ -93,6 +96,21 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await expect(member.getByTestId('import-preview')).toContainText('Sera créé');
     await member.getByRole('button', { name: /Confirmer l’import/ }).click();
     await expect(member.getByTestId('import-done')).toContainText('1 établissement créé');
+
+    // Liste, fiche, modification et archivage.
+    await member.goto(`/mon-espace/configuration?q=${encodeURIComponent(`École ${stamp}`)}`);
+    const list = member.getByTestId('organization-list');
+    await expect(list).toContainText(`École ${stamp}`);
+    await list.getByRole('link', { name: `École ${stamp}` }).click();
+    await member.waitForLoadState('networkidle');
+    await member.getByLabel('Localité').fill('Korhogo');
+    await member.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(member.getByText('Fiche enregistrée.')).toBeVisible();
+    await expect(member.getByLabel('Localité')).toHaveValue('Korhogo');
+    await member.getByRole('button', { name: 'Archiver' }).click();
+    await expect(member.getByText('Cet établissement est archivé.')).toBeVisible();
+    await member.goto(`/mon-espace/configuration?q=${encodeURIComponent(`École ${stamp}`)}`);
+    await expect(member.getByText('Aucun établissement ne correspond.')).toBeVisible();
     await other.close();
   });
 });

@@ -1,20 +1,9 @@
-import {
-  BRANCHES,
-  ORGANIZATION_TYPE_LABELS,
-  TEAM_ROLE_LABELS,
-  type TeamOverview,
-} from '@lenseignement/types';
+import { BRANCHES, TEAM_ROLE_LABELS, type TeamOverview } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
-import { ImportOrganizations } from './ImportOrganizations';
 import { getSession } from '@/lib/session';
-import {
-  createOrganizationAction,
-  inviteMemberAction,
-  removeMemberAction,
-  updateBranchesAction,
-} from './actions';
+import { inviteMemberAction, removeMemberAction, updateBranchesAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Équipe' };
@@ -123,55 +112,6 @@ export default async function TeamPage({ searchParams }: Props) {
           ))}
         </ul>
       </div>
-
-      {team.canCreateOrganization && (team.everywhere || team.directions.length > 0) && (
-        <form action={createOrganizationAction} className={`${cardClass} space-y-4`}>
-          <h2 className="text-xl font-bold">Créer un établissement</h2>
-          <label className="block font-bold">
-            Nom officiel
-            <input name="name" className={inputClass} required minLength={3} maxLength={160} />
-          </label>
-          <label className="block font-bold">
-            Type
-            <select name="type" className={inputClass} defaultValue="primary_public">
-              {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block font-bold">
-            Direction régionale
-            <select name="parentId" className={inputClass} defaultValue="">
-              <option value="">
-                {team.everywhere ? 'Aucune (si vous créez une direction régionale)' : 'Choisir…'}
-              </option>
-              {team.directions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block font-bold">
-            Localité
-            <input name="locality" className={inputClass} maxLength={160} />
-          </label>
-          <label className="block font-bold">
-            Responsable (nom)
-            <input name="managerName" className={inputClass} maxLength={160} />
-          </label>
-          <label className="block font-bold">
-            Contact du responsable (facultatif)
-            <input name="managerContact" className={inputClass} maxLength={160} />
-          </label>
-          <button type="submit" className={buttonClass}>
-            Créer l’établissement
-          </button>
-        </form>
-      )}
-      {team.canCreateOrganization && <ImportOrganizations />}
 
       <form action={inviteMemberAction} className={`${cardClass} space-y-4`}>
         <h2 className="text-xl font-bold">Inviter quelqu’un</h2>

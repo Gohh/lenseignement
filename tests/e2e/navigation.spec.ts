@@ -11,6 +11,7 @@ test.describe('Navigation', () => {
     await expect(menu(page).getByRole('link')).toHaveText([
       'Vue d’ensemble',
       'Équipe',
+      'Configuration',
       'Rédiger',
       'Relecture',
       'Statistiques',

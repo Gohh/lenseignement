@@ -1,7 +1,9 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   ORGANIZATION_TYPE_LABELS,
   type CreatedOrganization,
+  type OrganizationDetail,
+  type OrganizationListItem,
   type OrganizationImportLine,
   type OrganizationImportResult,
 } from '@lenseignement/types';
@@ -78,7 +80,7 @@ export function parseCsv(text: string): string[][] {
 async function visibleOrganizations(db: Database, userId: string) {
   const { rows } = await db.execute(
     sql`select o.id, o.name, o.type, o.parent_id as "parentId" from organizations o
-        where o.id in ${teamOrganizationIds(userId)}`,
+        where o.id in ${teamOrganizationIds(userId)} and o.archived_at is null`,
   );
   return rows as Array<{ id: string; name: string; type: string; parentId: string | null }>;
 }
@@ -117,7 +119,7 @@ export async function createOrganization(
     if (!input.parentId) throw MISSING('La direction régionale');
     await assertManages(db, userId, input.parentId);
     const { rows } = await db.execute(
-      sql`select 1 from organizations where id = ${input.parentId} and type = 'authority'`,
+      sql`select 1 from organizations where id = ${input.parentId} and type = 'authority' and archived_at is null`,
     );
     if (rows.length === 0) throw new TeamError('invalid', 'Choisissez une direction régionale.');
     parentId = input.parentId;
@@ -289,4 +291,238 @@ export async function importOrganizations(
   });
   await audit(db, userId, `organization.import:${toCreate.length}`, 'import', traceId);
   return { lines, created: toCreate.length, confirmed: true };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Configuration des établissements : liste, fiche, modification, archivage.
+// ---------------------------------------------------------------------------------------------
+
+interface OrgRow {
+  id: string;
+  name: string;
+  type: string;
+  locality: string | null;
+  manager_name: string | null;
+  manager_contact: string | null;
+  archived_at: Date | null;
+  parent_id: string | null;
+  parent_name: string | null;
+}
+
+const toItem = (r: OrgRow): OrganizationListItem => ({
+  id: r.id,
+  name: r.name,
+  type: r.type,
+  locality: r.locality,
+  managerName: r.manager_name,
+  managerContact: r.manager_contact,
+  archivedAt: r.archived_at ? new Date(r.archived_at).toISOString() : null,
+  direction: r.parent_id ? { id: r.parent_id, name: r.parent_name ?? '' } : null,
+});
+
+export interface OrganizationFilters {
+  search?: string;
+  directionId?: string;
+  type?: string;
+  archived?: boolean;
+}
+
+/** Structures que la personne gère, filtrées ; les archivées seulement sur demande. */
+export async function listOrganizations(
+  db: Database,
+  userId: string,
+  filters: OrganizationFilters,
+): Promise<OrganizationListItem[]> {
+  const powers = await teamPowers(db, userId);
+  if (!powers.canCreateOrganization && !(await isManager(db, userId))) {
+    throw new TeamError('forbidden', 'Accès refusé.');
+  }
+  const like = filters.search ? `%${filters.search.replace(/[%_\\]/g, '')}%` : null;
+  const { rows } = await db.execute(sql`
+    select o.id, o.name, o.type, o.locality, o.manager_name, o.manager_contact, o.archived_at,
+           o.parent_id, p.name as parent_name
+      from organizations o
+      left join organizations p on p.id = o.parent_id
+     where o.id in ${teamOrganizationIds(userId)}
+       and (${filters.archived ? sql`o.archived_at is not null` : sql`o.archived_at is null`})
+       and (${like}::text is null or o.name ilike ${like} or o.locality ilike ${like}
+            or o.manager_name ilike ${like})
+       and (${filters.directionId ?? null}::uuid is null or o.parent_id = ${filters.directionId ?? null})
+       and (${filters.type ?? null}::text is null or o.type = ${filters.type ?? null})
+     order by o.name
+     limit 300`);
+  return (rows as unknown as OrgRow[]).map(toItem);
+}
+
+/** Dirige-t-elle une structure (direction ou gestionnaire) : accès en lecture à la configuration. */
+async function isManager(db: Database, userId: string): Promise<boolean> {
+  const { rows } = await db.execute(sql`select 1 from ${teamOrganizationIds(userId)} t limit 1`);
+  return rows.length > 0;
+}
+
+async function rolesIn(db: Database, userId: string, organizationId: string) {
+  const { rows } = await db.execute(sql`
+    select distinct m.role from memberships m
+     where m.user_id = ${userId} and (m.valid_until is null or m.valid_until > now())
+       and m.organization_id in (
+         with recursive up as (
+           select ${organizationId}::uuid as id
+           union select o.parent_id from organizations o join up on o.id = up.id
+            where o.parent_id is not null)
+         select id from up)`);
+  return new Set(rows.map((r) => String((r as { role: string }).role)));
+}
+
+/** Ce que la personne peut faire sur une fiche, d'après ses rôles sur la structure et ses parents. */
+async function powersOn(db: Database, userId: string, org: { id: string; type: string }) {
+  const powers = await teamPowers(db, userId);
+  await assertManages(db, userId, org.id);
+  const here = await rolesIn(db, userId, org.id);
+  const isDirection = org.type === 'authority';
+  const manager = powers.everywhere || here.has('gestionnaire');
+  return {
+    edit:
+      powers.everywhere ||
+      (!isDirection && (here.has('gestionnaire') || here.has('chef-etablissement'))),
+    editStructure: powers.everywhere,
+    archive: powers.everywhere || (!isDirection && manager),
+  };
+}
+
+async function loadRow(db: Database, id: string): Promise<OrgRow> {
+  const { rows } = await db.execute(sql`
+    select o.id, o.name, o.type, o.locality, o.manager_name, o.manager_contact, o.archived_at,
+           o.parent_id, p.name as parent_name
+      from organizations o left join organizations p on p.id = o.parent_id
+     where o.id = ${id}`);
+  const row = rows[0] as unknown as OrgRow | undefined;
+  if (!row) throw new TeamError('not_found', 'Établissement introuvable.');
+  return row;
+}
+
+export async function getOrganization(
+  db: Database,
+  userId: string,
+  id: string,
+): Promise<OrganizationDetail> {
+  const row = await loadRow(db, id).catch(() => {
+    throw new TeamError('not_found', 'Établissement introuvable.');
+  });
+  const can = await powersOn(db, userId, row).catch(() => {
+    throw new TeamError('not_found', 'Établissement introuvable.');
+  });
+  const { rows: counts } = await db.execute(sql`
+    select (select count(*)::int from organizations c where c.parent_id = ${id} and c.archived_at is null) as children,
+           (select count(*)::int from cohorts h where h.organization_id = ${id}) as cohorts`);
+  const { rows: members } = await db.execute(sql`
+    select u.display_name as "userName", m.role
+      from memberships m join users u on u.id = m.user_id
+     where m.organization_id = ${id} and (m.valid_until is null or m.valid_until > now())
+       and m.role in ('chef-etablissement','gestionnaire','enseignant','alphabetiseur','referent-pedagogique','administrateur')
+     order by m.role, u.display_name`);
+  const c = counts[0] as unknown as { children: number; cohorts: number };
+  return {
+    ...toItem(row),
+    activeChildren: c.children,
+    cohortCount: c.cohorts,
+    members: members as unknown as OrganizationDetail['members'],
+    can,
+  };
+}
+
+export async function updateOrganization(
+  db: Database,
+  userId: string,
+  id: string,
+  input: {
+    name?: string;
+    locality?: string;
+    managerName?: string;
+    managerContact?: string;
+    type?: OrganizationType;
+    parentId?: string;
+  },
+  traceId?: string,
+): Promise<OrganizationDetail> {
+  const row = await loadRow(db, id).catch(() => {
+    throw new TeamError('not_found', 'Établissement introuvable.');
+  });
+  const can = await powersOn(db, userId, row).catch(() => {
+    throw new TeamError('not_found', 'Établissement introuvable.');
+  });
+  if (!can.edit) throw new TeamError('forbidden', 'Accès refusé.');
+  if ((input.type !== undefined || input.parentId !== undefined) && !can.editStructure) {
+    throw new TeamError('forbidden', 'Accès refusé.');
+  }
+  const type = input.type ?? (row.type as OrganizationType);
+  let parentId = row.parent_id;
+  if (input.parentId !== undefined) {
+    if (type === 'authority')
+      throw new TeamError('invalid', 'Une direction régionale n’a pas de direction.');
+    const { rows } = await db.execute(
+      sql`select 1 from organizations where id = ${input.parentId} and type = 'authority' and archived_at is null`,
+    );
+    if (rows.length === 0) throw new TeamError('invalid', 'Choisissez une direction régionale.');
+    parentId = input.parentId;
+  }
+  if (type !== 'authority' && !parentId) throw MISSING('La direction régionale');
+  if (type === 'authority' && row.type !== 'authority') {
+    throw new TeamError('invalid', 'Un établissement ne devient pas une direction régionale.');
+  }
+  if (type !== 'authority' && row.type === 'authority') {
+    throw new TeamError('invalid', 'Une direction régionale ne devient pas un établissement.');
+  }
+  const name = input.name ?? row.name;
+  const { rows: same } = await db.execute(
+    sql`select 1 from organizations
+        where lower(name) = lower(${name}) and parent_id is not distinct from ${parentId}
+          and id <> ${id} limit 1`,
+  );
+  if (same.length > 0)
+    throw new TeamError('invalid', 'Un établissement porte déjà ce nom à cet endroit.');
+  await db
+    .update(organizations)
+    .set({
+      name,
+      type,
+      parentId,
+      locality: input.locality ?? row.locality,
+      managerName: input.managerName ?? row.manager_name,
+      managerContact: input.managerContact ?? row.manager_contact,
+    })
+    .where(eq(organizations.id, id));
+  await audit(db, userId, 'organization.update', id, traceId);
+  return getOrganization(db, userId, id);
+}
+
+/** Archive ou rétablit. Une direction régionale ne s'archive pas tant qu'elle a des établissements actifs. */
+export async function setOrganizationArchived(
+  db: Database,
+  userId: string,
+  id: string,
+  archived: boolean,
+  traceId?: string,
+): Promise<OrganizationDetail> {
+  const detail = await getOrganization(db, userId, id);
+  if (!detail.can.archive) throw new TeamError('forbidden', 'Accès refusé.');
+  if (archived && detail.activeChildren > 0) {
+    throw new TeamError(
+      'invalid',
+      `Archivez d’abord les ${detail.activeChildren} établissement(s) actifs de cette direction régionale.`,
+    );
+  }
+  if (!archived && detail.direction) {
+    const { rows } = await db.execute(
+      sql`select 1 from organizations where id = ${detail.direction.id} and archived_at is null`,
+    );
+    if (rows.length === 0) {
+      throw new TeamError('invalid', 'Rétablissez d’abord sa direction régionale.');
+    }
+  }
+  await db
+    .update(organizations)
+    .set({ archivedAt: archived ? sql`now()` : null })
+    .where(eq(organizations.id, id));
+  await audit(db, userId, archived ? 'organization.archive' : 'organization.restore', id, traceId);
+  return getOrganization(db, userId, id);
 }

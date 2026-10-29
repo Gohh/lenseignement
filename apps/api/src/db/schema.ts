@@ -43,8 +43,6 @@ export const organizations = pgTable(
     name: text('name').notNull(),
     type: text('type', { enum: ORGANIZATION_TYPES }).notNull(),
     parentId: uuid('parent_id').references((): AnyPgColumn => organizations.id),
-    /** Direction régionale (DRENA) dont dépend l'établissement. */
-    region: text('region'),
     /** Ville ou village. */
     locality: text('locality'),
     /** Responsable (chef d'établissement) : un nom pour l'affichage, pas un compte. */

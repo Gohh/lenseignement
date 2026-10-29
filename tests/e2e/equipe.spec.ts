@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { sql, subjectOf } from './support/db';
 
 const loginAs = (page: Page, username: string, returnTo = '/mon-espace') =>
   page.goto(`/auth/login?returnTo=${encodeURIComponent(returnTo)}&login_hint=${username}`);
@@ -28,7 +29,8 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
 
     const other = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
     const member = await other.newPage();
-    await loginAs(member, freshLearner(testInfo), '/mon-espace/rejoindre');
+    const username = freshLearner(testInfo);
+    await loginAs(member, username, '/mon-espace/rejoindre');
     await member.getByLabel('Code d’invitation').fill('AAAAAAAA');
     await member.getByRole('button', { name: 'Rejoindre l’équipe' }).click();
     await expect(member.getByText('Code invalide ou expiré.')).toBeVisible();
@@ -44,35 +46,47 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
       }),
     ).toBeVisible();
 
-    // Il gère sa zone : pas de rôle de direction à donner, mais il crée un établissement.
+    // Rattaché à une école seulement : pas de rôle de direction à donner, pas de création possible.
     await member.goto('/mon-espace/equipe');
     await expect(member.getByRole('heading', { level: 1, name: 'Équipe' })).toBeVisible();
     await expect(
       member.getByLabel('Rôle').getByRole('option', { name: 'Direction de l’établissement' }),
     ).toHaveCount(0);
-    const created = `Annexe ${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
+    await expect(member.getByRole('heading', { name: 'Créer un établissement' })).toHaveCount(0);
+
+    // Devenu administrateur : il crée une direction régionale, puis une école dessous, puis importe.
+    await sql(
+      `insert into memberships (user_id, organization_id, role)
+       select u.id, o.id, 'administrateur' from users u, organizations o
+        where u.oidc_subject = $1 and o.type = 'authority' and o.name like 'Direction régionale de démonstration%'`,
+      [subjectOf(username)],
+    );
+    await member.goto('/mon-espace/equipe');
+    const stamp = `${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
+    const drena = `DRENA Essai ${stamp}`;
     const form = member.locator('form', { hasText: 'Créer un établissement' });
-    await form.getByLabel('Nom officiel').fill(created);
-    await form.getByLabel('Direction régionale', { exact: true }).fill('DRENA Essai');
-    await form.getByLabel('Localité').fill('Bouaké');
-    await form.getByLabel('Responsable (nom)').fill('M. Essai');
+    await form.getByLabel('Nom officiel').fill(drena);
+    await form
+      .getByLabel('Type')
+      .selectOption({ label: 'Autorité (inspection, direction régionale)' });
     await form.getByRole('button', { name: 'Créer l’établissement' }).click();
     await expect(member.getByText('Établissement créé.')).toBeVisible();
 
-    // Import : aperçu d'abord, rien n'est créé avant la confirmation.
-    const parent = await member.getByLabel('Dépend de').first().inputValue();
-    expect(parent).not.toBe('');
-    const second = `Import ${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
-    const parentName = await member
-      .getByLabel('Dépend de')
-      .first()
-      .locator('option:checked')
-      .textContent();
+    const school = member.locator('form', { hasText: 'Créer un établissement' });
+    await school.getByLabel('Nom officiel').fill(`École ${stamp}`);
+    await school.locator('select[name="parentId"]').selectOption({ label: drena });
+    await school.getByLabel('Localité').fill('Bouaké');
+    await school.getByLabel('Responsable (nom)').fill('M. Essai');
+    await school.getByRole('button', { name: 'Créer l’établissement' }).click();
+    await expect(member.getByText('Établissement créé.')).toBeVisible();
+
+    // Import : aperçu d'abord, rien n'est créé avant la confirmation (page dynamique : on attend).
+    await member.waitForLoadState('networkidle');
     await member.getByLabel('Fichier CSV').setInputFiles({
       name: 'etablissements.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(
-        `nom officiel;type;direction régionale;localité;responsable;contact;structure parente\n${second};collège;DRENA Essai;Bouaké;M. Essai;;${parentName}\n`,
+        `nom officiel;type;direction régionale;localité;responsable;contact\nCollège ${stamp};collège;${drena};Bouaké;M. Essai;\n`,
       ),
     });
     await member.getByRole('button', { name: 'Voir l’aperçu' }).click();

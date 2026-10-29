@@ -24,7 +24,8 @@ export function ImportOrganizations() {
       <h2 className="text-xl font-bold">Importer des établissements</h2>
       <p>
         Un fichier CSV avec les colonnes : nom officiel, type, direction régionale, localité,
-        responsable (facultatif : contact, structure parente).{' '}
+        responsable (facultatif : contact). Une ligne de type « autorité » crée une direction
+        régionale.{' '}
         <a href="/modele-etablissements.csv" download>
           Télécharger le modèle
         </a>

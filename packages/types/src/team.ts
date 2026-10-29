@@ -45,14 +45,13 @@ const Short = (label: string, min = 2) =>
   z.string().trim().min(min, `${label} : trop court.`).max(160);
 
 export const CreateOrganizationSchema = z.object({
-  /** Nom officiel de l'établissement. */
+  /** Nom officiel de l'établissement (ou de la direction régionale). */
   name: Short('Le nom officiel', 3),
   type: z.enum(Object.keys(ORGANIZATION_TYPE_LABELS) as [keyof typeof ORGANIZATION_TYPE_LABELS]),
-  /** Structure dont il dépend ; obligatoire pour un gestionnaire (sa zone). */
+  /** Direction régionale dont il dépend ; obligatoire, sauf pour créer une direction régionale. */
   parentId: z.string().uuid().nullable().optional(),
-  region: Short('La direction régionale'),
-  locality: Short('La localité'),
-  managerName: Short('Le responsable'),
+  locality: z.string().trim().max(160).optional(),
+  managerName: z.string().trim().max(160).optional(),
   managerContact: z.string().trim().max(160).optional(),
 });
 
@@ -105,6 +104,6 @@ export interface TeamOverview {
   canCreateOrganization: boolean;
   /** Voit toutes les structures (superadministrateur et administrateur). */
   everywhere: boolean;
-  /** Directions régionales déjà saisies, proposées à la saisie. */
-  regions: string[];
+  /** Directions régionales que la personne voit, à choisir à la création d'un établissement. */
+  directions: Array<{ id: string; name: string }>;
 }

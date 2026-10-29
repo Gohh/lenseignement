@@ -4,7 +4,8 @@ import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from './roles';
 export interface SpaceMenuItem {
   href: string;
   label: string;
-  section?: boolean;
+  /** Actif aussi sur les pages en dessous (ou sous le chemin donné). */
+  section?: boolean | string;
 }
 
 /** Entrées du menu de l'espace personnel, selon les rôles : même liste dans l'en-tête et le menu latéral. */
@@ -105,7 +106,22 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
       ? [
           {
             title: 'Référentiels',
-            items: [{ href: '/mon-espace/configuration', label: 'Établissements', section: true }],
+            items: [
+              {
+                href: '/mon-espace/configuration',
+                label: 'Établissements',
+                section: '/mon-espace/configuration/etablissements',
+              },
+              ...(admin
+                ? [
+                    {
+                      href: '/mon-espace/configuration/programmes',
+                      label: 'Programmes',
+                      section: true,
+                    },
+                  ]
+                : []),
+            ],
           },
           {
             title: 'Comptes et droits',

@@ -206,7 +206,21 @@ test('envoi en relecture : refusé tant que le brouillon est incomplet', async (
     ],
   });
   await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 409, { revision: 3 });
-  await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 204, { revision: 4 });
+  // Choix du relecteur : seuls les référents de la structure sont proposés.
+  const choices = (await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200)).body;
+  assert.deepEqual(
+    choices.reviewers.map((r: { id: string }) => r.id),
+    [ID.userMariam],
+  );
+  const notReviewer = await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 400, {
+    revision: 4,
+    reviewerId: ID.userBamba,
+  });
+  assert.match(notReviewer.body.message, /ne peut pas relire/);
+  await call(SUB.koffi, 'post', `/course-versions/${V1}/submit`, 204, {
+    revision: 4,
+    reviewerId: ID.userMariam,
+  });
   const after = await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200);
   assert.deepEqual(after.body.can, {
     submit: false,
@@ -282,6 +296,14 @@ test('double validation : la référente approuve, une autre personne publie', a
       .filter((i) => i.versionId === V1)
       .map((i) => i.kind);
   assert.deepEqual(await kindOf(SUB.mariam), ['to_review']);
+  const designated = (await call(SUB.mariam, 'get', '/my-work', 200)).body.items.find(
+    (i: { versionId: string }) => i.versionId === V1,
+  );
+  assert.equal(designated.assignedToMe, true);
+  assert.equal(
+    (await call(SUB.koffi, 'get', `/course-versions/${V1}/workflow`, 200)).body.reviewer.id,
+    ID.userMariam,
+  );
   assert.deepEqual(await kindOf(SUB.koffi), []);
 
   const incomplete = await call(SUB.mariam, 'post', `/course-versions/${V1}/approve`, 400, {

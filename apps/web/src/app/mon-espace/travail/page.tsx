@@ -77,6 +77,13 @@ export default async function MyWorkPage() {
                         <p className="text-sm text-ink-muted">
                           {item.organization.name} · version {item.number}
                         </p>
+                        {item.kind === 'to_review' && (item.assignedToMe || item.reviewerName) && (
+                          <p className="mt-1 inline-block rounded-full bg-primary-soft px-3 py-0.5 text-sm font-bold text-primary">
+                            {item.assignedToMe
+                              ? 'Désigné pour vous'
+                              : `Désigné : ${item.reviewerName}`}
+                          </p>
+                        )}
                       </div>
                       <Link
                         href={`/mon-espace/cours/versions/${item.versionId}`}

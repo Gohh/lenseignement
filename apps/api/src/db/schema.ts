@@ -479,6 +479,8 @@ export const courseVersions = pgTable(
       .references(() => users.id),
     /** Circuit de validation (ADR-006) : trois personnes distinctes de l'auteur au publieur. */
     submittedBy: uuid('submitted_by').references(() => users.id),
+    /** Référent désigné par l'auteur à l'envoi en relecture ; null : n'importe quel référent. */
+    reviewerUserId: uuid('reviewer_user_id').references(() => users.id),
     approvedBy: uuid('approved_by').references(() => users.id),
     publishedBy: uuid('published_by').references(() => users.id),
     publishedAt: timestamp('published_at', { withTimezone: true }),

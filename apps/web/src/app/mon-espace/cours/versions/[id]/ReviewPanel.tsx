@@ -97,11 +97,30 @@ export function ReviewPanel({
               Une fois envoyée, la version ne sera plus modifiable. Un référent pédagogique la
               relira, puis une deuxième personne la publiera.
             </p>
+            {workflow.reviewers.length > 0 && (
+              <label className="block font-bold">
+                Relecteur
+                <select name="reviewerId" defaultValue="" className={inputClass}>
+                  <option value="">N’importe quel référent pédagogique</option>
+                  {workflow.reviewers.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button type="submit" className={buttonClass}>
               Envoyer en relecture
             </button>
           </form>
         ))}
+
+      {version.status === 'in_review' && workflow.reviewer && (
+        <p data-testid="designated-reviewer">
+          Relecteur désigné : <span className="font-bold">{workflow.reviewer.name}</span>
+        </p>
+      )}
 
       {can.approve && (
         <form action={approveAction} className="space-y-3">

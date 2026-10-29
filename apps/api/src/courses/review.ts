@@ -46,6 +46,34 @@ async function capacities(db: Executor, userId: string, organizationId: string) 
   return { reviewer, publisher };
 }
 
+/** Référents qui peuvent relire un cours de cette structure et de ce cycle (hors l'auteur). */
+async function reviewerCandidates(
+  db: Executor,
+  organizationId: string,
+  branch: string,
+  authorId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const { rows } = await db.execute<{ id: string; name: string | null }>(sql`
+    with recursive up as (
+      select o.id, o.parent_id from organizations o where o.id = ${organizationId}
+      union
+      select o.id, o.parent_id from organizations o join up on o.id = up.parent_id
+    )
+    select distinct u.id, u.display_name as name
+      from memberships m
+      join users u on u.id = m.user_id
+     where m.role in (${sql.join(
+       REVIEWER_ROLES.map((r) => sql`${r}`),
+       sql`, `,
+     )})
+       and m.organization_id in (select id from up)
+       and (m.valid_until is null or m.valid_until > now())
+       and (m.branches is null or ${branch} = any(m.branches))
+       and u.id <> ${authorId}
+     order by name`);
+  return rows.map((r) => ({ id: r.id, name: r.name ?? 'Personne inconnue' }));
+}
+
 /** Personnes qui ont déjà rédigé, soumis ou approuvé la version : elles ne valident pas après. */
 function involved(v: VersionRow, upTo: 'submitted' | 'approved'): Array<string | null> {
   return upTo === 'submitted'
@@ -130,12 +158,16 @@ export async function getWorkflow(
   userId: string,
 ): Promise<CourseWorkflow> {
   const [row] = await db
-    .select({ version: courseVersions, organizationId: courses.organizationId })
+    .select({
+      version: courseVersions,
+      organizationId: courses.organizationId,
+      branch: courses.branch,
+    })
     .from(courseVersions)
     .innerJoin(courses, eq(courses.id, courseVersions.courseId))
     .where(eq(courseVersions.id, versionId));
   if (!row) throw new CourseError('not_found', 'Version introuvable.');
-  const [c, history, missing] = await Promise.all([
+  const [c, history, missing, reviewers, designated] = await Promise.all([
     capacities(db, userId, row.organizationId),
     db
       .select({
@@ -149,8 +181,21 @@ export async function getWorkflow(
       .where(eq(courseReviewEvents.courseVersionId, versionId))
       .orderBy(asc(courseReviewEvents.createdAt), asc(courseReviewEvents.id)),
     row.version.status === 'draft' ? missingForReview(db, row.version) : Promise.resolve([]),
+    row.version.status === 'draft'
+      ? reviewerCandidates(db, row.organizationId, row.branch, row.version.createdBy)
+      : Promise.resolve([]),
+    row.version.reviewerUserId
+      ? db
+          .select({ id: users.id, name: users.displayName })
+          .from(users)
+          .where(eq(users.id, row.version.reviewerUserId))
+      : Promise.resolve([]),
   ]);
   return {
+    reviewer: designated[0]
+      ? { id: designated[0].id, name: designated[0].name ?? 'Personne inconnue' }
+      : null,
+    reviewers,
     history: history.map((h) => ({
       ...h,
       actorName: h.actorName ?? 'Personne inconnue',
@@ -196,6 +241,9 @@ export async function listMyWork(db: Database, userId: string): Promise<MyWorkIt
     version: courseVersions,
     courseId: courses.id,
     organization: { id: organizations.id, name: organizations.name },
+    reviewerName: sql<
+      string | null
+    >`(select u.display_name from users u where u.id = ${courseVersions.reviewerUserId})`,
   };
   const base = () =>
     db
@@ -260,6 +308,8 @@ export async function listMyWork(db: Database, userId: string): Promise<MyWorkIt
       kind,
       remark: remark?.comment ?? null,
       remarkBy: remark?.by ?? null,
+      reviewerName: kind === 'to_review' ? row.reviewerName : null,
+      assignedToMe: kind === 'to_review' && row.version.reviewerUserId === userId,
     });
   for (const d of drafts) {
     const remark = remarks.get(d.version.id);
@@ -271,7 +321,11 @@ export async function listMyWork(db: Database, userId: string): Promise<MyWorkIt
   for (const r of toPublish) {
     if (!involved(r.version, 'approved').includes(userId)) add(r, 'to_publish');
   }
-  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // Les cours qui vous sont désignés passent en premier, puis les plus récents.
+  return items.sort(
+    (a, b) =>
+      Number(b.assignedToMe) - Number(a.assignedToMe) || b.updatedAt.localeCompare(a.updatedAt),
+  );
 }
 
 /** L'auteur envoie son brouillon en relecture ; il ne peut plus le modifier ensuite. */
@@ -280,9 +334,10 @@ export async function submitForReview(
   versionId: string,
   userId: string,
   revision: number,
+  reviewerId?: string,
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const { version } = await lockVersion(tx, versionId);
+    const { version, organizationId } = await lockVersion(tx, versionId);
     expectStatus(version, 'draft', 'Cette version a déjà été envoyée en relecture.');
     if (version.revision !== revision) {
       throw new CourseError(
@@ -294,11 +349,39 @@ export async function submitForReview(
     if (missing.length > 0) {
       throw new CourseError('invalid', `Avant l’envoi en relecture : ${missing.join(' ')}`);
     }
+    let designated: { id: string; name: string } | undefined;
+    if (reviewerId) {
+      const [course] = await tx
+        .select({ branch: courses.branch })
+        .from(courses)
+        .where(eq(courses.id, version.courseId));
+      const candidates = await reviewerCandidates(
+        tx,
+        organizationId,
+        course!.branch,
+        version.createdBy,
+      );
+      designated = candidates.find((c) => c.id === reviewerId);
+      if (!designated) {
+        throw new CourseError('invalid', 'Ce référent ne peut pas relire ce cours.');
+      }
+    }
     await tx
       .update(courseVersions)
-      .set({ status: 'in_review', submittedBy: userId, updatedAt: sql`now()` })
+      .set({
+        status: 'in_review',
+        submittedBy: userId,
+        reviewerUserId: designated?.id ?? null,
+        updatedAt: sql`now()`,
+      })
       .where(eq(courseVersions.id, versionId));
-    await record(tx, versionId, 'submitted', userId);
+    await record(
+      tx,
+      versionId,
+      'submitted',
+      userId,
+      designated ? `Relecteur désigné : ${designated.name}.` : '',
+    );
   });
 }
 

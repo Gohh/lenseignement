@@ -218,8 +218,8 @@ export class AuthoringController {
   @HttpCode(204)
   async submit(@Req() request: Request, @Param('id') id: string, @Body() body: unknown) {
     const userId = await this.authorizeVersion(request, 'course_version.submit', id);
-    const { revision } = parse(SubmitForReviewSchema, body);
-    await submitForReview(this.db, id, userId, revision).catch(translate);
+    const { revision, reviewerId } = parse(SubmitForReviewSchema, body);
+    await submitForReview(this.db, id, userId, revision, reviewerId).catch(translate);
   }
 
   @Post('course-versions/:id/approve')

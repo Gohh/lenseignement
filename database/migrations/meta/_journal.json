@@ -183,6 +183,13 @@
       "when": 1793271878747,
       "tag": "0025_archivage_etablissement",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793278660588,
+      "tag": "0026_choix_relecteur",
+      "breakpoints": true
     }
   ]
 }

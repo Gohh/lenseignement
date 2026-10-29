@@ -22,9 +22,25 @@ export class HelpError extends Error {
 /**
  * Élèves dont une personne reçoit les questions : ceux de ses classes (enseignant), ceux qui lui
  * sont confiés (répétiteur au lien actif) et ceux des classes de l'établissement dont elle est
- * chef (direction).
+ * chef (direction). Les administrateurs voient celles de tous les élèves.
  */
 export async function helpedLearnerIds(db: Database, userId: string): Promise<string[]> {
+  // L'équipe de la plateforme voit toutes les questions, y compris celles d'élèves sans classe.
+  const [admin] = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, userId),
+        inArray(memberships.role, ['superadministrateur', 'administrateur']),
+        or(isNull(memberships.validUntil), sql`${memberships.validUntil} > now()`),
+      ),
+    )
+    .limit(1);
+  if (admin) {
+    const asked = await db.selectDistinct({ id: helpQuestions.learnerUserId }).from(helpQuestions);
+    return asked.map((r) => r.id).filter((id) => id !== userId);
+  }
   const mine = db
     .select({ cohortId: cohortMembers.cohortId })
     .from(cohortMembers)

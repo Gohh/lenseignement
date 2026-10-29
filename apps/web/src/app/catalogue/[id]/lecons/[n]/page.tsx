@@ -204,6 +204,17 @@ export default async function LessonPage({ params, searchParams }: Props) {
         </section>
       )}
 
+      {session && (
+        <p>
+          <Link
+            href={`/mon-espace/aide?cours=${lesson.courseId}&lecon=${lesson.number}`}
+            className={linkClass}
+          >
+            🆘 J’ai besoin d’aide pour cette leçon
+          </Link>
+        </p>
+      )}
+
       <nav
         aria-label="Leçons du cours"
         className="flex flex-wrap justify-between gap-4 border-t border-line pt-4"

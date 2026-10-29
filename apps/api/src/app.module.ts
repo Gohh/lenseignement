@@ -10,6 +10,7 @@ import { DatabaseModule } from './db/database.module.js';
 import { FamilyController } from './family/family.controller.js';
 import { PromotionController } from './promotion/promotion.controller.js';
 import { OutboxRelayService } from './events/outbox-relay.service.js';
+import { HelpController } from './help/help.controller.js';
 import { HealthController } from './health/health.controller.js';
 import { LearnersController } from './learners/learners.controller.js';
 import { LearningController } from './learning/learning.controller.js';
@@ -39,6 +40,7 @@ import { StatsController } from './stats/stats.controller.js';
     PromotionController,
     TeamController,
     OrganizationsController,
+    HelpController,
   ],
   providers: [OutboxRelayService],
 })

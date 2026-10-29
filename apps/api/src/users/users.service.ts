@@ -9,6 +9,7 @@ export interface CurrentUser {
   subject: string;
   displayName: string | null;
   accountType: string;
+  level: string | null;
 }
 
 /** Fait le lien entre l'identité OIDC (`sub`) et le compte applicatif. */
@@ -29,6 +30,7 @@ export class UsersService {
         id: users.id,
         displayName: users.displayName,
         accountType: users.accountType,
+        level: users.level,
         status: users.status,
       });
     if (!row || row.status !== 'active') {
@@ -39,6 +41,7 @@ export class UsersService {
       subject: principal.subject,
       displayName: row.displayName,
       accountType: row.accountType,
+      level: row.level,
     };
   }
 }

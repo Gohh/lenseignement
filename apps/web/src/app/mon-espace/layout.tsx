@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
 import { apiGet, type Me } from '@/lib/api';
-import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
+import { spaceMenuItems } from '@/lib/space-menu';
 import { getSession } from '@/lib/session';
 
 // Menu latéral sur ordinateur ; barre fixe en bas sur téléphone (maquette « Mon espace »).
@@ -15,29 +15,7 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
   if (!session) return children;
 
   const me = await apiGet<Me>(session.accessToken, '/me');
-  const memberRoles = new Set(me.ok ? me.data.memberships.map((m) => m.role) : []);
-  const has = (roles: Set<string>) => [...memberRoles].some((role) => roles.has(role));
-  const learner = session.roles.includes('apprenant');
-
-  const items: Array<{ href: string; label: string; section?: boolean }> = [
-    { href: '/mon-espace', label: 'Vue d’ensemble' },
-    ...(learner
-      ? [
-          { href: '/mon-espace/bilan-lecture', label: 'Mon bilan' },
-          { href: '/mon-espace/atelier-securite', label: 'Atelier' },
-        ]
-      : []),
-    { href: '/mon-espace/famille', label: 'Ma famille' },
-    { href: '/mon-espace/repetiteur', label: 'Répétiteur' },
-    ...(has(TEAM_ROLES) ? [{ href: '/mon-espace/equipe', label: 'Équipe' }] : []),
-    ...(has(AUTHOR_ROLES) ? [{ href: '/mon-espace/cours', label: 'Rédiger', section: true }] : []),
-    ...(has(VALIDATOR_ROLES)
-      ? [
-          { href: '/mon-espace/relecture', label: 'Relecture' },
-          { href: '/mon-espace/statistiques', label: 'Statistiques' },
-        ]
-      : []),
-  ];
+  const items = spaceMenuItems(session.roles, me.ok ? me.data : null);
 
   const single = items.length <= 1;
 

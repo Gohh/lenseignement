@@ -1,4 +1,6 @@
-import { Controller, Get, Inject, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Put, Req } from '@nestjs/common';
+import { LevelCodeSchema } from '@lenseignement/types';
+import { z } from 'zod';
 import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
 import type { Request } from 'express';
 import type { Principal } from '../auth/principal.js';
@@ -39,8 +41,19 @@ export class MeController {
       roles: principal.roles,
       userId: user.id,
       displayName: user.displayName,
+      level: user.level,
       memberships: rows,
     };
+  }
+
+  /** Cycle et niveau choisis par la personne pour elle-même (null = pas encore choisi). */
+  @Put('level')
+  async setLevel(@Req() request: Request, @Body() body: unknown) {
+    const parsed = z.object({ level: LevelCodeSchema.nullable() }).safeParse(body);
+    if (!parsed.success) throw new BadRequestException('Niveau inconnu.');
+    const user = await this.users.resolve(request.principal as Principal);
+    await this.db.update(users).set({ level: parsed.data.level }).where(eq(users.id, user.id));
+    return { level: parsed.data.level };
   }
 
   /** Enfants dont la personne est parent ou tuteur, uniquement par lien vérifié. */

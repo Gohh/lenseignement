@@ -31,9 +31,27 @@ test.describe('Navigation', () => {
     );
     await menu(page).getByRole('link', { name: 'Relecture' }).click();
     await expect(page).toHaveURL(/\/mon-espace\/relecture$/);
-    await expect(
-      page.getByRole('banner').getByRole('link', { name: 'Mon espace' }),
-    ).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('le bouton à initiales ouvre le menu du compte, avec la déconnexion', async ({ page }) => {
+    await loginAs(page, 'apprenant.demo', '/catalogue');
+    await page.getByRole('banner').locator('summary').click();
+    const account = page.getByRole('navigation', { name: 'Menu du compte' });
+    await expect(account.getByRole('link', { name: 'Vue d’ensemble' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Modifier mon compte' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
+  });
+
+  test('un visiteur voit « Se connecter » et « Créer mon compte » dans l’en-tête', async ({
+    page,
+  }) => {
+    await page.goto('/catalogue');
+    const header = page.getByRole('banner');
+    await expect(header.getByRole('link', { name: 'Se connecter' })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'Créer mon compte' })).toHaveAttribute(
+      'href',
+      /inscription=1/,
+    );
   });
 
   test('l’apprenant a son bilan et son atelier dans le menu', async ({ page }) => {

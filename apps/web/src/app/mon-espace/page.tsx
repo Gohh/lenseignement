@@ -1,7 +1,6 @@
 import type { LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
 import { AUTHOR_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
 import { getSession } from '@/lib/session';
@@ -96,14 +95,6 @@ export default async function MyspacePage() {
             </ul>
           </>
         )}
-        <p className="mt-3">
-          <a href="/mon-espace/rejoindre" className="font-bold underline">
-            J’ai un code pour rejoindre une équipe
-          </a>
-        </p>
-        <p className="mt-3 text-sm text-ink-muted" data-testid="api-status">
-          {me.ok ? 'Compte reconnu par le service.' : 'Service momentanément indisponible.'}
-        </p>
       </div>
 
       {(followed.length > 0 || session.roles.includes('apprenant')) && (
@@ -272,11 +263,6 @@ export default async function MyspacePage() {
           </ul>
         </div>
       )}
-
-      <div className={cardClass}>
-        <h2 className="text-xl font-extrabold">Cet appareil</h2>
-        <DeviceDataPanel />
-      </div>
     </section>
   );
 }

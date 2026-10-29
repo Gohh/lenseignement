@@ -1,5 +1,6 @@
 import { levelLabel } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
+import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { LevelPicker } from '@/components/LevelPicker';
 import { buttonClass, Notice, param } from '@/components/Notice';
 import { apiGet, type Me } from '@/lib/api';
@@ -55,6 +56,21 @@ export default async function AccountPage({ searchParams }: Props) {
           Enregistrer
         </button>
       </form>
+      <div className="rounded-big border border-line bg-surface p-5">
+        <h2 className="text-xl font-extrabold">Rejoindre une équipe</h2>
+        <p className="mt-2 text-ink-muted">Tu as reçu un code d’invitation d’un établissement ?</p>
+        <a
+          href="/mon-espace/rejoindre"
+          className="inline-flex min-h-[44px] items-center font-bold underline"
+        >
+          Saisir mon code
+        </a>
+      </div>
+
+      <div className="rounded-big border border-line bg-surface p-5">
+        <h2 className="text-xl font-extrabold">Cet appareil</h2>
+        <DeviceDataPanel />
+      </div>
     </section>
   );
 }

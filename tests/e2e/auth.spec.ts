@@ -17,7 +17,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     await expect(page).toHaveURL(/\/mon-espace$/);
     await expect(page.getByRole('heading', { name: 'Bonjour, Awa' })).toBeVisible();
     await expect(page.getByText('Apprenant', { exact: true })).toBeVisible();
-    await expect(page.getByTestId('api-status')).toHaveText('Compte reconnu par le service.');
+    await expect(page.getByTestId('memberships')).toBeVisible();
   });
 
   test('le jeton d’accès expiré est renouvelé sans nouvelle connexion', async ({ page }) => {
@@ -30,7 +30,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     });
     await page.reload();
     await page.reload();
-    await expect(page.getByTestId('api-status')).toHaveText('Compte reconnu par le service.');
+    await expect(page.getByTestId('memberships')).toBeVisible();
     expect(reauthentications).toEqual([]);
   });
 

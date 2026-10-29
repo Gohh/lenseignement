@@ -136,7 +136,7 @@ test.describe('Hors connexion et synchronisation (ticket 15)', () => {
     await enrollAndKeep(page, freshLearner(testInfo));
     expect(await lessonKept(page)).toBe(true);
 
-    await page.goto('/mon-espace');
+    await page.goto('/mon-espace/compte');
     await page.getByRole('button', { name: 'Effacer mes données sur cet appareil' }).click();
     await page.getByRole('button', { name: 'Oui, tout effacer' }).click();
     await expect(page.getByTestId('device-status')).toHaveText(

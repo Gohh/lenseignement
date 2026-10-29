@@ -15,6 +15,10 @@ test.describe('Devoirs', () => {
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: '+ Donner un devoir' }).click();
     const dialog = page.getByRole('dialog');
+    // D'autres tests créent des classes : on choisit la classe de l'élève de démonstration.
+    await dialog
+      .getByLabel('Classe')
+      .selectOption(await dialog.getByRole('option', { name: /CP1 A/ }).getAttribute('value'));
     await dialog.getByLabel('Titre du devoir').fill(title);
     await dialog.getByLabel('Consigne').fill('Décris ta maison en trois phrases.');
     await dialog.getByRole('button', { name: 'Donner le devoir' }).click();

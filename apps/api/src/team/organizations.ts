@@ -1,13 +1,14 @@
 import { sql } from 'drizzle-orm';
 import {
   ORGANIZATION_TYPE_LABELS,
+  type CreatedOrganization,
   type OrganizationImportLine,
   type OrganizationImportResult,
 } from '@lenseignement/types';
 import { teamOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
 import { organizations, type ORGANIZATION_TYPES } from '../db/schema.js';
-import { assertManages, audit, TeamError, teamPowers } from './team.js';
+import { assertManages, audit, createTeamInvitation, TeamError, teamPowers } from './team.js';
 
 type OrganizationType = (typeof ORGANIZATION_TYPES)[number];
 
@@ -16,14 +17,13 @@ const norm = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 const deaccent = (value: string) => norm(value).normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const TYPE_ALIASES: Record<string, OrganizationType> = {
-  ecole: 'school',
-  etablissement: 'school',
+  lycee: 'lycee',
+  'secondaire public': 'lycee',
+  'primaire prive': 'primary_private',
   'centre technique': 'technical_center',
   'centre de formation': 'technical_center',
-  'centre d’alphabétisation': 'literacy_center',
   "centre d'alphabetisation": 'literacy_center',
   autorite: 'authority',
-  partenaire: 'partner',
 };
 
 /** Accepte le code (« school »), un nom court (« école ») ou le libellé complet, sans accents ni casse. */
@@ -34,10 +34,7 @@ function parseType(raw: string): OrganizationType | null {
       return code as OrganizationType;
     }
   }
-  const alias = Object.entries(TYPE_ALIASES).find(
-    ([key]) => deaccent(key).replace('’', "'") === wanted,
-  );
-  return alias ? alias[1] : null;
+  return TYPE_ALIASES[wanted] ?? null;
 }
 
 /** Lit un CSV (séparateur « ; » ou « , », guillemets, BOM) et renvoie les lignes de champs. */
@@ -86,16 +83,27 @@ async function visibleOrganizations(db: Database, userId: string) {
   return rows as Array<{ id: string; name: string; parentId: string | null }>;
 }
 
+interface Sheet {
+  name: string;
+  type: OrganizationType;
+  parentId?: string | null;
+  region: string;
+  locality: string;
+  managerName: string;
+  managerContact?: string | null;
+}
+
 /**
  * Crée un établissement. Superadministrateur et administrateur : partout. Gestionnaire : seulement
- * sous une structure de sa zone, qu'il doit donc indiquer.
+ * sous une structure de sa zone, qu'il doit donc indiquer. Le code d'invitation du responsable
+ * n'est donné que si la personne peut nommer une direction (le superadministrateur).
  */
 export async function createOrganization(
   db: Database,
   userId: string,
-  input: { name: string; type: OrganizationType; parentId?: string | null },
+  input: Sheet,
   traceId?: string,
-): Promise<{ id: string; name: string }> {
+): Promise<CreatedOrganization> {
   const powers = await teamPowers(db, userId);
   if (!powers.canCreateOrganization) throw new TeamError('forbidden', 'Accès refusé.');
   const parentId = input.parentId ?? null;
@@ -113,11 +121,29 @@ export async function createOrganization(
   }
   const [created] = await db
     .insert(organizations)
-    .values({ name: input.name, type: input.type, parentId })
+    .values({
+      name: input.name,
+      type: input.type,
+      parentId,
+      region: input.region,
+      locality: input.locality,
+      managerName: input.managerName,
+      managerContact: input.managerContact || null,
+    })
     .returning({ id: organizations.id, name: organizations.name });
   if (!created) throw new TeamError('invalid', 'Création impossible.');
   await audit(db, userId, 'organization.create', created.id, traceId);
-  return created;
+  const managerCode = powers.grantable.includes('chef-etablissement')
+    ? (
+        await createTeamInvitation(
+          db,
+          userId,
+          { organizationId: created.id, role: 'chef-etablissement', branches: null },
+          traceId,
+        )
+      ).code
+    : null;
+  return { ...created, managerCode };
 }
 
 /**
@@ -136,13 +162,17 @@ export async function importOrganizations(
   const table = parseCsv(input.csv);
   const header = (table[0] ?? []).map(deaccent);
   const col = (...names: string[]) => header.findIndex((h) => names.includes(h));
-  const nameCol = col('nom', 'name');
+  const nameCol = col('nom officiel', 'nom', 'name');
   const typeCol = col('type');
+  const regionCol = col('direction regionale', 'region');
+  const localityCol = col('localite', 'ville');
+  const managerCol = col('responsable');
+  const contactCol = col('contact', 'contact du responsable');
   const parentCol = col('structure parente', 'parent', 'structure');
-  if (nameCol < 0 || typeCol < 0) {
+  if ([nameCol, typeCol, regionCol, localityCol, managerCol].some((c) => c < 0)) {
     throw new TeamError(
       'invalid',
-      'La première ligne doit contenir les colonnes : nom, type, structure parente.',
+      'La première ligne doit contenir les colonnes : nom officiel, type, direction régionale, localité, responsable (et facultativement : contact, structure parente).',
     );
   }
   const body = table.slice(1);
@@ -171,6 +201,10 @@ export async function importOrganizations(
     name: string;
     type: OrganizationType;
     parentKey: string | null;
+    region: string;
+    locality: string;
+    managerName: string;
+    managerContact: string | null;
   }> = [];
   body.forEach((cells, index) => {
     const line = index + 2;
@@ -181,8 +215,16 @@ export async function importOrganizations(
     const type = parseType(cells[typeCol] ?? '');
     if (!type)
       return fail(
-        'Type inconnu. Types possibles : école, centre technique, centre d’alphabétisation, autorité, partenaire.',
+        'Type inconnu. Types possibles : primaire public, primaire privé, collège, lycée, secondaire privé, centre technique, centre d’alphabétisation, autorité, partenaire.',
       );
+    const cell = (index: number) =>
+      index < 0 ? '' : (cells[index] ?? '').trim().replace(/\s+/g, ' ');
+    const region = cell(regionCol);
+    const locality = cell(localityCol);
+    const managerName = cell(managerCol);
+    if (region.length < 2) return fail('La direction régionale est obligatoire.');
+    if (locality.length < 2) return fail('La localité est obligatoire.');
+    if (managerName.length < 2) return fail('Le responsable est obligatoire.');
     const parentName = parentCol >= 0 ? (cells[parentCol] ?? '').trim() : '';
     let parentKey: string | null = null;
     if (parentName) {
@@ -202,7 +244,16 @@ export async function importOrganizations(
     const list = byName.get(norm(name)) ?? [];
     list.push({ id: null, tempKey });
     byName.set(norm(name), list);
-    toCreate.push({ key: tempKey, name, type, parentKey });
+    toCreate.push({
+      key: tempKey,
+      name,
+      type,
+      parentKey,
+      region,
+      locality,
+      managerName,
+      managerContact: cell(contactCol) || null,
+    });
     lines.push({ line, name, status: 'create', message: 'Sera créé.' });
   });
 
@@ -220,7 +271,15 @@ export async function importOrganizations(
         : null;
       const [created] = await tx
         .insert(organizations)
-        .values({ name: row.name, type: row.type, parentId })
+        .values({
+          name: row.name,
+          type: row.type,
+          parentId,
+          region: row.region,
+          locality: row.locality,
+          managerName: row.managerName,
+          managerContact: row.managerContact,
+        })
         .returning({ id: organizations.id });
       real.set(row.key, created!.id);
     }

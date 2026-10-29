@@ -2,6 +2,7 @@
 
 import {
   BRANCH_CODES,
+  type CreatedOrganization,
   type OrganizationImportLine,
   type OrganizationImportResult,
 } from '@lenseignement/types';
@@ -32,13 +33,19 @@ function branchesOf(form: FormData): string[] | null {
 }
 
 export async function createOrganizationAction(form: FormData): Promise<void> {
-  const result = await apiSend(await token(), 'POST', '/team/organizations', {
+  const result = await apiSend<CreatedOrganization>(await token(), 'POST', '/team/organizations', {
     name: text(form, 'name'),
     type: text(form, 'type'),
     parentId: text(form, 'parentId') || null,
+    region: text(form, 'region'),
+    locality: text(form, 'locality'),
+    managerName: text(form, 'managerName'),
+    managerContact: text(form, 'managerContact'),
   });
   if (!result.ok) back('erreur', result.message ?? 'Création impossible.');
-  back('message', 'Établissement créé. Vous pouvez maintenant y inviter des personnes.');
+  // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
+  if (result.data.managerCode) back('code', result.data.managerCode);
+  back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');
 }
 
 export async function inviteMemberAction(form: FormData): Promise<void> {

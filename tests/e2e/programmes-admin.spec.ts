@@ -53,19 +53,32 @@ test.describe('Écran des programmes', () => {
 
     await page.getByRole('button', { name: '+ Importer un programme' }).click();
     const dialog = page.getByRole('dialog');
-    // Un fichier faux : le détail de l'erreur reste dans la fenêtre.
-    await dialog.getByLabel('Fichier du programme').setInputFiles({
+    // Avancé : un fichier JSON faux, le détail de l'erreur reste dans la fenêtre.
+    await dialog.getByText('Avancé : importer un fichier JSON').click();
+    await dialog.getByLabel('Fichier JSON').setInputFiles({
       name: 'faux.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...file, subjects: [] })),
     });
-    await dialog.getByRole('button', { name: 'Importer le brouillon' }).click();
+    await dialog.getByRole('button', { name: 'Importer le fichier JSON' }).click();
     await expect(dialog.getByRole('alert')).toContainText('Fichier invalide');
 
-    await dialog.getByLabel('Fichier du programme').setInputFiles({
-      name: 'programme.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(file)),
+    // Le chemin simple : le formulaire du programme et un tableau Excel enregistré en CSV.
+    await dialog.getByLabel('Titre du programme').fill(file.curriculum.title);
+    await dialog.getByLabel('Code court').fill(code);
+    await dialog.locator('select[name="branch"]').selectOption('formation-enseignants');
+    await dialog.getByLabel('Description', { exact: true }).fill('Programme fictif des tests.');
+    await dialog.getByLabel('Version', { exact: true }).fill('2030');
+    await dialog.getByLabel('Texte de référence').fill('Note fictive');
+    await dialog.getByLabel('Publié par').fill('Tests');
+    await dialog.getByLabel('Tableau des compétences (.csv)').setInputFiles({
+      name: 'programme.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        'Niveau;Matière;Code;Compétence;Description;Prérequis\n' +
+          'CP1;Mathématiques;M1;Compter jusqu’à 10;;\n' +
+          'CP1;Mathématiques;M2;Additionner;;M1\n',
+      ),
     });
     await dialog.getByRole('button', { name: 'Importer le brouillon' }).click();
     await expect(page.getByText('Brouillon importé.')).toBeVisible();

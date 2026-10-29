@@ -49,7 +49,14 @@ export default async function ProgrammesPage({ searchParams }: Props) {
           </p>
         </div>
         <Dialog primary label="+ Importer un programme" title="Importer un programme">
-          <ImportCurriculum />
+          <ImportCurriculum
+            programmes={items.map(({ code, branch, title, description }) => ({
+              code,
+              branch,
+              title,
+              description,
+            }))}
+          />
         </Dialog>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />

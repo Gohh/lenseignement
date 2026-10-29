@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import {
   ORGANIZATION_TYPE_LABELS,
+  parseCsv,
   type CreatedOrganization,
   type OrganizationDetail,
   type OrganizationListItem,
@@ -37,43 +38,6 @@ function parseType(raw: string): OrganizationType | null {
     }
   }
   return TYPE_ALIASES[wanted] ?? null;
-}
-
-/** Lit un CSV (séparateur « ; » ou « , », guillemets, BOM) et renvoie les lignes de champs. */
-export function parseCsv(text: string): string[][] {
-  const source = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  const firstLine = source.split(/\r?\n/, 1)[0] ?? '';
-  const separator =
-    (firstLine.match(/;/g)?.length ?? 0) >= (firstLine.match(/,/g)?.length ?? 0) ? ';' : ',';
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let quoted = false;
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i]!;
-    if (quoted) {
-      if (c === '"' && source[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (c === '"') quoted = false;
-      else field += c;
-    } else if (c === '"') quoted = true;
-    else if (c === separator) {
-      row.push(field);
-      field = '';
-    } else if (c === '\n' || c === '\r') {
-      if (c === '\r' && source[i + 1] === '\n') i++;
-      row.push(field);
-      field = '';
-      rows.push(row);
-      row = [];
-    } else field += c;
-  }
-  if (field !== '' || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ''));
 }
 
 /** Structures que la personne voit, avec leur parent, pour retrouver une structure par son nom. */

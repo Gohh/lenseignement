@@ -82,6 +82,31 @@ test.describe('Relecture et publication des cours (ticket 9)', () => {
     await expect(page.getByTestId('review-history').getByRole('listitem')).toHaveCount(3);
   });
 
+  test('un cours renvoyé revient avec la remarque, en haut de page et dans Mon travail', async ({
+    page,
+  }, testInfo) => {
+    const title = `Renvoi E2E ${testInfo.project.name} ${Date.now()}`;
+    const versionPath = await writeCompleteCourse(page, title);
+    await page.reload();
+    await page.getByRole('button', { name: 'Envoyer en relecture' }).click();
+    await expect(status(page, 'Version envoyée en relecture.')).toBeVisible();
+
+    await switchTo(page, 'referent.demo', '/mon-espace/relecture');
+    await page.getByRole('link', { name: title }).click();
+    await page.getByLabel('Modifications demandées').fill('Ajoutez un exemple avec « mi ».');
+    await page.getByRole('button', { name: 'Demander des modifications' }).click();
+    await expect(status(page, 'la version est revenue en brouillon')).toBeVisible();
+
+    await switchTo(page, 'enseignant.demo', versionPath);
+    await expect(page.getByTestId('returned-remark')).toContainText(
+      'Ajoutez un exemple avec « mi ».',
+    );
+    await page.goto('/mon-espace/travail');
+    const fix = page.getByTestId('work-to_fix');
+    await expect(fix).toContainText(title);
+    await expect(fix).toContainText('Ajoutez un exemple avec « mi ».');
+  });
+
   test('E2E-11 : un enseignant ne valide pas le cours d’une collègue', async ({ page }) => {
     await loginAs(page, 'enseignant.demo', `/mon-espace/cours/versions/${DEMO_IN_REVIEW}`);
     await expect(page.getByTestId('version-status')).toContainText('En relecture');

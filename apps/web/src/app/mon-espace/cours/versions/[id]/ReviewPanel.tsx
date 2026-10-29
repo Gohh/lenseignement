@@ -28,6 +28,40 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'Africa/Abidjan',
 });
 
+/**
+ * Remarque du validateur, en haut de la page, tant que le cours est un brouillon renvoyé pour
+ * correction (le dernier événement est « modifications demandées »).
+ */
+export function ReturnedRemark({ history }: { history: CourseWorkflow['history'] }) {
+  const last = history.at(-1);
+  if (last?.action !== 'changes_requested') return null;
+  return (
+    <aside
+      aria-labelledby="remarque-title"
+      data-testid="returned-remark"
+      className="rounded-big border-l-4 border-accent bg-accent-soft p-5 text-accent-ink"
+    >
+      <h2 id="remarque-title" className="text-lg font-bold">
+        Ce cours vous a été renvoyé par {last.actorName}
+      </h2>
+      <p className="text-sm">{dateFormat.format(new Date(last.createdAt))}</p>
+      {last.comment && <p className="mt-2 whitespace-pre-line text-lg">« {last.comment} »</p>}
+      <p className="mt-2">
+        Corrigez le cours, puis renvoyez-le en relecture depuis le panneau « Validation ».
+      </p>
+    </aside>
+  );
+}
+
+const DOT: Record<ReviewAction, string> = {
+  submitted: 'bg-ink-muted',
+  changes_requested: 'bg-accent',
+  approved: 'bg-primary',
+  published: 'bg-primary',
+  replaced: 'bg-line-strong',
+  withdrawn: 'bg-line-strong',
+};
+
 /** Circuit de validation d'une version : historique et actions permises à la personne connectée. */
 export function ReviewPanel({
   version,
@@ -149,12 +183,20 @@ export function ReviewPanel({
       {workflow.history.length > 0 && (
         <>
           <h3 className="font-bold">Historique</h3>
-          <ol className="space-y-2" data-testid="review-history">
+          <ol className="space-y-4 border-l-2 border-line pl-5" data-testid="review-history">
             {workflow.history.map((h, i) => (
-              <li key={i} className="rounded-card border border-line bg-surface p-3">
-                <span className="font-bold">{ACTION_LABELS[h.action]}</span> par {h.actorName}, le{' '}
-                {dateFormat.format(new Date(h.createdAt))}
-                {h.comment && <p className="mt-1">« {h.comment} »</p>}
+              <li key={i} className="relative">
+                <span
+                  aria-hidden="true"
+                  className={`absolute -left-[27px] top-1.5 h-3 w-3 rounded-full ${DOT[h.action]}`}
+                />
+                <p>
+                  <span className="font-bold">{ACTION_LABELS[h.action]}</span> par {h.actorName}
+                </p>
+                <p className="text-sm text-ink-muted">{dateFormat.format(new Date(h.createdAt))}</p>
+                {h.comment && (
+                  <p className="mt-1 rounded-card bg-primary-soft p-3">« {h.comment} »</p>
+                )}
               </li>
             ))}
           </ol>

@@ -15,7 +15,7 @@ import { getSession } from '@/lib/session';
 import { updateVersionAction } from '../../actions';
 import { Circuit } from './Circuit';
 import { OutlineEditor } from './OutlineEditor';
-import { ReviewPanel } from './ReviewPanel';
+import { ReturnedRemark, ReviewPanel } from './ReviewPanel';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Rédiger un cours' };
@@ -108,6 +108,9 @@ export default async function CourseVersionPage({ params, searchParams }: Props)
         {version.organization.name} · version {version.number} ·{' '}
         {STATUS_LABELS[version.status] ?? version.status}
       </p>
+      {workflow.ok && version.status === 'draft' && (
+        <ReturnedRemark history={workflow.data.history} />
+      )}
       <Circuit version={version} />
       <Notice message={param(query.message)} error={param(query.erreur)} />
 

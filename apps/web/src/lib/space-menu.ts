@@ -76,7 +76,10 @@ export interface StaffMenu {
 export function staffMenu(sessionRoles: readonly string[], me: Me | null): StaffMenu | null {
   const memberRoles = new Set(me ? me.memberships.map((m) => m.role) : []);
   const has = (roles: Set<string>) => [...memberRoles].some((role) => roles.has(role));
-  const admin = sessionRoles.some((r) => r === 'superadministrateur' || r === 'administrateur');
+  // Rôle reçu dans le jeton ou rattachement (le superadministrateur peut n'avoir que le second).
+  const roles = new Set([...sessionRoles, ...memberRoles]);
+  const superAdmin = roles.has('superadministrateur');
+  const admin = superAdmin || roles.has('administrateur');
   const team = admin || has(TEAM_ROLES);
   const author = has(AUTHOR_ROLES);
   const validator = has(VALIDATOR_ROLES);
@@ -109,7 +112,13 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
           },
           {
             title: 'Comptes et droits',
-            items: [{ href: '/mon-espace/equipe', label: 'Équipe et invitations' }],
+            items: [
+              { href: '/mon-espace/equipe', label: 'Équipe et invitations' },
+              ...(admin ? [{ href: '/mon-espace/comptes', label: 'Comptes' }] : []),
+              ...(superAdmin
+                ? [{ href: '/mon-espace/journal', label: 'Journal des actions' }]
+                : []),
+            ],
           },
         ]
       : []),

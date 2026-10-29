@@ -11,6 +11,7 @@ import { LibraryController } from './library/library.controller.js';
 import { CohortAdminController } from './cohorts/cohort-admin.controller.js';
 import { CohortsController } from './cohorts/cohorts.controller.js';
 import { AuthoringController } from './courses/authoring.controller.js';
+import { AccountsController } from './accounts/accounts.controller.js';
 import { CurriculaController } from './curricula/curricula.controller.js';
 import { DatabaseModule } from './db/database.module.js';
 import { FamilyController } from './family/family.controller.js';
@@ -54,6 +55,7 @@ import { StatsController } from './stats/stats.controller.js';
     PromotionController,
     TeamController,
     OrganizationsController,
+    AccountsController,
     HelpController,
   ],
   providers: [

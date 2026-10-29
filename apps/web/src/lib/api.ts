@@ -83,6 +83,8 @@ export interface Me {
   subject: string;
   userId: string;
   displayName: string | null;
+  /** Cycle et niveau que la personne a choisis pour elle-même. */
+  level: string | null;
   memberships: Membership[];
 }
 

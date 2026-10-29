@@ -8,7 +8,7 @@ test.describe('Inscription progressive (ADR-018)', () => {
   test('« Créer mon compte » ouvre la création de compte du fournisseur', async ({ page }) => {
     await page.goto('/');
     const authorize = page.waitForRequest((req) => req.url().startsWith(`${OIDC_URL}/authorize`));
-    await page.getByRole('link', { name: 'Créer mon compte' }).click();
+    await page.getByRole('main').getByRole('link', { name: 'Créer mon compte' }).click();
     expect(new URL((await authorize).url()).searchParams.get('prompt')).toBe('create');
   });
 

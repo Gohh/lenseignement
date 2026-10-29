@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { AppShell } from '@lenseignement/ui';
+import { AccountMenu } from '@/components/AccountMenu';
 import { NavLink } from '@/components/NavLink';
 import { OfflineBadge } from '@/components/OfflineBadge';
 import { ServiceWorker } from '@/components/ServiceWorker';
@@ -41,13 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               >
                 Catalogue
               </NavLink>
-              <NavLink
-                href="/mon-espace"
-                section
-                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full bg-primary px-4 font-bold text-surface no-underline shadow-[var(--shadow-press)] hover:bg-primary-dark sm:px-5 aria-[current=page]:ring-2 aria-[current=page]:ring-primary aria-[current=page]:ring-offset-2"
-              >
-                Mon espace
-              </NavLink>
+              <AccountMenu />
             </nav>
           }
         >

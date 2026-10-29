@@ -7,8 +7,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     page,
   }) => {
     const authorize = page.waitForRequest((req) => req.url().startsWith(`${OIDC_URL}/authorize`));
-    await page.goto('/');
-    await page.getByRole('link', { name: 'Mon espace' }).click();
+    await page.goto('/mon-espace');
 
     const authorizeUrl = new URL((await authorize).url());
     expect(authorizeUrl.searchParams.get('code_challenge_method')).toBe('S256');

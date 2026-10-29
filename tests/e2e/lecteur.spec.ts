@@ -16,10 +16,9 @@ test.describe('Lecteur de leçons (ticket 11)', () => {
     await page.getByRole('link', { name: 'Commencer le cours' }).click();
     await expect(page.getByTestId('lesson-position')).toContainText('Leçon 1 sur 2');
     await expect(page.getByRole('heading', { name: 'Garde ta progression' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Créer mon compte' })).toHaveAttribute(
-      'href',
-      /inscription=1/,
-    );
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Créer mon compte' }),
+    ).toHaveAttribute('href', /inscription=1/);
 
     // La suite est réservée aux comptes ; la leçon 1 reste relisible.
     await page.getByRole('link', { name: 'Leçon suivante →' }).click();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const MAX_SIDE = 1280;
 const MAX_SECONDS = 60;
@@ -39,7 +39,9 @@ export function HelpAttachmentFields() {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const canRecord = typeof window !== 'undefined' && 'MediaRecorder' in window;
+  // Connu seulement dans le navigateur : décidé après l'hydratation, pas pendant le rendu.
+  const [canRecord, setCanRecord] = useState(false);
+  useEffect(() => setCanRecord('MediaRecorder' in window), []);
 
   async function choosePhoto(file: File | undefined) {
     setProblem(null);

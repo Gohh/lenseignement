@@ -43,8 +43,37 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
         name: 'Rédiger',
       }),
     ).toBeVisible();
+
+    // Il gère sa zone : pas de rôle de direction à donner, mais il crée un établissement.
     await member.goto('/mon-espace/equipe');
-    await expect(member.getByText('Cette page est réservée à la direction')).toBeVisible();
+    await expect(member.getByRole('heading', { level: 1, name: 'Équipe' })).toBeVisible();
+    await expect(
+      member.getByLabel('Rôle').getByRole('option', { name: 'Direction de l’établissement' }),
+    ).toHaveCount(0);
+    const created = `Annexe ${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
+    const form = member.locator('form', { hasText: 'Créer un établissement' });
+    await form.getByLabel('Nom').fill(created);
+    await form.getByRole('button', { name: 'Créer l’établissement' }).click();
+    await expect(member.getByText('Établissement créé.')).toBeVisible();
+
+    // Import : aperçu d'abord, rien n'est créé avant la confirmation.
+    const parent = await member.getByLabel('Dépend de').first().inputValue();
+    expect(parent).not.toBe('');
+    const second = `Import ${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
+    const parentName = await member
+      .getByLabel('Dépend de')
+      .first()
+      .locator('option:checked')
+      .textContent();
+    await member.getByLabel('Fichier CSV').setInputFiles({
+      name: 'etablissements.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(`nom;type;structure parente\n${second};école;${parentName}\n`),
+    });
+    await member.getByRole('button', { name: 'Voir l’aperçu' }).click();
+    await expect(member.getByTestId('import-preview')).toContainText('Sera créé');
+    await member.getByRole('button', { name: /Confirmer l’import/ }).click();
+    await expect(member.getByTestId('import-done')).toContainText('1 établissement créé');
     await other.close();
   });
 });

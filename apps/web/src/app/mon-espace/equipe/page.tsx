@@ -1,9 +1,20 @@
-import { BRANCHES, TEAM_ROLE_LABELS, type TeamOverview } from '@lenseignement/types';
+import {
+  BRANCHES,
+  ORGANIZATION_TYPE_LABELS,
+  TEAM_ROLE_LABELS,
+  type TeamOverview,
+} from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
+import { ImportOrganizations } from './ImportOrganizations';
 import { getSession } from '@/lib/session';
-import { inviteMemberAction, removeMemberAction, updateBranchesAction } from './actions';
+import {
+  createOrganizationAction,
+  inviteMemberAction,
+  removeMemberAction,
+  updateBranchesAction,
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Équipe' };
@@ -45,14 +56,20 @@ export default async function TeamPage({ searchParams }: Props) {
   const result = await apiGet<TeamOverview>(session.accessToken, '/team');
   const team = result.ok
     ? result.data
-    : { organizations: [], members: [], grantable: [] as string[] };
+    : {
+        organizations: [],
+        members: [],
+        grantable: [] as string[],
+        canCreateOrganization: false,
+        everywhere: false,
+      };
   const code = param(query.code);
 
   if (team.organizations.length === 0) {
     return (
       <section className="space-y-4">
         <h1 className="text-3xl font-bold">Équipe</h1>
-        <p>Cette page est réservée à la direction et aux administrateurs d’un établissement.</p>
+        <p>Cette page est réservée à la direction, aux gestionnaires et aux administrateurs.</p>
       </section>
     );
   }
@@ -105,6 +122,46 @@ export default async function TeamPage({ searchParams }: Props) {
           ))}
         </ul>
       </div>
+
+      {team.canCreateOrganization && (
+        <form action={createOrganizationAction} className={`${cardClass} space-y-4`}>
+          <h2 className="text-xl font-bold">Créer un établissement</h2>
+          <label className="block font-bold">
+            Nom
+            <input name="name" className={inputClass} required minLength={3} maxLength={160} />
+          </label>
+          <label className="block font-bold">
+            Type
+            <select name="type" className={inputClass} defaultValue="school">
+              {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block font-bold">
+            Dépend de
+            <select
+              name="parentId"
+              className={inputClass}
+              required={!team.everywhere}
+              defaultValue=""
+            >
+              {team.everywhere && <option value="">Aucune (premier niveau)</option>}
+              {team.organizations.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className={buttonClass}>
+            Créer l’établissement
+          </button>
+        </form>
+      )}
+      {team.canCreateOrganization && <ImportOrganizations />}
 
       <form action={inviteMemberAction} className={`${cardClass} space-y-4`}>
         <h2 className="text-xl font-bold">Inviter quelqu’un</h2>

@@ -13,6 +13,8 @@ import {
   Req,
 } from '@nestjs/common';
 import {
+  CreateOrganizationSchema,
+  ImportOrganizationsSchema,
   CreateTeamInvitationSchema,
   RedeemTeamInvitationSchema,
   UpdateTeamMemberSchema,
@@ -22,6 +24,7 @@ import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
+import { createOrganization, importOrganizations } from './organizations.js';
 import {
   createTeamInvitation,
   redeemTeamInvitation,
@@ -70,6 +73,22 @@ export class TeamController {
   @Get()
   async overview(@Req() request: Request) {
     return teamOverview(this.db, await this.me(request));
+  }
+
+  @Post('organizations')
+  async createOrg(@Req() request: Request, @Body() body: unknown) {
+    const input = parse(CreateOrganizationSchema, body);
+    return guard(async () =>
+      createOrganization(this.db, await this.me(request), input, request.traceId),
+    );
+  }
+
+  @Post('organizations/import')
+  async importOrgs(@Req() request: Request, @Body() body: unknown) {
+    const input = parse(ImportOrganizationsSchema, body);
+    return guard(async () =>
+      importOrganizations(this.db, await this.me(request), input, request.traceId),
+    );
   }
 
   @Post('invitations')

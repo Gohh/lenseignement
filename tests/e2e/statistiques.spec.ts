@@ -22,8 +22,8 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
       .getByRole('link', { name: 'Statistiques' })
       .click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Statistiques anonymes');
-    await expect(page.getByTestId('stats-scope')).toHaveText(
-      'Structures : École primaire Les Manguiers (fictive).',
+    await expect(page.getByTestId('stats-scope')).toContainText(
+      'École primaire Les Manguiers (fictive)',
     );
 
     const additions = page

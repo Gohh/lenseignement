@@ -25,7 +25,11 @@ import {
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const ORGANIZATION_TYPES = [
-  'school',
+  'primary_public',
+  'primary_private',
+  'college',
+  'lycee',
+  'secondary_private',
   'technical_center',
   'literacy_center',
   'authority',
@@ -39,12 +43,19 @@ export const organizations = pgTable(
     name: text('name').notNull(),
     type: text('type', { enum: ORGANIZATION_TYPES }).notNull(),
     parentId: uuid('parent_id').references((): AnyPgColumn => organizations.id),
+    /** Direction régionale (DRENA) dont dépend l'établissement. */
+    region: text('region'),
+    /** Ville ou village. */
+    locality: text('locality'),
+    /** Responsable (chef d'établissement) : un nom pour l'affichage, pas un compte. */
+    managerName: text('manager_name'),
+    managerContact: text('manager_contact'),
     createdAt: createdAt(),
   },
   (t) => [
     check(
       'organizations_type_check',
-      sql`${t.type} in ('school','technical_center','literacy_center','authority','partner')`,
+      sql`${t.type} in ('primary_public','primary_private','college','lycee','secondary_private','technical_center','literacy_center','authority','partner')`,
     ),
   ],
 );

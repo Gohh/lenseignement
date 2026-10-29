@@ -52,7 +52,10 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     ).toHaveCount(0);
     const created = `Annexe ${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
     const form = member.locator('form', { hasText: 'Créer un établissement' });
-    await form.getByLabel('Nom').fill(created);
+    await form.getByLabel('Nom officiel').fill(created);
+    await form.getByLabel('Direction régionale', { exact: true }).fill('DRENA Essai');
+    await form.getByLabel('Localité').fill('Bouaké');
+    await form.getByLabel('Responsable (nom)').fill('M. Essai');
     await form.getByRole('button', { name: 'Créer l’établissement' }).click();
     await expect(member.getByText('Établissement créé.')).toBeVisible();
 
@@ -68,7 +71,9 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await member.getByLabel('Fichier CSV').setInputFiles({
       name: 'etablissements.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(`nom;type;structure parente\n${second};école;${parentName}\n`),
+      buffer: Buffer.from(
+        `nom officiel;type;direction régionale;localité;responsable;contact;structure parente\n${second};collège;DRENA Essai;Bouaké;M. Essai;;${parentName}\n`,
+      ),
     });
     await member.getByRole('button', { name: 'Voir l’aperçu' }).click();
     await expect(member.getByTestId('import-preview')).toContainText('Sera créé');

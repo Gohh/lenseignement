@@ -100,6 +100,7 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
       grantable: [],
       canCreateOrganization: false,
       everywhere: false,
+      regions: [],
     };
   const rows = await db
     .select({
@@ -124,6 +125,10 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
       ),
     )
     .orderBy(asc(organizations.name), asc(users.displayName), asc(memberships.role));
+  const regions = await db.execute(
+    sql`select distinct o.region from organizations o
+        where o.region is not null and o.id in ${scope} order by o.region`,
+  );
   const members: TeamMember[] = rows.map((r) => ({
     id: r.id,
     userName: r.userName,
@@ -138,6 +143,7 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
     grantable: powers.grantable,
     canCreateOrganization: powers.canCreateOrganization,
     everywhere: powers.everywhere,
+    regions: regions.rows.map((r) => String((r as { region: string }).region)),
   };
 }
 

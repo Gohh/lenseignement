@@ -30,18 +30,30 @@ export const CreateTeamInvitationSchema = z.object({
 });
 
 export const ORGANIZATION_TYPE_LABELS = {
-  school: 'École ou établissement scolaire',
+  primary_public: 'Primaire public',
+  primary_private: 'Primaire privé',
+  college: 'Collège',
+  lycee: 'Lycée (secondaire public)',
+  secondary_private: 'Secondaire privé',
   technical_center: 'Centre de formation technique',
   literacy_center: 'Centre d’alphabétisation',
   authority: 'Autorité (inspection, direction régionale)',
   partner: 'Partenaire',
 } as const;
 
+const Short = (label: string, min = 2) =>
+  z.string().trim().min(min, `${label} : trop court.`).max(160);
+
 export const CreateOrganizationSchema = z.object({
-  name: z.string().trim().min(3, 'Le nom est trop court.').max(160),
+  /** Nom officiel de l'établissement. */
+  name: Short('Le nom officiel', 3),
   type: z.enum(Object.keys(ORGANIZATION_TYPE_LABELS) as [keyof typeof ORGANIZATION_TYPE_LABELS]),
   /** Structure dont il dépend ; obligatoire pour un gestionnaire (sa zone). */
   parentId: z.string().uuid().nullable().optional(),
+  region: Short('La direction régionale'),
+  locality: Short('La localité'),
+  managerName: Short('Le responsable'),
+  managerContact: z.string().trim().max(160).optional(),
 });
 
 export const ImportOrganizationsSchema = z.object({
@@ -54,6 +66,13 @@ export interface OrganizationImportLine {
   name: string;
   status: 'create' | 'exists' | 'error';
   message: string;
+}
+
+export interface CreatedOrganization {
+  id: string;
+  name: string;
+  /** Code d'invitation du responsable, seulement si la personne peut donner une direction. */
+  managerCode: string | null;
 }
 
 export interface OrganizationImportResult {
@@ -86,4 +105,6 @@ export interface TeamOverview {
   canCreateOrganization: boolean;
   /** Voit toutes les structures (superadministrateur et administrateur). */
   everywhere: boolean;
+  /** Directions régionales déjà saisies, proposées à la saisie. */
+  regions: string[];
 }

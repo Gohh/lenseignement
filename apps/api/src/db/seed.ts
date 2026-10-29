@@ -29,7 +29,7 @@ export async function seedBase(db: Database): Promise<void> {
         {
           id: ID.orgManguiers,
           name: 'École Les Manguiers',
-          type: 'school',
+          type: 'primary_public',
           parentId: ID.orgRegion,
         },
       ])
@@ -107,13 +107,13 @@ export async function seedDemo(db: Database): Promise<void> {
         {
           id: ID.orgManguiers,
           name: 'École primaire Les Manguiers (fictive)',
-          type: 'school',
+          type: 'primary_public',
           parentId: ID.orgRegion,
         },
         {
           id: ID.orgBaobabs,
           name: 'École primaire Les Baobabs (fictive)',
-          type: 'school',
+          type: 'primary_public',
           parentId: ID.orgRegion,
         },
       ])

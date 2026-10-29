@@ -62,6 +62,7 @@ export default async function TeamPage({ searchParams }: Props) {
         grantable: [] as string[],
         canCreateOrganization: false,
         everywhere: false,
+        regions: [] as string[],
       };
   const code = param(query.code);
 
@@ -127,18 +128,52 @@ export default async function TeamPage({ searchParams }: Props) {
         <form action={createOrganizationAction} className={`${cardClass} space-y-4`}>
           <h2 className="text-xl font-bold">Créer un établissement</h2>
           <label className="block font-bold">
-            Nom
+            Nom officiel
             <input name="name" className={inputClass} required minLength={3} maxLength={160} />
           </label>
           <label className="block font-bold">
             Type
-            <select name="type" className={inputClass} defaultValue="school">
+            <select name="type" className={inputClass} defaultValue="primary_public">
               {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
             </select>
+          </label>
+          <label className="block font-bold">
+            Direction régionale
+            <input
+              name="region"
+              list="regions"
+              className={inputClass}
+              required
+              minLength={2}
+              maxLength={160}
+            />
+          </label>
+          <datalist id="regions">
+            {team.regions.map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
+          <label className="block font-bold">
+            Localité
+            <input name="locality" className={inputClass} required minLength={2} maxLength={160} />
+          </label>
+          <label className="block font-bold">
+            Responsable (nom)
+            <input
+              name="managerName"
+              className={inputClass}
+              required
+              minLength={2}
+              maxLength={160}
+            />
+          </label>
+          <label className="block font-bold">
+            Contact du responsable (facultatif)
+            <input name="managerContact" className={inputClass} maxLength={160} />
           </label>
           <label className="block font-bold">
             Dépend de

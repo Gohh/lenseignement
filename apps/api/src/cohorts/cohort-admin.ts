@@ -3,6 +3,7 @@ import {
   levelLabel,
   levelsForOrganizationType,
   type CohortAdminItem,
+  type CohortRosterTools,
   type OrganizationCohorts,
 } from '@lenseignement/types';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
@@ -271,4 +272,104 @@ export async function joinCohort(
   });
   await audit(db, userId, 'cohort.join', row.id, traceId);
   return { cohort: row.name, organization: row.organization };
+}
+
+/** Outils d'élèves d'une classe pour la direction : les classes de destination possibles. */
+export async function rosterTools(
+  db: Database,
+  userId: string,
+  cohortId: string,
+): Promise<CohortRosterTools> {
+  const cohort = await managedCohort(db, userId, cohortId);
+  const rows = await db
+    .select()
+    .from(cohorts)
+    .where(
+      and(
+        eq(cohorts.organizationId, cohort.organizationId),
+        isNull(cohorts.archivedAt),
+        sql`${cohorts.id} <> ${cohortId}`,
+      ),
+    )
+    .orderBy(cohorts.schoolYear, cohorts.name);
+  return {
+    targets: rows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      schoolYear: c.schoolYear,
+      levelLabel: c.level ? levelLabel(c.level) : null,
+    })),
+  };
+}
+
+export async function removeLearner(
+  db: Database,
+  userId: string,
+  cohortId: string,
+  learnerId: string,
+  traceId?: string,
+): Promise<void> {
+  await managedCohort(db, userId, cohortId);
+  const removed = await db
+    .delete(cohortMembers)
+    .where(
+      and(
+        eq(cohortMembers.cohortId, cohortId),
+        eq(cohortMembers.userId, learnerId),
+        eq(cohortMembers.role, 'apprenant'),
+      ),
+    )
+    .returning({ userId: cohortMembers.userId });
+  if (removed.length === 0)
+    throw new TeamError('not_found', 'Élève introuvable dans cette classe.');
+  await audit(db, userId, 'cohort.learner.remove', cohortId, traceId);
+}
+
+/** Passage de classe : les élèves choisis (ou tous) quittent cette classe pour l'autre, du même établissement. */
+export async function transferLearners(
+  db: Database,
+  userId: string,
+  cohortId: string,
+  input: { toCohortId: string; learnerIds?: string[] },
+  traceId?: string,
+): Promise<{ moved: number }> {
+  const from = await managedCohort(db, userId, cohortId);
+  const to = await managedCohort(db, userId, input.toCohortId).catch(() => {
+    throw new TeamError('not_found', 'Classe de destination introuvable.');
+  });
+  if (to.id === from.id) throw new TeamError('invalid', 'Choisissez une autre classe.');
+  if (to.organizationId !== from.organizationId) {
+    throw new TeamError('invalid', 'Les deux classes doivent être du même établissement.');
+  }
+  if (to.archivedAt) throw new TeamError('invalid', 'La classe de destination est archivée.');
+  return db.transaction(async (tx) => {
+    const members = await tx
+      .select({ userId: cohortMembers.userId })
+      .from(cohortMembers)
+      .where(and(eq(cohortMembers.cohortId, cohortId), eq(cohortMembers.role, 'apprenant')));
+    const present = new Set(members.map((m) => m.userId));
+    const chosen = input.learnerIds ?? [...present];
+    if (chosen.some((id) => !present.has(id))) {
+      throw new TeamError('invalid', 'Un élève choisi n’est pas dans cette classe.');
+    }
+    for (const learnerId of chosen) {
+      await tx
+        .insert(cohortMembers)
+        .values({ cohortId: to.id, userId: learnerId, role: 'apprenant' })
+        .onConflictDoNothing();
+      await tx
+        .delete(cohortMembers)
+        .where(
+          and(
+            eq(cohortMembers.cohortId, cohortId),
+            eq(cohortMembers.userId, learnerId),
+            eq(cohortMembers.role, 'apprenant'),
+          ),
+        );
+      // Le niveau de l'élève suit celui de sa nouvelle classe.
+      if (to.level) await tx.update(users).set({ level: to.level }).where(eq(users.id, learnerId));
+    }
+    await audit(db, userId, 'cohort.learners.transfer', cohortId, traceId);
+    return { moved: chosen.length };
+  });
 }

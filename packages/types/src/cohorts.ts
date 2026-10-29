@@ -53,3 +53,15 @@ export interface OrganizationCohorts {
   teacherCandidates: Array<{ userId: string; name: string }>;
   levels: ReadonlyArray<{ code: LevelCode; title: string }>;
 }
+
+export const TransferLearnersSchema = z.object({
+  toCohortId: z.uuid(),
+  /** Élèves à faire passer ; absent = toute la classe. */
+  learnerIds: z.array(z.uuid()).max(500).optional(),
+});
+
+/** Ce que la direction peut faire sur une classe : retirer des élèves ou les faire passer ailleurs. */
+export interface CohortRosterTools {
+  /** Autres classes ouvertes du même établissement, où on peut faire passer des élèves. */
+  targets: Array<{ id: string; name: string; schoolYear: string; levelLabel: string | null }>;
+}

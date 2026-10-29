@@ -10,20 +10,23 @@ import {
   ParseUUIDPipe,
   Post,
   Req,
+  Res,
 } from '@nestjs/common';
 import { AnswerHelpSchema, AskHelpSchema } from '@lenseignement/types';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
 import {
   answerHelp,
   askHelp,
+  attachToQuestion,
   badge,
   HelpError,
   inbox,
   markAnswersSeen,
   myQuestions,
+  readAttachment,
 } from './help.js';
 
 async function guard<T>(run: () => Promise<T>): Promise<T> {
@@ -66,6 +69,36 @@ export class HelpController {
     const user = await this.users.resolve(request.principal as Principal);
     const input = parse(AskHelpSchema, body);
     return guard(() => askHelp(this.db, user.id, input));
+  }
+
+  /** Photo ou message vocal joint à une question : les octets bruts, type dans l'en-tête. */
+  @Post('me/help-questions/:id/attachment/:kind')
+  async attach(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('kind') kind: string,
+  ) {
+    const user = await this.users.resolve(request.principal as Principal);
+    const mime = request.headers['content-type'] ?? '';
+    return guard(() => attachToQuestion(this.db, user.id, id, kind, mime, request.body as Buffer));
+  }
+
+  @Get('help-attachments/:id')
+  async download(
+    @Req() request: Request,
+    @Res() response: Response,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const user = await this.users.resolve(request.principal as Principal);
+    const file = await guard(() => readAttachment(this.db, user.id, id));
+    response
+      .set({
+        'content-type': file.mime,
+        'content-length': String(file.data.length),
+        'cache-control': 'private, max-age=3600',
+        'x-content-type-options': 'nosniff',
+      })
+      .end(file.data);
   }
 
   @Get('me/help-questions')

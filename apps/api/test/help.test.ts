@@ -92,3 +92,55 @@ test('un élève sans classe : la question est vue par un administrateur de la p
       .where(and(eq(memberships.userId, ID.userYao), eq(memberships.role, 'superadministrateur')));
   }
 });
+
+test('une question peut porter une photo et un message vocal, lus par ceux qui répondent', async () => {
+  const { id } = (
+    await call(SUB.awa, 'post', '/me/help-questions', 201, {
+      kind: 'stuck',
+      body: 'Regardez mon exercice.',
+    })
+  ).body;
+  const send = async (sub: string, kind: string, mime: string, data: Buffer, status: number) => {
+    const token = await ctx.sign({ sub });
+    return request(ctx.app.getHttpServer())
+      .post(`/api/v1/me/help-questions/${id}/attachment/${kind}`)
+      .set('authorization', `Bearer ${token}`)
+      .set('content-type', mime)
+      .send(data)
+      .expect(status);
+  };
+  const photo = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+  await send(SUB.awa, 'photo', 'text/plain', photo, 400);
+  await send(SUB.awa, 'photo', 'image/jpeg', Buffer.alloc(3 * 1024 * 1024 + 1), 400);
+  await send(SUB.awa, 'video', 'image/jpeg', photo, 400);
+  // Seul l'auteur ajoute une pièce.
+  await send(SUB.koffi, 'photo', 'image/jpeg', photo, 404);
+  await send(SUB.awa, 'photo', 'image/jpeg', photo, 201);
+  await send(SUB.awa, 'audio', 'audio/webm;codecs=opus', Buffer.from([1, 2, 3, 4]), 201);
+
+  const mine = (await call(SUB.awa, 'get', '/me/help-questions', 200)).body.items.find(
+    (q: { id: string }) => q.id === id,
+  );
+  assert.deepEqual(mine.attachments.map((a: { kind: string }) => a.kind).sort(), [
+    'audio',
+    'photo',
+  ]);
+  const photoId = mine.attachments.find((a: { kind: string }) => a.kind === 'photo').id;
+
+  // L'enseignant de la classe la lit ; une autre enseignante, non.
+  const token = (sub: string) => ctx.sign({ sub });
+  const got = await request(ctx.app.getHttpServer())
+    .get(`/api/v1/help-attachments/${photoId}`)
+    .set('authorization', `Bearer ${await token(SUB.koffi)}`)
+    .expect(200);
+  assert.equal(got.headers['content-type'], 'image/jpeg');
+  assert.deepEqual(got.body, photo);
+  await request(ctx.app.getHttpServer())
+    .get(`/api/v1/help-attachments/${photoId}`)
+    .set('authorization', `Bearer ${await token(SUB.aminata)}`)
+    .expect(404);
+  const inbox = (await call(SUB.koffi, 'get', '/help/inbox', 200)).body.items.find(
+    (q: { id: string }) => q.id === id,
+  );
+  assert.equal(inbox.attachments.length, 2);
+});

@@ -1,5 +1,6 @@
 import { HELP_KIND_LABELS, type HelpInboxItem } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
+import { HelpAttachmentList } from '@/components/HelpAttachmentList';
 import { buttonClass, inputClass, Notice, param } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -47,6 +48,7 @@ export default async function QuestionsPage({ searchParams }: Props) {
                   </span>
                 </p>
                 <p className="mt-2 whitespace-pre-line">{q.body}</p>
+                <HelpAttachmentList attachments={q.attachments} />
                 <form action={answerHelpAction} className="mt-3 space-y-2">
                   <input type="hidden" name="id" value={q.id} />
                   <label className="block font-bold">
@@ -77,6 +79,7 @@ export default async function QuestionsPage({ searchParams }: Props) {
               <li key={q.id} className="rounded-card border border-line p-3">
                 <p className="font-bold">{q.learnerName}</p>
                 <p className="whitespace-pre-line">{q.body}</p>
+                <HelpAttachmentList attachments={q.attachments} />
                 <p className="mt-1 whitespace-pre-line text-ink-muted">Réponse : {q.answer}</p>
               </li>
             ))}

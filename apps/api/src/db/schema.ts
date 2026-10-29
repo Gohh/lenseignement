@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { BRANCH_CODES, LEVEL_CODES } from '@lenseignement/types';
 import {
   boolean,
+  customType,
   check,
   date,
   doublePrecision,
@@ -1291,4 +1292,25 @@ export const parentMessages = pgTable(
     readAt: timestamp('read_at', { withTimezone: true }),
   },
   (t) => [index('parent_messages_conversation_idx').on(t.conversationId, t.createdAt)],
+);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
+
+/** Photo ou message vocal joint à une question d'aide (une de chaque au plus). */
+export const helpAttachments = pgTable(
+  'help_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => helpQuestions.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    mime: text('mime').notNull(),
+    data: bytea('data').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('help_attachments_once').on(t.questionId, t.kind),
+    check('help_attachments_kind_check', sql`${t.kind} in ('photo','audio')`),
+  ],
 );

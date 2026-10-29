@@ -29,6 +29,40 @@ export const CreateTeamInvitationSchema = z.object({
   branches: Branches,
 });
 
+export const ORGANIZATION_TYPE_LABELS = {
+  school: 'École ou établissement scolaire',
+  technical_center: 'Centre de formation technique',
+  literacy_center: 'Centre d’alphabétisation',
+  authority: 'Autorité (inspection, direction régionale)',
+  partner: 'Partenaire',
+} as const;
+
+export const CreateOrganizationSchema = z.object({
+  name: z.string().trim().min(3, 'Le nom est trop court.').max(160),
+  type: z.enum(Object.keys(ORGANIZATION_TYPE_LABELS) as [keyof typeof ORGANIZATION_TYPE_LABELS]),
+  /** Structure dont il dépend ; obligatoire pour un gestionnaire (sa zone). */
+  parentId: z.string().uuid().nullable().optional(),
+});
+
+export const ImportOrganizationsSchema = z.object({
+  csv: z.string().min(1, 'Le fichier est vide.').max(300_000, 'Le fichier est trop gros.'),
+  confirm: z.boolean(),
+});
+
+export interface OrganizationImportLine {
+  line: number;
+  name: string;
+  status: 'create' | 'exists' | 'error';
+  message: string;
+}
+
+export interface OrganizationImportResult {
+  lines: OrganizationImportLine[];
+  /** Nombre d'établissements créés (0 pour un simple aperçu). */
+  created: number;
+  confirmed: boolean;
+}
+
 export const RedeemTeamInvitationSchema = z.object({ code: z.string().trim().min(4).max(20) });
 
 export const UpdateTeamMemberSchema = z.object({ branches: Branches });
@@ -48,4 +82,8 @@ export interface TeamOverview {
   members: TeamMember[];
   /** Rôles que la personne peut accorder. */
   grantable: string[];
+  /** Seul le superadministrateur crée des établissements. */
+  canCreateOrganization: boolean;
+  /** Voit toutes les structures (superadministrateur et administrateur). */
+  everywhere: boolean;
 }

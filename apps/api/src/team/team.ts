@@ -28,22 +28,45 @@ const STAFF_ROLES = [...GRANTABLE_ROLES, 'superadministrateur'];
 const newCode = () =>
   Array.from({ length: 8 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 
-async function isSuper(db: Database, userId: string): Promise<boolean> {
+async function activeRoles(db: Database, userId: string): Promise<Set<string>> {
   const { rows } = await db.execute(
-    sql`select 1 from memberships m where m.user_id = ${userId} and m.role = 'superadministrateur'
-        and (m.valid_until is null or m.valid_until > now()) limit 1`,
+    sql`select distinct m.role from memberships m where m.user_id = ${userId}
+        and (m.valid_until is null or m.valid_until > now())`,
   );
-  return rows.length > 0;
+  return new Set(rows.map((r) => String((r as { role: string }).role)));
 }
 
-/** Rôles que la personne peut accorder : la direction d'un établissement, seulement le superadministrateur. */
-async function grantableFor(db: Database, userId: string): Promise<string[]> {
-  return (await isSuper(db, userId))
-    ? [...GRANTABLE_ROLES]
-    : GRANTABLE_ROLES.filter((r) => r !== 'chef-etablissement');
+/** Ce que la personne peut faire pour les équipes et les établissements, d'après ses rôles. */
+export async function teamPowers(db: Database, userId: string) {
+  const roles = await activeRoles(db, userId);
+  const isSuper = roles.has('superadministrateur');
+  const isAdmin = roles.has('administrateur');
+  return {
+    isSuper,
+    /** Voit et crée partout : le superadministrateur et son adjoint. */
+    everywhere: isSuper || isAdmin,
+    /** Crée un établissement, dans sa zone s'il n'a que le rôle de gestionnaire. */
+    canCreateOrganization: isSuper || isAdmin || roles.has('gestionnaire'),
+    grantable: grantableForRoles(roles),
+  };
 }
 
-async function audit(
+/**
+ * Rôles accordables : le superadministrateur donne tout ; son adjoint et la direction, tout sauf
+ * une direction ; le gestionnaire seul, enseignant, alphabétiseur et référent dans sa zone.
+ */
+function grantableForRoles(roles: Set<string>): string[] {
+  if (roles.has('superadministrateur')) return [...GRANTABLE_ROLES];
+  if (roles.has('administrateur') || roles.has('chef-etablissement')) {
+    return GRANTABLE_ROLES.filter((r) => r !== 'chef-etablissement');
+  }
+  if (roles.has('gestionnaire')) {
+    return ['enseignant', 'alphabetiseur', 'referent-pedagogique'];
+  }
+  return [];
+}
+
+export async function audit(
   db: Database,
   actorUserId: string,
   action: string,
@@ -64,12 +87,20 @@ async function audit(
 /** Structures, équipe et rôles accordables, pour la personne qui gère une équipe. */
 export async function teamOverview(db: Database, userId: string): Promise<TeamOverview> {
   const scope = teamOrganizationIds(userId);
+  const powers = await teamPowers(db, userId);
   const orgs = await db
     .select({ id: organizations.id, name: organizations.name })
     .from(organizations)
     .where(sql`${organizations.id} in ${scope}`)
     .orderBy(asc(organizations.name));
-  if (orgs.length === 0) return { organizations: [], members: [], grantable: [] };
+  if (orgs.length === 0)
+    return {
+      organizations: [],
+      members: [],
+      grantable: [],
+      canCreateOrganization: false,
+      everywhere: false,
+    };
   const rows = await db
     .select({
       id: memberships.id,
@@ -101,10 +132,16 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
     branches: r.branches,
     isSelf: r.userId === userId,
   }));
-  return { organizations: orgs, members, grantable: await grantableFor(db, userId) };
+  return {
+    organizations: orgs,
+    members,
+    grantable: powers.grantable,
+    canCreateOrganization: powers.canCreateOrganization,
+    everywhere: powers.everywhere,
+  };
 }
 
-async function assertManages(db: Database, userId: string, organizationId: string) {
+export async function assertManages(db: Database, userId: string, organizationId: string) {
   const { rows } = await db.execute(
     sql`select 1 from ${teamOrganizationIds(userId)} t where t.id = ${organizationId}`,
   );
@@ -118,7 +155,7 @@ export async function createTeamInvitation(
   traceId?: string,
 ): Promise<{ code: string; expiresAt: string }> {
   await assertManages(db, userId, input.organizationId);
-  if (!(await grantableFor(db, userId)).includes(input.role)) {
+  if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }
   const expiresAt = new Date(Date.now() + INVITATION_DAYS * 24 * 3600 * 1000);
@@ -199,11 +236,9 @@ async function managedMembership(db: Database, userId: string, memberId: string)
   await assertManages(db, userId, row.organizationId).catch(() => {
     throw new TeamError('not_found', 'Membre introuvable.');
   });
-  // Seul un superadministrateur touche aux superadministrateurs et aux directions.
-  if (
-    (row.role === 'superadministrateur' || row.role === 'chef-etablissement') &&
-    !(await isSuper(db, userId))
-  ) {
+  // On ne touche qu'aux rôles qu'on a le droit d'accorder (le superadministrateur, à tous).
+  const powers = await teamPowers(db, userId);
+  if (!powers.isSuper && !powers.grantable.includes(row.role)) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }
   return row;

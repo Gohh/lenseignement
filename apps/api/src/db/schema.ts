@@ -1139,3 +1139,47 @@ export const classSessions = pgTable(
     check('class_sessions_duration_check', sql`${t.durationMinutes} between 15 and 240`),
   ],
 );
+
+/** Devoir donné par un enseignant à une classe. */
+export const assignments = pgTable(
+  'assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cohortId: uuid('cohort_id')
+      .notNull()
+      .references(() => cohorts.id),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    title: text('title').notNull(),
+    instructions: text('instructions').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    maxScore: integer('max_score').notNull().default(20),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('assignments_cohort_idx').on(t.cohortId),
+    check('assignments_max_score_check', sql`${t.maxScore} between 1 and 100`),
+  ],
+);
+
+/** Copie rendue par un élève (une seule par devoir, remplaçable tant qu'elle n'est pas corrigée). */
+export const assignmentSubmissions = pgTable(
+  'assignment_submissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    assignmentId: uuid('assignment_id')
+      .notNull()
+      .references(() => assignments.id, { onDelete: 'cascade' }),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    body: text('body').notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+    score: integer('score'),
+    comment: text('comment'),
+    gradedByUserId: uuid('graded_by_user_id').references(() => users.id),
+    gradedAt: timestamp('graded_at', { withTimezone: true }),
+  },
+  (t) => [unique('assignment_submissions_once').on(t.assignmentId, t.learnerUserId)],
+);

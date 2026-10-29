@@ -23,7 +23,11 @@ async function isTeacherOf(db: Database, userId: string, cohortId: string): Prom
 }
 
 /** Droit de programmer, modifier ou annuler : l'enseignant de la classe ou la direction qui la gère. */
-async function canManageCohort(db: Database, userId: string, cohortId: string): Promise<boolean> {
+export async function canManageCohort(
+  db: Database,
+  userId: string,
+  cohortId: string,
+): Promise<boolean> {
   if (await isTeacherOf(db, userId, cohortId)) return true;
   const { rows } = await db.execute(
     sql`select 1 from cohorts c where c.id = ${cohortId}

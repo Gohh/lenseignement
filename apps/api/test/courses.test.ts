@@ -271,6 +271,19 @@ test('double validation : la référente approuve, une autre personne publie', a
   );
   assert.deepEqual((await call(SUB.koffi, 'get', '/reviews', 200)).body.items, []);
 
+  // « Mon travail » : la référente voit le cours à relire, l'auteur ne le voit pas.
+  const kindOf = async (sub: string) =>
+    (
+      (await call(sub, 'get', '/my-work', 200)).body.items as Array<{
+        versionId: string;
+        kind: string;
+      }>
+    )
+      .filter((i) => i.versionId === V1)
+      .map((i) => i.kind);
+  assert.deepEqual(await kindOf(SUB.mariam), ['to_review']);
+  assert.deepEqual(await kindOf(SUB.koffi), []);
+
   const incomplete = await call(SUB.mariam, 'post', `/course-versions/${V1}/approve`, 400, {
     checklist: { pedagogy: true, accessibility: false, rights: true },
   });
@@ -279,6 +292,10 @@ test('double validation : la référente approuve, une autre personne publie', a
     checklist: { pedagogy: true, accessibility: true, rights: true },
     comment: 'Clair et adapté au CP1.',
   });
+
+  // Approuvé : à publier chez la direction, plus rien chez la référente qui a approuvé.
+  assert.deepEqual(await kindOf(SUB.bamba), ['to_publish']);
+  assert.deepEqual(await kindOf(SUB.mariam), []);
 
   // La personne qui a approuvé ne publie pas seule.
   const self = await call(SUB.mariam, 'post', `/course-versions/${V1}/publish`, 403);
@@ -324,6 +341,12 @@ test('demande de modifications : motif obligatoire, retour en brouillon chez l�
   assert.equal(back.body.history.at(-1).comment, 'Ajoutez une leçon sur les pièces de monnaie.');
   const version = await call(SUB.aminata, 'get', `/course-versions/${MARCHE}`, 200);
   assert.equal(version.body.status, 'draft');
+  // « Mon travail » : le cours revient chez l'auteure avec la remarque de la référente.
+  const mine = (await call(SUB.aminata, 'get', '/my-work', 200)).body.items.find(
+    (i: { versionId: string }) => i.versionId === MARCHE,
+  );
+  assert.equal(mine.kind, 'to_fix');
+  assert.equal(mine.remark, 'Ajoutez une leçon sur les pièces de monnaie.');
 });
 
 test('nouvelle version : copie complète, publication qui remplace, puis retrait', async () => {

@@ -1,4 +1,3 @@
-import type { CourseSummary } from '@lenseignement/types';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
 import type { StaffMenu } from '@/lib/space-menu';
@@ -36,7 +35,8 @@ interface Props {
   menu: StaffMenu;
   displayName: string;
   roleLabel: string;
-  courses: CourseSummary[];
+  /** Nombre de tâches qui attendent la personne (cloche). */
+  taskCount: number;
   children: ReactNode;
 }
 
@@ -44,9 +44,8 @@ interface Props {
  * Espace d'administration : menu foncé à gauche (entrées, groupes repliables, carte de la personne),
  * barre du haut (date, recherche, cloche) puis la page. Tout fonctionne sans JavaScript.
  */
-export function StaffShell({ menu, displayName, roleLabel, courses, children }: Props) {
+export function StaffShell({ menu, displayName, roleLabel, taskCount, children }: Props) {
   const today = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full' }).format(new Date());
-  const toReview = courses.filter((c) => c.latest.status === 'in_review').length;
 
   return (
     <div className="lg:flex lg:items-start lg:gap-6">
@@ -127,17 +126,19 @@ export function StaffShell({ menu, displayName, roleLabel, courses, children }: 
             />
           </form>
           <a
-            href="/mon-espace/relecture"
+            href="/mon-espace/travail"
             className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-xl no-underline hover:bg-primary-soft"
           >
             <span aria-hidden="true">🔔</span>
-            <span className="sr-only">Notifications : {toReview} cours en relecture</span>
-            {toReview > 0 && (
+            <span className="sr-only">
+              Notifications : {taskCount} tâche{taskCount > 1 ? 's' : ''} à traiter
+            </span>
+            {taskCount > 0 && (
               <span
                 aria-hidden="true"
                 className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-bold text-ink-strong"
               >
-                {toReview}
+                {taskCount}
               </span>
             )}
           </a>

@@ -67,6 +67,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
   if (!team && !author && !validator) return null;
   const main: SpaceMenuItem[] = [
     { href: '/mon-espace', label: 'Tableau de bord' },
+    ...(author || validator ? [{ href: '/mon-espace/travail', label: 'Mon travail' }] : []),
     ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
     ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
     ...(validator || team ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }] : []),

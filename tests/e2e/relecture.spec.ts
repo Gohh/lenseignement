@@ -103,4 +103,18 @@ test.describe('Relecture et publication des cours (ticket 9)', () => {
       .analyze();
     expect(results.violations).toEqual([]);
   });
+
+  test('« Mon travail » liste les sections de la référente, sans violation axe', async ({
+    page,
+  }) => {
+    await loginAs(page, 'referent.demo', '/mon-espace/travail');
+    await expect(page.getByRole('heading', { level: 1, name: 'Mon travail' })).toBeVisible();
+    for (const kind of ['to_fix', 'to_review', 'to_publish', 'to_write']) {
+      await expect(page.getByTestId(`work-${kind}`)).toBeVisible();
+    }
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
+  });
 });

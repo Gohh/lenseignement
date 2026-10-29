@@ -23,6 +23,7 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
           { href: '/mon-espace/bilan-lecture', label: 'Mon bilan' },
           { href: '/mon-espace/atelier-securite', label: 'Atelier' },
           { href: '/mon-espace/classe', label: 'Ma classe' },
+          { href: '/mon-espace/devoirs', label: 'Mes devoirs' },
           { href: '/mon-espace/aide', label: 'Aide et tutorat' },
         ]
       : []),
@@ -78,7 +79,10 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
     ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
     ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement')
-      ? [{ href: '/mon-espace/classe', label: 'Classe virtuelle' }]
+      ? [
+          { href: '/mon-espace/classe', label: 'Classe virtuelle' },
+          { href: '/mon-espace/devoirs', label: 'Devoirs' },
+        ]
       : []),
     ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement') || admin
       ? [{ href: '/mon-espace/questions', label: 'Questions des élèves' }]

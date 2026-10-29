@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { and, eq, inArray } from 'drizzle-orm';
 import request from 'supertest';
+import { createSuperadmin } from '../src/db/superadmin.js';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
 import { membershipInvitations, memberships, organizations } from '../src/db/schema.js';
 import { createTestApp, type TestContext } from './helpers.js';
@@ -99,10 +100,39 @@ test('ADR-021 : le superadministrateur gère toutes les structures et les direct
     // La direction ne retire pas sa propre direction ; le superadministrateur peut le faire.
     await call(SUB.bamba, 'patch', `/team/members/${bamba.id}`, 403, { branches: ['primaire'] });
     await call(SUB.awa, 'patch', `/team/members/${bamba.id}`, 200, { branches: null });
+    // Garde-fou : le superadministrateur ne peut pas retirer son propre rôle.
+    const self = team.members.find((m: { isSelf: boolean }) => m.isSelf);
+    assert.equal(self.role, 'superadministrateur');
+    const refused = await call(SUB.awa, 'delete', `/team/members/${self.id}`, 403);
+    assert.match(refused.body.message, /propre rôle/);
   } finally {
     await ctx.db
       .delete(memberships)
       .where(and(eq(memberships.id, row!.id), eq(memberships.role, 'superadministrateur')));
+  }
+});
+
+test("la commande superadmin rend le rôle à un compte qui l'avait perdu", async () => {
+  await createSuperadmin(ctx.db, SUB.yao);
+  const [row] = await ctx.db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(and(eq(memberships.userId, ID.userYao), eq(memberships.role, 'superadministrateur')));
+  try {
+    await ctx.db
+      .update(memberships)
+      .set({ validUntil: new Date(Date.now() - 1000) })
+      .where(eq(memberships.id, row!.id));
+    await createSuperadmin(ctx.db, SUB.yao);
+    const [after] = await ctx.db
+      .select({ validUntil: memberships.validUntil })
+      .from(memberships)
+      .where(eq(memberships.id, row!.id));
+    assert.equal(after!.validUntil, null);
+  } finally {
+    await ctx.db.delete(memberships).where(eq(memberships.id, row!.id));
+    // La commande crée la structure « Plateforme » : on la retire pour ne pas fausser les autres tests.
+    await ctx.db.delete(organizations).where(eq(organizations.name, 'Plateforme'));
   }
 });
 

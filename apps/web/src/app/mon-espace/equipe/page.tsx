@@ -102,12 +102,20 @@ export default async function TeamPage({ searchParams }: Props) {
                   Enregistrer les cycles
                 </button>
               </form>
-              <form action={removeMemberAction} className="mt-2">
-                <input type="hidden" name="memberId" value={m.id} />
-                <button type="submit" className={secondaryButtonClass}>
-                  Retirer ce rôle
-                </button>
-              </form>
+              {m.isSelf || m.role === 'superadministrateur' ? (
+                <p className="mt-2 text-ink-muted">
+                  {m.role === 'superadministrateur'
+                    ? 'Ce rôle ne se retire pas ici.'
+                    : 'Vous ne pouvez pas retirer votre propre rôle.'}
+                </p>
+              ) : (
+                <form action={removeMemberAction} className="mt-2">
+                  <input type="hidden" name="memberId" value={m.id} />
+                  <button type="submit" className={secondaryButtonClass}>
+                    Retirer ce rôle
+                  </button>
+                </form>
+              )}
             </li>
           ))}
         </ul>

@@ -81,3 +81,52 @@ test('la direction crée une classe, y affecte un enseignant, et un élève la r
   await call(SUB.bamba, 'post', `/cohorts/${id}/restore`, 200);
   await call(SUB.bamba, 'delete', `/cohorts/${id}/teachers/${ID.userKoffi}`, 200);
 });
+
+test('passage de classe : la direction fait passer ou retire des élèves', async () => {
+  const mk = async (name: string, level: string) =>
+    (
+      await call(SUB.bamba, 'post', '/cohorts', 201, {
+        organizationId: ID.orgManguiers,
+        level,
+        name,
+        schoolYear: '2027-2028',
+      })
+    ).body.id as string;
+  const from = await mk(`CE2 passage ${Date.now() % 100000}`, 'ce2');
+  const to = await mk(`CM1 passage ${Date.now() % 100000}`, 'cm1');
+  const codeOf = async (id: string) =>
+    (
+      await call(SUB.bamba, 'get', `/organizations/${ID.orgManguiers}/cohorts`, 200)
+    ).body.items.find((c: { id: string }) => c.id === id).joinCode;
+  await call(SUB.fatou, 'post', '/me/join-cohort', 200, { code: await codeOf(from) });
+  await call(SUB.mariam, 'post', '/me/join-cohort', 200, { code: await codeOf(from) });
+
+  // Seule la direction a ces outils.
+  await call(SUB.aminata, 'get', `/cohorts/${from}/roster-tools`, 404);
+  const tools = (await call(SUB.bamba, 'get', `/cohorts/${from}/roster-tools`, 200)).body;
+  assert.ok(tools.targets.some((t: { id: string }) => t.id === to));
+  assert.ok(!tools.targets.some((t: { id: string }) => t.id === from));
+
+  await call(SUB.aminata, 'post', `/cohorts/${from}/transfer`, 404, { toCohortId: to });
+  await call(SUB.bamba, 'post', `/cohorts/${from}/transfer`, 400, { toCohortId: from });
+  await call(SUB.bamba, 'post', `/cohorts/${from}/transfer`, 400, {
+    toCohortId: to,
+    learnerIds: [ID.userAwa],
+  });
+  const moved = (
+    await call(SUB.bamba, 'post', `/cohorts/${from}/transfer`, 200, { toCohortId: to })
+  ).body;
+  assert.equal(moved.moved, 2);
+
+  const view = (await call(SUB.bamba, 'get', `/organizations/${ID.orgManguiers}/cohorts`, 200))
+    .body;
+  const count = (id: string) =>
+    view.items.find((c: { id: string }) => c.id === id).learnerCount as number;
+  assert.equal(count(from), 0);
+  assert.equal(count(to), 2);
+
+  // Retirer un élève de la nouvelle classe.
+  await call(SUB.aminata, 'delete', `/cohorts/${to}/learners/${ID.userFatou}`, 404);
+  await call(SUB.bamba, 'delete', `/cohorts/${to}/learners/${ID.userFatou}`, 200);
+  await call(SUB.bamba, 'delete', `/cohorts/${to}/learners/${ID.userFatou}`, 404);
+});

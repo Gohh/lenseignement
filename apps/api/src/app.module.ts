@@ -5,6 +5,7 @@ import { CatalogController } from './catalog/catalog.controller.js';
 import { CatalogCoursesController } from './catalog/catalog-courses.controller.js';
 import { ClassSessionsController } from './sessions/class-sessions.controller.js';
 import { AssignmentsController } from './assignments/assignments.controller.js';
+import { LibraryController } from './library/library.controller.js';
 import { CohortAdminController } from './cohorts/cohort-admin.controller.js';
 import { CohortsController } from './cohorts/cohorts.controller.js';
 import { AuthoringController } from './courses/authoring.controller.js';
@@ -36,6 +37,7 @@ import { StatsController } from './stats/stats.controller.js';
     CohortAdminController,
     ClassSessionsController,
     AssignmentsController,
+    LibraryController,
     LearnersController,
     AuthoringController,
     LearningController,

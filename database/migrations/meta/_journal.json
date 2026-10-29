@@ -148,6 +148,13 @@
       "when": 1793202693954,
       "tag": "0020_equipe_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793253254347,
+      "tag": "0021_profils_inscription",
+      "breakpoints": true
     }
   ]
 }

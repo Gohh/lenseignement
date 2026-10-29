@@ -34,6 +34,15 @@ export default async function MyspacePage() {
     apiGet<{ items: LearningPlanItem[] }>(session.accessToken, '/me/learning-plan'),
   ]);
   const followed = plan.ok ? plan.data.items : [];
+  // Compte neuf, sans profil ni rattachement : on commence par demander qui on est.
+  if (
+    me.ok &&
+    me.data.profiles.length === 0 &&
+    me.data.memberships.length === 0 &&
+    session.roles.length === 0
+  ) {
+    redirect('/mon-espace/bienvenue');
+  }
   const roles = session.roles.filter((role) => role in ROLE_LABELS);
   const resume = followed.find((c) => c.resumeAt && !c.finished);
 

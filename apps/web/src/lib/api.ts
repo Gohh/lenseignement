@@ -85,6 +85,8 @@ export interface Me {
   displayName: string | null;
   /** Cycle et niveau que la personne a choisis pour elle-même. */
   level: string | null;
+  /** Profils choisis à l'inscription : apprenant, parent, répétiteur. */
+  profiles: string[];
   memberships: Membership[];
 }
 

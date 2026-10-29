@@ -49,6 +49,10 @@ export const organizations = pgTable(
   ],
 );
 
+/** Profils qu'une personne choisit pour elle-même à l'inscription (les rôles d'équipe, eux, s'obtiennent par invitation). */
+export const SELF_PROFILES = ['apprenant', 'parent', 'repetiteur'] as const;
+export type SelfProfile = (typeof SELF_PROFILES)[number];
+
 export const ACCOUNT_TYPES = ['minor', 'adult', 'staff', 'unknown'] as const;
 
 /** Compte applicatif lié à l'identité OIDC. Aucune donnée sensible ici (cahier §6.4). */
@@ -62,12 +66,21 @@ export const users = pgTable(
     displayName: text('display_name'),
     /** Niveau ou classe d'un enfant ajouté par son parent (ADR-020). */
     level: text('level'),
+    /** Profils choisis à l'inscription : apprenant, parent, répétiteur (plusieurs possibles). */
+    profiles: text('profiles')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     status: text('status').notNull().default('active'),
     createdAt: createdAt(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
   (t) => [
     check('users_account_type_check', sql`${t.accountType} in ('minor','adult','staff','unknown')`),
+    check(
+      'users_profiles_check',
+      sql`${t.profiles} <@ array[${sql.raw(SELF_PROFILES.map((p) => `'${p}'`).join(','))}]::text[]`,
+    ),
     check('users_status_check', sql`${t.status} in ('active','suspended')`),
     check(
       'users_level_check',

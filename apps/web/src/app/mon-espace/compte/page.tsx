@@ -40,6 +40,12 @@ export default async function AccountPage({ searchParams }: Props) {
       <div className="rounded-big border border-line bg-surface p-5">
         <h2 className="text-xl font-extrabold">Mon nom</h2>
         <p className="mt-2 text-lg">{session.displayName}</p>
+        <a
+          href="/mon-espace/bienvenue"
+          className="mt-2 inline-flex min-h-[44px] items-center font-bold underline"
+        >
+          Changer mes profils (apprenant, parent, répétiteur)
+        </a>
       </div>
       <form
         action={setLevelAction}

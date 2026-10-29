@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "profiles" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_profiles_check" CHECK ("users"."profiles" <@ array['apprenant','parent','repetiteur']::text[]);

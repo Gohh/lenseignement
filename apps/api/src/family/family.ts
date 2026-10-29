@@ -106,6 +106,11 @@ export async function createChild(
       status: 'verified',
       verifiedAt: sql`now()`,
     });
+    // Le profil suit l'usage : qui ajoute un enfant est parent, qui saisit un code est répétiteur.
+    await tx
+      .update(users)
+      .set({ profiles: sql`array(select distinct unnest(profiles || array['parent']))` })
+      .where(eq(users.id, guardianId));
     return childId;
   });
   await audit(db, guardianId, 'family.child.create', id, 'guardian', traceId);
@@ -198,6 +203,11 @@ export async function redeemInvitation(
       .update(tutorInvitations)
       .set({ usedByUserId: tutorId, usedAt: sql`now()` })
       .where(eq(tutorInvitations.id, invitation.id));
+    // Le profil suit l'usage : qui ajoute un enfant est parent, qui saisit un code est répétiteur.
+    await tx
+      .update(users)
+      .set({ profiles: sql`array(select distinct unnest(profiles || array['repetiteur']))` })
+      .where(eq(users.id, tutorId));
     return stillOwn.map((r) => r.id);
   });
   await audit(db, tutorId, 'family.invitation.redeem', linked.join(','), 'tutor', traceId);

@@ -11,7 +11,11 @@ export interface SpaceMenuItem {
 export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): SpaceMenuItem[] {
   const memberRoles = new Set(me ? me.memberships.map((m) => m.role) : []);
   const has = (roles: Set<string>) => [...memberRoles].some((role) => roles.has(role));
-  const learner = sessionRoles.includes('apprenant');
+  // Le menu suit les profils choisis à l'inscription (et les rôles déjà portés par le compte).
+  const profiles = new Set(me?.profiles ?? []);
+  const learner = profiles.has('apprenant') || sessionRoles.includes('apprenant');
+  const parent = profiles.has('parent') || sessionRoles.includes('parent');
+  const tutor = profiles.has('repetiteur') || sessionRoles.includes('repetiteur');
   return [
     { href: '/mon-espace', label: 'Vue d’ensemble' },
     ...(learner
@@ -20,8 +24,8 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
           { href: '/mon-espace/atelier-securite', label: 'Atelier' },
         ]
       : []),
-    { href: '/mon-espace/famille', label: 'Ma famille' },
-    { href: '/mon-espace/repetiteur', label: 'Répétiteur' },
+    ...(parent ? [{ href: '/mon-espace/famille', label: 'Ma famille' }] : []),
+    ...(tutor ? [{ href: '/mon-espace/repetiteur', label: 'Mes élèves' }] : []),
     ...(has(TEAM_ROLES) ? [{ href: '/mon-espace/equipe', label: 'Équipe' }] : []),
     ...(has(AUTHOR_ROLES) ? [{ href: '/mon-espace/cours', label: 'Rédiger', section: true }] : []),
     ...(has(VALIDATOR_ROLES)

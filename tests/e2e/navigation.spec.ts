@@ -13,6 +13,7 @@ test.describe('Navigation', () => {
       'Mon travail',
       'Cours',
       'Relecture',
+      'Classe virtuelle',
       'Questions des élèves',
       'Statistiques',
       'Établissements',
@@ -62,6 +63,7 @@ test.describe('Navigation', () => {
       'Vue d’ensemble',
       'Mon bilan',
       'Atelier',
+      'Ma classe',
       'Aide et tutorat',
     ]);
     await expect(menu(page).getByRole('link', { name: 'Atelier' })).toHaveAttribute(

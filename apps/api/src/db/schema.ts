@@ -1112,3 +1112,30 @@ export const helpQuestions = pgTable(
     check('help_questions_kind_check', sql`${t.kind} in ('not_understood','stuck','other')`),
   ],
 );
+
+/** Séance de classe virtuelle : visio (salon Jitsi) programmée pour une classe. */
+export const classSessions = pgTable(
+  'class_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cohortId: uuid('cohort_id')
+      .notNull()
+      .references(() => cohorts.id),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    title: text('title').notNull(),
+    subject: text('subject'),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    /** Nom du salon de visio : choisi au hasard, il n'est donné qu'aux membres de la classe. */
+    room: text('room').notNull().unique(),
+    summary: text('summary'),
+    resourceUrl: text('resource_url'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('class_sessions_cohort_idx').on(t.cohortId, t.startsAt),
+    check('class_sessions_duration_check', sql`${t.durationMinutes} between 15 and 240`),
+  ],
+);

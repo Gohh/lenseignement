@@ -16,3 +16,4 @@ export * from './stats.js';
 export * from './promotion.js';
 export * from './help.js';
 export * from './cohorts.js';
+export * from './class-sessions.js';

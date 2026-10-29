@@ -22,4 +22,5 @@ export * from './achievements.js';
 export * from './resources.js';
 export * from './evaluations.js';
 export * from './messages.js';
+export * from './accounts.js';
 export * from './direction.js';

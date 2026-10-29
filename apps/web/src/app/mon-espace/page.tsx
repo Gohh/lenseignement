@@ -101,36 +101,37 @@ export default async function MyspacePage() {
       )}
 
       <div className="space-y-4">
-        {roles.length > 0 ? (
-          <ul className="flex flex-wrap gap-2" role="list">
-            {roles.map((role) => (
-              <li
-                key={role}
-                className="rounded-full bg-primary-soft px-4 py-1 font-bold text-primary"
-              >
-                {ROLE_LABELS[role]}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-ink-muted">Aucun profil n’est encore attribué à votre compte.</p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/mon-espace/bienvenue"
-                className="inline-flex min-h-[44px] items-center rounded-full bg-primary px-5 font-bold text-surface no-underline hover:bg-primary-dark"
-              >
-                Choisir mon profil
-              </Link>
-              <Link
-                href="/mon-espace/rejoindre"
-                className="inline-flex min-h-[44px] items-center rounded-full border border-primary px-5 font-bold text-primary no-underline hover:bg-primary-soft"
-              >
-                J’ai un code d’invitation
-              </Link>
+        {!staff &&
+          (roles.length > 0 ? (
+            <ul className="flex flex-wrap gap-2" role="list">
+              {roles.map((role) => (
+                <li
+                  key={role}
+                  className="rounded-full bg-primary-soft px-4 py-1 font-bold text-primary"
+                >
+                  {ROLE_LABELS[role]}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-ink-muted">Aucun profil n’est encore attribué à votre compte.</p>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/mon-espace/bienvenue"
+                  className="inline-flex min-h-[44px] items-center rounded-full bg-primary px-5 font-bold text-surface no-underline hover:bg-primary-dark"
+                >
+                  Choisir mon profil
+                </Link>
+                <Link
+                  href="/mon-espace/rejoindre"
+                  className="inline-flex min-h-[44px] items-center rounded-full border border-primary px-5 font-bold text-primary no-underline hover:bg-primary-soft"
+                >
+                  J’ai un code d’invitation
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
+          ))}
         {me.ok && me.data.memberships.length > 0 && (
           <ul className="space-y-1 text-ink-muted" data-testid="memberships">
             {me.data.memberships.map((m) => (

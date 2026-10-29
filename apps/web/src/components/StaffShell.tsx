@@ -54,7 +54,6 @@ export function StaffShell({ menu, displayName, roleLabel, courses, children }: 
         aria-label="Administration"
         className="flex flex-col gap-4 rounded-big bg-ink-strong p-4 text-surface lg:sticky lg:top-4 lg:w-64 lg:flex-none"
       >
-        <p className="px-3 pt-1 font-display text-xl font-extrabold">L’Enseignement</p>
         <nav aria-label="Menu de mon espace" className="space-y-3">
           <ul role="list" className="space-y-1">
             {menu.main.map((item) => (

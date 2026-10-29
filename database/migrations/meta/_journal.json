@@ -204,6 +204,13 @@
       "when": 1793288856789,
       "tag": "0028_classes_code",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793290290006,
+      "tag": "0029_classe_virtuelle",
+      "breakpoints": true
     }
   ]
 }

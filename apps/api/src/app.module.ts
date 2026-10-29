@@ -3,6 +3,7 @@ import { AccessModule } from './access/access.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CatalogController } from './catalog/catalog.controller.js';
 import { CatalogCoursesController } from './catalog/catalog-courses.controller.js';
+import { ClassSessionsController } from './sessions/class-sessions.controller.js';
 import { CohortAdminController } from './cohorts/cohort-admin.controller.js';
 import { CohortsController } from './cohorts/cohorts.controller.js';
 import { AuthoringController } from './courses/authoring.controller.js';
@@ -32,6 +33,7 @@ import { StatsController } from './stats/stats.controller.js';
     MeController,
     CohortsController,
     CohortAdminController,
+    ClassSessionsController,
     LearnersController,
     AuthoringController,
     LearningController,

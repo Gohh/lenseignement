@@ -42,7 +42,10 @@ test.describe('Rattrapage en lecture (ticket 17)', () => {
   }, testInfo) => {
     const username = freshLearner(testInfo);
     await loginAs(page, username, '/mon-espace');
-    await page.getByRole('link', { name: 'Mon bilan de lecture' }).click();
+    await page
+      .getByRole('navigation', { name: 'Menu de mon espace' })
+      .getByRole('link', { name: 'Mon bilan' })
+      .click();
     await expect(page.getByRole('heading', { name: 'Passer le bilan' })).toBeVisible();
 
     await answer(page, DIAGNOSTIC);

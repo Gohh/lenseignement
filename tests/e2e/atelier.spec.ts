@@ -53,7 +53,10 @@ test.describe('Atelier virtuel de sécurité (ticket 18)', () => {
   }, testInfo) => {
     const username = freshLearner(testInfo);
     await loginAs(page, username, '/mon-espace');
-    await page.getByRole('link', { name: 'Atelier virtuel : sécurité' }).click();
+    await page
+      .getByRole('navigation', { name: 'Menu de mon espace' })
+      .getByRole('link', { name: 'Atelier' })
+      .click();
     const practice = page.getByTestId('practice-status');
     await expect(practice).toContainText('🔒 Bloquée');
     await expect(page.getByText('ne touche jamais une installation')).toBeVisible();

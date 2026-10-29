@@ -17,7 +17,10 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
     page,
   }) => {
     await loginAs(page, 'directeur.demo', '/mon-espace');
-    await page.getByRole('link', { name: 'Statistiques anonymes' }).click();
+    await page
+      .getByRole('navigation', { name: 'Menu de mon espace' })
+      .getByRole('link', { name: 'Statistiques' })
+      .click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Statistiques anonymes');
     await expect(page.getByTestId('stats-scope')).toHaveText(
       'Structures : École primaire Les Manguiers (fictive).',
@@ -45,7 +48,11 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
   test('un enseignant n’a pas accès au tableau', async ({ page }) => {
     await loginAs(page, 'enseignant.demo', '/mon-espace');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Statistiques anonymes' })).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Menu de mon espace' })
+        .getByRole('link', { name: 'Statistiques' }),
+    ).toHaveCount(0);
     await page.goto(PAGE);
     await expect(page.getByText('Ce tableau est réservé')).toBeVisible();
   });

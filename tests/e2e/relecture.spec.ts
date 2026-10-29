@@ -88,7 +88,11 @@ test.describe('Relecture et publication des cours (ticket 9)', () => {
     await expect(page.getByText('Aucune action de validation ne vous revient')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Approuver' })).toHaveCount(0);
     await page.goto('/mon-espace');
-    await expect(page.getByRole('link', { name: 'À relire et à publier' })).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Menu de mon espace' })
+        .getByRole('link', { name: 'Relecture' }),
+    ).toHaveCount(0);
   });
 
   test('E2E-16 : relecture sans violation axe WCAG A/AA', async ({ page }) => {

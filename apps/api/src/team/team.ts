@@ -113,13 +113,14 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
     .from(organizations)
     .where(sql`${organizations.id} in ${scope} and ${organizations.archivedAt} is null`)
     .orderBy(asc(organizations.name));
+  // Plateforme vide : le superadministrateur doit quand même pouvoir créer le premier établissement.
   if (orgs.length === 0)
     return {
       organizations: [],
       members: [],
       grantable: [],
-      canCreateOrganization: false,
-      everywhere: false,
+      canCreateOrganization: powers.canCreateOrganization,
+      everywhere: powers.everywhere,
       directions: [],
     };
   const rows = await db

@@ -65,7 +65,14 @@ export default async function TeamPage({ searchParams }: Props) {
     return (
       <section className="space-y-4">
         <h1 className="text-3xl font-bold">Équipe</h1>
-        <p>Cette page est réservée à la direction, aux gestionnaires et aux administrateurs.</p>
+        {team.canCreateOrganization ? (
+          <p>
+            Aucun établissement pour le moment. Commencez par en{' '}
+            <a href="/mon-espace/configuration">créer un</a>, puis invitez son équipe.
+          </p>
+        ) : (
+          <p>Cette page est réservée à la direction, aux gestionnaires et aux administrateurs.</p>
+        )}
       </section>
     );
   }

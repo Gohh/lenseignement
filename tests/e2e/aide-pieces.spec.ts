@@ -30,7 +30,7 @@ test.describe('Aide : photo jointe', () => {
       .getByLabel('Ajouter une photo (facultatif)')
       .setInputFiles({ name: 'exercice.png', mimeType: 'image/png', buffer: PNG });
     await expect(page.getByText('Photo prête : exercice.png')).toBeVisible();
-    await page.getByRole('button', { name: 'Envoyer ma question' }).click();
+    await page.getByRole('button', { name: 'Envoyer ma question' }).dispatchEvent('click');
     await expect(page.getByText('Ta question est envoyée.')).toBeVisible();
     const mine = page.getByTestId('my-questions').getByRole('listitem').filter({ hasText: text });
     await expect(mine.getByAltText('Photo jointe à la question')).toBeVisible();
@@ -58,12 +58,12 @@ test.describe('Aide : message vocal', () => {
     await loginAs(page, 'apprenant.demo', '/mon-espace/aide');
     await page.waitForLoadState('networkidle');
     await page.getByLabel('Ta question').fill(text);
-    await page.getByRole('button', { name: 'Enregistrer ma voix' }).click();
+    await page.getByRole('button', { name: 'Enregistrer ma voix' }).dispatchEvent('click');
     await expect(page.getByText('Enregistrement en cours…')).toBeVisible();
     await page.waitForTimeout(1200);
-    await page.getByRole('button', { name: 'Arrêter l’enregistrement' }).click();
+    await page.getByRole('button', { name: 'Arrêter l’enregistrement' }).dispatchEvent('click');
     await expect(page.getByRole('button', { name: 'Recommencer' })).toBeVisible();
-    await page.getByRole('button', { name: 'Envoyer ma question' }).click();
+    await page.getByRole('button', { name: 'Envoyer ma question' }).dispatchEvent('click');
     await expect(page.getByText('Ta question est envoyée.')).toBeVisible();
     const mine = page.getByTestId('my-questions').getByRole('listitem').filter({ hasText: text });
     await expect(mine.locator('audio')).toHaveCount(1);

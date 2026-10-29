@@ -24,6 +24,7 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
           { href: '/mon-espace/atelier-securite', label: 'Atelier' },
           { href: '/mon-espace/classe', label: 'Ma classe' },
           { href: '/mon-espace/devoirs', label: 'Mes devoirs' },
+          { href: '/mon-espace/evaluations', label: 'Mes notes' },
           { href: '/mon-espace/bibliotheque', label: 'Bibliothèque' },
           { href: '/mon-espace/reussites', label: 'Mes réussites' },
           { href: '/mon-espace/aide', label: 'Aide et tutorat' },
@@ -84,6 +85,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
       ? [
           { href: '/mon-espace/classe', label: 'Classe virtuelle' },
           { href: '/mon-espace/devoirs', label: 'Devoirs' },
+          { href: '/mon-espace/evaluations', label: 'Évaluations' },
           { href: '/mon-espace/bibliotheque', label: 'Bibliothèque' },
         ]
       : []),

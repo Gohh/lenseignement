@@ -22,10 +22,16 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
       ? [
           { href: '/mon-espace/bilan-lecture', label: 'Mon bilan' },
           { href: '/mon-espace/atelier-securite', label: 'Atelier' },
+          { href: '/mon-espace/aide', label: 'Aide et tutorat' },
         ]
       : []),
     ...(parent ? [{ href: '/mon-espace/famille', label: 'Ma famille' }] : []),
-    ...(tutor ? [{ href: '/mon-espace/repetiteur', label: 'Mes élèves' }] : []),
+    ...(tutor
+      ? [
+          { href: '/mon-espace/repetiteur', label: 'Mes élèves' },
+          { href: '/mon-espace/questions', label: 'Questions des élèves' },
+        ]
+      : []),
     ...(has(TEAM_ROLES)
       ? [
           { href: '/mon-espace/equipe', label: 'Équipe' },
@@ -70,6 +76,9 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     ...(author || validator ? [{ href: '/mon-espace/travail', label: 'Mon travail' }] : []),
     ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
     ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
+    ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement')
+      ? [{ href: '/mon-espace/questions', label: 'Questions des élèves' }]
+      : []),
     ...(validator || team ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }] : []),
   ];
   const groups: StaffMenuGroup[] = [

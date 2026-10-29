@@ -1,6 +1,7 @@
 import { apiGet, type Me } from '@/lib/api';
 import { getSession } from '@/lib/session';
-import { spaceMenuItems } from '@/lib/space-menu';
+import { HelpBell } from '@/components/HelpBell';
+import { spaceMenuItems, staffMenu } from '@/lib/space-menu';
 
 /** Après l'inscription : choisir son profil (apprenant, parent, répétiteur, équipe). */
 const WELCOME = '/mon-espace/bienvenue';
@@ -47,37 +48,42 @@ export async function AccountMenu() {
   const me = await apiGet<Me>(session.accessToken, '/me');
   const items = spaceMenuItems(session.roles, me.ok ? me.data : null);
 
+  const staff = staffMenu(session.roles, me.ok ? me.data : null) !== null;
+
   return (
-    <details className="relative">
-      <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full bg-primary font-display text-lg font-extrabold text-surface shadow-[var(--shadow-press)] marker:hidden [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true">{initialsOf(session.displayName)}</span>
-        <span className="sr-only">Mon compte : {session.displayName}</span>
-      </summary>
-      <div className="absolute right-0 z-50 mt-2 w-64 rounded-big border border-line bg-surface p-2 shadow-soft">
-        <p className="px-3 py-2 text-sm text-ink-muted">
-          Connecté : <span className="font-bold text-ink">{session.displayName}</span>
-        </p>
-        <nav aria-label="Menu du compte">
-          <ul role="list">
-            {items.map((item) => (
-              <li key={item.href}>
-                <a href={item.href} className={itemClass}>
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <hr className="my-2 border-line" />
-        <a href="/mon-espace/compte" className={itemClass}>
-          Modifier mon compte
-        </a>
-        <form method="post" action="/auth/logout">
-          <button type="submit" className={`${itemClass} w-full text-left`}>
-            Se déconnecter
-          </button>
-        </form>
-      </div>
-    </details>
+    <>
+      <HelpBell accessToken={session.accessToken} quietWhenEmpty={staff} />
+      <details className="relative">
+        <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full bg-primary font-display text-lg font-extrabold text-surface shadow-[var(--shadow-press)] marker:hidden [&::-webkit-details-marker]:hidden">
+          <span aria-hidden="true">{initialsOf(session.displayName)}</span>
+          <span className="sr-only">Mon compte : {session.displayName}</span>
+        </summary>
+        <div className="absolute right-0 z-50 mt-2 w-64 rounded-big border border-line bg-surface p-2 shadow-soft">
+          <p className="px-3 py-2 text-sm text-ink-muted">
+            Connecté : <span className="font-bold text-ink">{session.displayName}</span>
+          </p>
+          <nav aria-label="Menu du compte">
+            <ul role="list">
+              {items.map((item) => (
+                <li key={item.href}>
+                  <a href={item.href} className={itemClass}>
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <hr className="my-2 border-line" />
+          <a href="/mon-espace/compte" className={itemClass}>
+            Modifier mon compte
+          </a>
+          <form method="post" action="/auth/logout">
+            <button type="submit" className={`${itemClass} w-full text-left`}>
+              Se déconnecter
+            </button>
+          </form>
+        </div>
+      </details>
+    </>
   );
 }

@@ -13,6 +13,7 @@ test.describe('Navigation', () => {
       'Mon travail',
       'Cours',
       'Relecture',
+      'Questions des élèves',
       'Statistiques',
       'Établissements',
       'Équipe et invitations',
@@ -61,6 +62,7 @@ test.describe('Navigation', () => {
       'Vue d’ensemble',
       'Mon bilan',
       'Atelier',
+      'Aide et tutorat',
     ]);
     await expect(menu(page).getByRole('link', { name: 'Atelier' })).toHaveAttribute(
       'aria-current',

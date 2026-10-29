@@ -1078,3 +1078,32 @@ export const levelRequests = pgTable(
     check('level_requests_status_check', sql`${t.status} in ('pending','approved','declined')`),
   ],
 );
+
+export const HELP_QUESTION_KINDS = ['not_understood', 'stuck', 'other'] as const;
+
+/**
+ * Question d'un apprenant à son enseignant ou répétiteur (aide et tutorat). Une réponse la ferme ;
+ * `learnerSeenAt` sert à la cloche : réponse reçue mais pas encore lue.
+ */
+export const helpQuestions = pgTable(
+  'help_questions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    kind: text('kind', { enum: HELP_QUESTION_KINDS }).notNull(),
+    body: text('body').notNull(),
+    courseId: uuid('course_id').references(() => courses.id),
+    lessonNumber: integer('lesson_number'),
+    answer: text('answer'),
+    answeredByUserId: uuid('answered_by_user_id').references(() => users.id),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+    learnerSeenAt: timestamp('learner_seen_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('help_questions_learner_idx').on(t.learnerUserId),
+    check('help_questions_kind_check', sql`${t.kind} in ('not_understood','stuck','other')`),
+  ],
+);

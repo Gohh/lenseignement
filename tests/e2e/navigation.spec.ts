@@ -17,6 +17,7 @@ test.describe('Navigation', () => {
       'Devoirs',
       'Évaluations',
       'Bibliothèque',
+      'Messages',
       'Questions des élèves',
       'Statistiques',
       'Établissements',

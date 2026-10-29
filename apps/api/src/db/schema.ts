@@ -1253,3 +1253,42 @@ export const evaluationScores = pgTable(
   },
   (t) => [unique('evaluation_scores_once').on(t.evaluationId, t.learnerUserId)],
 );
+
+/** Conversation entre un parent et l'enseignant de son enfant, à propos de cet enfant. */
+export const parentConversations = pgTable(
+  'parent_conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    parentUserId: uuid('parent_user_id')
+      .notNull()
+      .references(() => users.id),
+    teacherUserId: uuid('teacher_user_id')
+      .notNull()
+      .references(() => users.id),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('parent_conversations_trio').on(t.parentUserId, t.teacherUserId, t.learnerUserId),
+    index('parent_conversations_teacher_idx').on(t.teacherUserId),
+  ],
+);
+
+export const parentMessages = pgTable(
+  'parent_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => parentConversations.id, { onDelete: 'cascade' }),
+    senderUserId: uuid('sender_user_id')
+      .notNull()
+      .references(() => users.id),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (t) => [index('parent_messages_conversation_idx').on(t.conversationId, t.createdAt)],
+);

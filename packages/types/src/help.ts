@@ -55,4 +55,6 @@ export interface HelpBadge {
   toGrade: number;
   /** Séances de classe virtuelle en cours ou dans les 24 heures. */
   sessions: number;
+  /** Messages de parents ou d'enseignants pas encore lus. */
+  messages: number;
 }

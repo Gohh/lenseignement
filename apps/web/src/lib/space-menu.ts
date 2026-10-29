@@ -30,7 +30,12 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
           { href: '/mon-espace/aide', label: 'Aide et tutorat' },
         ]
       : []),
-    ...(parent ? [{ href: '/mon-espace/famille', label: 'Ma famille' }] : []),
+    ...(parent
+      ? [
+          { href: '/mon-espace/famille', label: 'Ma famille' },
+          { href: '/mon-espace/messages', label: 'Messages' },
+        ]
+      : []),
     ...(tutor
       ? [
           { href: '/mon-espace/repetiteur', label: 'Mes élèves' },
@@ -87,6 +92,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
           { href: '/mon-espace/devoirs', label: 'Devoirs' },
           { href: '/mon-espace/evaluations', label: 'Évaluations' },
           { href: '/mon-espace/bibliotheque', label: 'Bibliothèque' },
+          { href: '/mon-espace/messages', label: 'Messages' },
         ]
       : []),
     ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement') || admin

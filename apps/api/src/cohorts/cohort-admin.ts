@@ -1,14 +1,18 @@
 import { randomInt } from 'node:crypto';
 import {
+  learnerUsername,
   levelLabel,
   levelsForOrganizationType,
+  type AddLearnersResult,
   type CohortAdminItem,
+  type NewLearner,
   type CohortRosterTools,
   type OrganizationCohorts,
 } from '@lenseignement/types';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { cohortMembers, cohorts, memberships, organizations, users } from '../db/schema.js';
+import { IdentityError, temporaryPassword, type IdentityAdmin } from '../team/identity-admin.js';
 import { assertManages, audit, TeamError } from '../team/team.js';
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -279,7 +283,7 @@ export async function rosterTools(
   db: Database,
   userId: string,
   cohortId: string,
-): Promise<CohortRosterTools> {
+): Promise<Omit<CohortRosterTools, 'canCreateAccounts'>> {
   const cohort = await managedCohort(db, userId, cohortId);
   const rows = await db
     .select()
@@ -372,4 +376,77 @@ export async function transferLearners(
     await audit(db, userId, 'cohort.learners.transfer', cohortId, traceId);
     return { moved: chosen.length };
   });
+}
+
+/**
+ * La direction inscrit des élèves qui n'ont pas d'e-mail : un compte par élève, avec un
+ * identifiant « prenom.nom » et un mot de passe provisoire à leur remettre sur papier.
+ */
+export async function addLearners(
+  db: Database,
+  identity: IdentityAdmin,
+  userId: string,
+  cohortId: string,
+  learners: NewLearner[],
+  traceId?: string,
+): Promise<AddLearnersResult> {
+  const cohort = await managedCohort(db, userId, cohortId);
+  if (cohort.archivedAt) throw new TeamError('invalid', 'Cette classe est archivée.');
+  if (!identity.configured()) {
+    throw new TeamError(
+      'invalid',
+      'La création de comptes n’est pas encore configurée dans Keycloak.',
+    );
+  }
+  const result: AddLearnersResult = { created: [], failed: [] };
+  for (const learner of learners) {
+    const displayName = `${learner.firstName} ${learner.lastName}`;
+    const base = learnerUsername(learner);
+    const password = temporaryPassword();
+    let account: { id: string; username: string } | undefined;
+    let reason = 'Le compte n’a pas pu être créé.';
+    // Homonymes : « awa.kone », puis « awa.kone27 »…
+    for (let attempt = 0; attempt < 6 && !account; attempt++) {
+      const username = attempt === 0 ? base : `${base}${randomInt(10, 100)}`;
+      try {
+        const created = await identity.createUser({
+          username,
+          firstName: learner.firstName,
+          lastName: learner.lastName,
+          temporaryPassword: password,
+        });
+        account = { id: created.id, username };
+      } catch (error) {
+        if (!(error instanceof IdentityError)) throw error;
+        reason = error.message;
+        if (error.kind !== 'exists') break;
+      }
+    }
+    if (!account) {
+      result.failed.push({ displayName, reason });
+      continue;
+    }
+    await db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({
+          oidcSubject: account.id,
+          displayName,
+          profiles: ['apprenant'],
+          level: cohort.level,
+        })
+        .returning({ id: users.id });
+      await tx
+        .insert(cohortMembers)
+        .values({ cohortId, userId: user!.id, role: 'apprenant' })
+        .onConflictDoNothing();
+      await tx
+        .insert(memberships)
+        .values({ userId: user!.id, organizationId: cohort.organizationId, role: 'apprenant' })
+        .onConflictDoNothing();
+    });
+    result.created.push({ displayName, username: account.username, temporaryPassword: password });
+  }
+  await audit(db, userId, 'cohort.learners.add', cohortId, traceId);
+  return result;
 }

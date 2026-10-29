@@ -25,6 +25,8 @@ La page **Équipe → « + Créer un compte »** crée la personne directement d
 
 Connecte-toi en superadministrateur, ouvre **Équipe**, clique **+ Créer un compte**, remplis le formulaire. Le mot de passe provisoire s'affiche **une seule fois** : note-le et donne-le à la personne. À sa première connexion, Keycloak lui demande d'en choisir un nouveau.
 
+Le même réglage sert à **inscrire des élèves** qui n'ont pas d'e-mail : ouvre une classe, clique **+ Inscrire des élèves**, colle la liste (une ligne par élève : `Nom ; Prénom`) ou choisis un fichier CSV enregistré depuis Excel. Chaque élève reçoit un identifiant du type `awa.kone` et un mot de passe provisoire : imprime ou télécharge la liste tout de suite, elle ne sera plus affichée.
+
 ## Si ça ne marche pas
 
 - « La création de comptes n'est pas encore configurée » : la ligne du `.env` manque, ou `pnpm start` n'a pas été relancé.

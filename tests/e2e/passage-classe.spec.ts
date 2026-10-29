@@ -49,6 +49,12 @@ test.describe('Passage de classe', () => {
     await expect(page.getByTestId('roster').getByRole('listitem')).toHaveCount(1);
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations).toEqual([]);
+
+    // Inscrire des élèves sans e-mail : ici Keycloak n'est pas réglé, la page le dit.
+    await page.getByRole('button', { name: '+ Inscrire des élèves' }).click();
+    await expect(page.getByRole('dialog')).toContainText('réglage unique dans Keycloak');
+    await page.keyboard.press('Escape');
+
     await page.getByLabel('Nouvelle classe').selectOption({ index: 0 });
     await page.getByRole('button', { name: 'Faire passer' }).click();
     await expect(page.getByText('1 élève est passé dans la nouvelle classe.')).toBeVisible();

@@ -14,12 +14,16 @@ export class IdentityError extends Error {
 /** Création de comptes dans le fournisseur d'identité (Keycloak), avec un mot de passe provisoire. */
 export interface IdentityAdmin {
   configured(): boolean;
-  createUser(input: {
-    email: string;
-    firstName: string;
-    lastName: string;
-    temporaryPassword: string;
-  }): Promise<{ id: string }>;
+  createUser(input: NewIdentity): Promise<{ id: string }>;
+}
+
+export interface NewIdentity {
+  /** Identifiant de connexion : l'e-mail pour l'équipe, « prenom.nom12 » pour un élève sans e-mail. */
+  username: string;
+  email?: string;
+  firstName: string;
+  lastName: string;
+  temporaryPassword: string;
 }
 
 export interface KeycloakAdminOptions {
@@ -68,12 +72,7 @@ export class KeycloakAdmin implements IdentityAdmin {
     return ((await res.json()) as { access_token: string }).access_token;
   }
 
-  async createUser(input: {
-    email: string;
-    firstName: string;
-    lastName: string;
-    temporaryPassword: string;
-  }): Promise<{ id: string }> {
+  async createUser(input: NewIdentity): Promise<{ id: string }> {
     if (!this.configured()) {
       throw new IdentityError(
         'not_configured',
@@ -85,18 +84,20 @@ export class KeycloakAdmin implements IdentityAdmin {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        username: input.email,
-        email: input.email,
+        username: input.username,
+        ...(input.email ? { email: input.email, emailVerified: true } : {}),
         firstName: input.firstName,
         lastName: input.lastName,
         enabled: true,
-        emailVerified: true,
         credentials: [{ type: 'password', value: input.temporaryPassword, temporary: true }],
       }),
     }).catch(() => undefined);
     if (!res) throw new IdentityError('failed', 'Keycloak ne répond pas.');
     if (res.status === 409) {
-      throw new IdentityError('exists', 'Un compte existe déjà avec cet e-mail.');
+      throw new IdentityError(
+        'exists',
+        input.email ? 'Un compte existe déjà avec cet e-mail.' : 'Cet identifiant est déjà pris.',
+      );
     }
     if (res.status === 403) {
       throw new IdentityError(

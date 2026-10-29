@@ -1,5 +1,6 @@
 'use server';
 
+import { CurriculumTableMetaSchema, curriculumFromTable } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -38,6 +39,48 @@ export async function importCurriculumAction(
     'POST',
     '/admin/curricula',
     { json },
+  );
+  if (!result.ok) return { error: result.message ?? 'Import impossible.' };
+  back(
+    'message',
+    'Brouillon importé. Relisez-le, puis publiez-le avec sa date d’entrée en vigueur.',
+    versionPath(result.data.code, result.data.label),
+  );
+}
+
+/**
+ * Import d'un tableau (Excel enregistré en CSV) : le formulaire donne le programme et la
+ * version, le tableau les compétences. Il est transformé en fichier de programme ici, puis
+ * vérifié par l'API comme un fichier JSON.
+ */
+export async function importCurriculumTableAction(
+  _prev: ImportCurriculumState,
+  form: FormData,
+): Promise<ImportCurriculumState> {
+  const file = form.get('table');
+  const csv = file instanceof File && file.size > 0 ? await file.text() : '';
+  if (!csv) return { error: 'Choisissez le tableau des compétences (.csv).' };
+  if (csv.length > 900_000) return { error: 'Le tableau est trop gros (900 Ko au plus).' };
+  const meta = CurriculumTableMetaSchema.safeParse({
+    code: text(form, 'code'),
+    branch: text(form, 'branch'),
+    title: text(form, 'title'),
+    description: text(form, 'description'),
+    label: text(form, 'label'),
+    sourceTitle: text(form, 'sourceTitle'),
+    sourceIssuer: text(form, 'sourceIssuer'),
+    isOfficial: form.get('isOfficial') === 'on',
+  });
+  if (!meta.success) {
+    return { error: meta.error.issues.map((i) => i.message).join('\n') };
+  }
+  const { file: curriculum, errors } = curriculumFromTable(csv, meta.data);
+  if (errors.length > 0) return { error: errors.slice(0, 20).join('\n') };
+  const result = await apiSend<{ code: string; label: string }>(
+    await token(),
+    'POST',
+    '/admin/curricula',
+    { json: JSON.stringify(curriculum) },
   );
   if (!result.ok) return { error: result.message ?? 'Import impossible.' };
   back(

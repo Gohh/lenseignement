@@ -1,0 +1,6 @@
+﻿Niveau;Matière;Code;Compétence;Description;Prérequis
+CP1;Mathématiques;MATH-01;Compter jusqu’à 20;Compter des objets et réciter la suite des nombres;
+CP1;Mathématiques;MATH-02;Additionner des nombres inférieurs à 10;;MATH-01
+CP1;Français;FR-01;Reconnaître les lettres de l’alphabet;;
+CP2;Français;FR-02;Lire des syllabes simples;;FR-01
+CP2;Mathématiques;MATH-03;Résoudre un petit problème du marché;Rendre la monnaie sur 100 F;MATH-02

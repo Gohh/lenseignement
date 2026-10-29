@@ -27,6 +27,11 @@ test.describe('Classes : création, enseignants et code de classe', () => {
     await page.getByRole('button', { name: '+ Créer une classe' }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Niveau').selectOption('ce2');
+    // L'année scolaire se choisit dans une liste ; l'année en cours est proposée d'abord.
+    const now = new Date();
+    const start = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    await expect(dialog.getByLabel('Année scolaire')).toHaveValue(`${start}-${start + 1}`);
+    await expect(dialog.getByLabel('Année scolaire').locator('option')).toHaveCount(3);
     await dialog.getByLabel('Nom de la classe').fill(name);
     await dialog.getByRole('button', { name: 'Créer la classe' }).click();
     await expect(page.getByText('Classe créée.')).toBeVisible();

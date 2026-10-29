@@ -15,6 +15,8 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
     type: ['image/*', 'audio/*'],
     limit: '4mb',
   });
+  // Un fichier de programme complet dépasse vite les 100 ko par défaut.
+  (app as NestExpressApplication).useBodyParser('json', { limit: '1mb' });
   app.enableCors({ origin: [config.WEB_ORIGIN], credentials: true });
   app.useGlobalFilters(new ApiErrorFilter());
 }

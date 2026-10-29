@@ -268,7 +268,13 @@ export async function listCurricula(
       and(eq(curriculumVersions.curriculumId, curricula.id), effectiveOn(on)),
     )
     .leftJoin(policySources, eq(policySources.id, curriculumVersions.policySourceId))
-    .where(branch ? eq(curricula.branch, branch) : undefined)
+    .where(
+      and(
+        branch ? eq(curricula.branch, branch) : undefined,
+        // Un programme qui n'a encore qu'un brouillon n'est pas public.
+        sql`exists (select 1 from ${curriculumVersions} v where v.curriculum_id = ${curricula.id} and v.status = 'published')`,
+      ),
+    )
     .orderBy(asc(curricula.title));
   return rows.map(({ curriculum, version }) => ({
     ...curriculum,
@@ -320,8 +326,19 @@ export async function getCurriculumOn(
       'not_found',
       'Aucune version de ce programme en vigueur à cette date.',
     );
-  const versionId = row.version.id;
+  const { curriculum, version } = row;
+  return {
+    ...curriculum,
+    version: toSummary(version),
+    ...(await loadVersionContent(db, version.id)),
+  };
+}
 
+/** Niveaux, matières et compétences (avec prérequis) d'une version, publiée ou brouillon. */
+export async function loadVersionContent(
+  db: Database,
+  versionId: string,
+): Promise<Pick<CurriculumDetail, 'levels' | 'subjects' | 'competencies'>> {
   const [levelRows, subjectRows, competencyRows, edgeRows] = await Promise.all([
     db
       .select({ id: levels.id, code: levels.code, title: levels.title })
@@ -344,10 +361,7 @@ export async function getCurriculumOn(
   const subjectCode = new Map(subjectRows.map((s) => [s.id, s.code]));
   const competencyCode = new Map(competencyRows.map((c) => [c.id, c.code]));
 
-  const { curriculum, version } = row;
   return {
-    ...curriculum,
-    version: toSummary(version),
     levels: levelRows.map(({ code, title }) => ({ code, title })),
     subjects: subjectRows.map(({ code, title }) => ({ code, title })),
     competencies: competencyRows.map((c) => ({

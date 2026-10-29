@@ -160,3 +160,46 @@ export interface CurriculumDetail extends Omit<CurriculumSummary, 'current'> {
   subjects: Array<{ code: string; title: string }>;
   competencies: CurriculumCompetency[];
 }
+
+/** Écran « Programmes » de l'administration : brouillons compris. */
+export interface AdminCurriculumVersion {
+  label: string;
+  status: 'draft' | 'published';
+  /** Null tant que la version est un brouillon. */
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  notes: string | null;
+  source: PolicySource;
+  counts: { levels: number; subjects: number; competencies: number };
+}
+
+export interface AdminCurriculum {
+  code: string;
+  branch: string;
+  title: string;
+  description: string;
+  /** De la plus récente à la plus ancienne (brouillons d'abord). */
+  versions: AdminCurriculumVersion[];
+}
+
+export interface CurriculaAdminOverview {
+  items: AdminCurriculum[];
+  /** Seul le superadministrateur publie une version. */
+  canPublish: boolean;
+}
+
+export interface AdminCurriculumDetail extends Omit<CurriculumDetail, 'version'> {
+  version: AdminCurriculumVersion;
+  canPublish: boolean;
+}
+
+export const ImportCurriculumSchema = z.object({
+  json: z
+    .string()
+    .min(1, 'Le fichier est vide.')
+    .max(900_000, 'Le fichier est trop gros (900 Ko au plus).'),
+});
+
+export const PublishCurriculumSchema = z.object({
+  effectiveFrom: z.iso.date('Date attendue au format AAAA-MM-JJ.'),
+});

@@ -7,8 +7,8 @@ interface Props {
   href: string;
   className: string;
   children: ReactNode;
-  /** Actif aussi sur les pages en dessous (ex. /catalogue/…). */
-  section?: boolean;
+  /** Actif aussi sur les pages en dessous (ex. /catalogue/…), ou sous le chemin donné. */
+  section?: boolean | string;
 }
 
 /**
@@ -17,7 +17,8 @@ interface Props {
  */
 export function NavLink({ href, className, children, section = false }: Props) {
   const pathname = usePathname();
-  const current = pathname === href || (section && pathname.startsWith(`${href}/`));
+  const prefix = typeof section === 'string' ? section : section ? href : null;
+  const current = pathname === href || (prefix !== null && pathname.startsWith(`${prefix}/`));
   return (
     <a href={href} className={className} aria-current={current ? 'page' : undefined}>
       {children}

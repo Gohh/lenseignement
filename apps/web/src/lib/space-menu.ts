@@ -4,7 +4,8 @@ import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from './roles';
 export interface SpaceMenuItem {
   href: string;
   label: string;
-  section?: boolean;
+  /** Actif aussi sur les pages en dessous (ou sous le chemin donné). */
+  section?: boolean | string;
 }
 
 /** Entrées du menu de l'espace personnel, selon les rôles : même liste dans l'en-tête et le menu latéral. */
@@ -86,6 +87,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
   if (!team && !author && !validator) return null;
   const main: SpaceMenuItem[] = [
     { href: '/mon-espace', label: 'Tableau de bord' },
+    ...(team ? [{ href: '/mon-espace/suivi', label: 'Suivi de l’établissement' }] : []),
     ...(author || validator ? [{ href: '/mon-espace/travail', label: 'Mon travail' }] : []),
     ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
     ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
@@ -108,7 +110,22 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
       ? [
           {
             title: 'Référentiels',
-            items: [{ href: '/mon-espace/configuration', label: 'Établissements', section: true }],
+            items: [
+              {
+                href: '/mon-espace/configuration',
+                label: 'Établissements',
+                section: '/mon-espace/configuration/etablissements',
+              },
+              ...(admin
+                ? [
+                    {
+                      href: '/mon-espace/configuration/programmes',
+                      label: 'Programmes',
+                      section: true,
+                    },
+                  ]
+                : []),
+            ],
           },
           {
             title: 'Comptes et droits',

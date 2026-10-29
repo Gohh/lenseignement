@@ -13,6 +13,8 @@ import { CohortsController } from './cohorts/cohorts.controller.js';
 import { AuthoringController } from './courses/authoring.controller.js';
 import { AccountsController } from './accounts/accounts.controller.js';
 import { CurriculaController } from './curricula/curricula.controller.js';
+import { CurriculaAdminController } from './curricula/curricula-admin.controller.js';
+import { DirectionController } from './direction/direction.controller.js';
 import { DatabaseModule } from './db/database.module.js';
 import { FamilyController } from './family/family.controller.js';
 import { PromotionController } from './promotion/promotion.controller.js';
@@ -37,6 +39,7 @@ import { StatsController } from './stats/stats.controller.js';
     CatalogController,
     CatalogCoursesController,
     CurriculaController,
+    CurriculaAdminController,
     MeController,
     CohortsController,
     CohortAdminController,
@@ -51,6 +54,7 @@ import { StatsController } from './stats/stats.controller.js';
     RemediationController,
     SimulationController,
     StatsController,
+    DirectionController,
     FamilyController,
     PromotionController,
     TeamController,

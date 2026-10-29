@@ -62,7 +62,7 @@ export default async function TeamPage({ searchParams }: Props) {
         grantable: [] as string[],
         canCreateOrganization: false,
         everywhere: false,
-        regions: [] as string[],
+        directions: [] as Array<{ id: string; name: string }>,
       };
   const code = param(query.code);
 
@@ -124,7 +124,7 @@ export default async function TeamPage({ searchParams }: Props) {
         </ul>
       </div>
 
-      {team.canCreateOrganization && (
+      {team.canCreateOrganization && (team.everywhere || team.directions.length > 0) && (
         <form action={createOrganizationAction} className={`${cardClass} space-y-4`}>
           <h2 className="text-xl font-bold">Créer un établissement</h2>
           <label className="block font-bold">
@@ -143,53 +143,28 @@ export default async function TeamPage({ searchParams }: Props) {
           </label>
           <label className="block font-bold">
             Direction régionale
-            <input
-              name="region"
-              list="regions"
-              className={inputClass}
-              required
-              minLength={2}
-              maxLength={160}
-            />
+            <select name="parentId" className={inputClass} defaultValue="">
+              <option value="">
+                {team.everywhere ? 'Aucune (si vous créez une direction régionale)' : 'Choisir…'}
+              </option>
+              {team.directions.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
           </label>
-          <datalist id="regions">
-            {team.regions.map((r) => (
-              <option key={r} value={r} />
-            ))}
-          </datalist>
           <label className="block font-bold">
             Localité
-            <input name="locality" className={inputClass} required minLength={2} maxLength={160} />
+            <input name="locality" className={inputClass} maxLength={160} />
           </label>
           <label className="block font-bold">
             Responsable (nom)
-            <input
-              name="managerName"
-              className={inputClass}
-              required
-              minLength={2}
-              maxLength={160}
-            />
+            <input name="managerName" className={inputClass} maxLength={160} />
           </label>
           <label className="block font-bold">
             Contact du responsable (facultatif)
             <input name="managerContact" className={inputClass} maxLength={160} />
-          </label>
-          <label className="block font-bold">
-            Dépend de
-            <select
-              name="parentId"
-              className={inputClass}
-              required={!team.everywhere}
-              defaultValue=""
-            >
-              {team.everywhere && <option value="">Aucune (premier niveau)</option>}
-              {team.organizations.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
           </label>
           <button type="submit" className={buttonClass}>
             Créer l’établissement

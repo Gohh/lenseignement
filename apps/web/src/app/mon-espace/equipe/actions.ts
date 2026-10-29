@@ -37,7 +37,6 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
     name: text(form, 'name'),
     type: text(form, 'type'),
     parentId: text(form, 'parentId') || null,
-    region: text(form, 'region'),
     locality: text(form, 'locality'),
     managerName: text(form, 'managerName'),
     managerContact: text(form, 'managerContact'),

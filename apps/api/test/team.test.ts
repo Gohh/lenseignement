@@ -126,114 +126,118 @@ async function withRole(
   }
 }
 
-const fiche = { region: 'DRENA Essai', locality: 'Bouaké', managerName: 'M. Essai' };
+const fiche = { locality: 'Bouaké', managerName: 'M. Essai' };
 const unique = () => `Essai ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+const ids = (list: Array<{ id: string }>) => list.map((o) => o.id);
 
-test('création d’établissement : superadmin et administrateur partout, gestionnaire dans sa zone', async () => {
+test('création : la DRENA est une structure ; superadmin et administrateur partout, gestionnaire dans sa DRENA', async () => {
   const made: string[] = [];
   try {
     // Sans rôle de gestion, ou avec la seule direction : refus.
-    await call(SUB.koffi, 'post', '/team/organizations', 403, {
-      name: unique(),
-      type: 'primary_public',
-      ...fiche,
-    });
-    await call(SUB.bamba, 'post', '/team/organizations', 403, {
-      name: unique(),
-      type: 'primary_public',
-      ...fiche,
-    });
+    const school = { type: 'primary_public', parentId: ID.orgRegion, ...fiche };
+    await call(SUB.koffi, 'post', '/team/organizations', 403, { name: unique(), ...school });
+    await call(SUB.bamba, 'post', '/team/organizations', 403, { name: unique(), ...school });
 
-    // Administrateur : voit tout, crée à la racine ou sous n’importe quelle structure, sans doublon.
+    // Administrateur : crée une DRENA, puis une école dessous ; pas de code de direction.
+    let outsider = '';
     await withRole(ID.userAwa, ID.orgBaobabs, 'administrateur', async () => {
       const team = (await call(SUB.awa, 'get', '/team', 200)).body;
       assert.equal(team.organizations.length, 3);
       assert.equal(team.everywhere, true);
+      assert.deepEqual(ids(team.directions), [ID.orgRegion]);
       assert.ok(!team.grantable.includes('chef-etablissement'));
-      const name = unique();
-      const root = (
+      const drena = (
         await call(SUB.awa, 'post', '/team/organizations', 201, {
-          name,
+          name: unique(),
           type: 'authority',
-          ...fiche,
         })
       ).body;
-      assert.equal(root.managerCode, null);
-      await call(SUB.awa, 'post', '/team/organizations', 400, { name: unique(), type: 'college' });
-      made.push(root.id);
+      made.push(drena.id);
+      outsider = drena.id;
+      assert.equal(drena.managerCode, null);
+      // Une école exige une DRENA existante, une localité et un responsable.
       await call(SUB.awa, 'post', '/team/organizations', 400, {
-        name: name.toUpperCase(),
-        type: 'authority',
-      });
-      await call(SUB.awa, 'post', '/team/organizations', 400, {
-        name: 'x',
-        type: 'primary_public',
+        name: unique(),
+        type: 'college',
         ...fiche,
       });
       await call(SUB.awa, 'post', '/team/organizations', 400, {
         name: unique(),
-        type: 'inconnu',
-        ...fiche,
+        ...school,
+        parentId: ID.orgBaobabs,
       });
+      await call(SUB.awa, 'post', '/team/organizations', 400, {
+        name: unique(),
+        ...school,
+        locality: '',
+      });
+      await call(SUB.awa, 'post', '/team/organizations', 400, { name: 'x', ...school });
+      await call(SUB.awa, 'post', '/team/organizations', 400, {
+        name: unique(),
+        ...school,
+        type: 'inconnu',
+      });
+      const name = unique();
       const child = (
         await call(SUB.awa, 'post', '/team/organizations', 201, {
           name,
-          type: 'primary_public',
-          ...fiche,
-          parentId: root.id,
+          ...school,
+          parentId: drena.id,
         })
       ).body;
       made.push(child.id);
+      assert.equal(child.managerCode, null);
+      await call(SUB.awa, 'post', '/team/organizations', 400, {
+        name: name.toUpperCase(),
+        ...school,
+        parentId: drena.id,
+      });
     });
 
     // Superadministrateur : il reçoit le code d'invitation du responsable.
     await withRole(ID.userAwa, ID.orgRegion, 'superadministrateur', async () => {
-      const made2 = (
+      const created = (
         await call(SUB.awa, 'post', '/team/organizations', 201, {
           name: unique(),
+          ...school,
           type: 'lycee',
-          ...fiche,
         })
       ).body;
-      made.push(made2.id);
-      assert.match(made2.managerCode, /^[A-Z2-9]{8}$/);
+      made.push(created.id);
+      assert.match(created.managerCode, /^[A-Z2-9]{8}$/);
     });
 
-    // Gestionnaire de Manguiers : sa zone seulement, parent obligatoire.
-    await withRole(ID.userYao, ID.orgManguiers, 'gestionnaire', async () => {
+    // Gestionnaire de la DRENA de démonstration : sa zone seulement.
+    await withRole(ID.userYao, ID.orgRegion, 'gestionnaire', async () => {
       const team = (await call(SUB.yao, 'get', '/team', 200)).body;
-      assert.deepEqual(
-        team.organizations.map((o: { id: string }) => o.id),
-        [ID.orgManguiers],
-      );
       assert.equal(team.everywhere, false);
+      assert.deepEqual(ids(team.directions), [ID.orgRegion]);
       assert.deepEqual(team.grantable, ['enseignant', 'alphabetiseur', 'referent-pedagogique']);
-      await call(SUB.yao, 'post', '/team/organizations', 400, {
+      await call(SUB.yao, 'post', '/team/organizations', 403, {
         name: unique(),
-        type: 'primary_public',
-        ...fiche,
+        type: 'authority',
       });
       await call(SUB.yao, 'post', '/team/organizations', 403, {
         name: unique(),
-        type: 'primary_public',
-        ...fiche,
-        parentId: ID.orgBaobabs,
+        ...school,
+        parentId: outsider,
+      });
+      await call(SUB.yao, 'post', '/team/organizations', 400, {
+        name: unique(),
+        ...school,
+        parentId: ID.orgManguiers,
       });
       const annex = (
-        await call(SUB.yao, 'post', '/team/organizations', 201, {
-          name: unique(),
-          type: 'primary_public',
-          ...fiche,
-          parentId: ID.orgManguiers,
-        })
+        await call(SUB.yao, 'post', '/team/organizations', 201, { name: unique(), ...school })
       ).body;
       made.push(annex.id);
+      assert.equal(annex.managerCode, null);
       const after = (await call(SUB.yao, 'get', '/team', 200)).body;
-      assert.ok(after.organizations.some((o: { id: string }) => o.id === annex.id));
+      assert.ok(ids(after.organizations).includes(annex.id));
 
       // Il invite un référent dans sa zone, mais ni une direction ni un administrateur, ni hors zone.
       const referent = {
-        organizationId: ID.orgManguiers,
+        organizationId: ID.orgRegion,
         role: 'referent-pedagogique',
         branches: null,
       };
@@ -248,22 +252,23 @@ test('création d’établissement : superadmin et administrateur partout, gesti
       });
       await call(SUB.yao, 'post', '/team/invitations', 403, {
         ...referent,
-        organizationId: ID.orgBaobabs,
+        organizationId: outsider,
       });
     });
   } finally {
     await ctx.db
       .delete(membershipInvitations)
-      .where(inArray(membershipInvitations.organizationId, made));
+      .where(inArray(membershipInvitations.organizationId, [...made, ID.orgRegion]));
     for (const id of made.reverse())
       await ctx.db.delete(organizations).where(eq(organizations.id, id));
   }
 });
 
 test('import CSV : aperçu sans rien écrire, puis création ; une erreur bloque tout', async () => {
-  const a = unique();
-  const b = unique();
-  const csv = `nom officiel;type;direction régionale;localité;responsable;structure parente\n${a};primaire public;DRENA Essai;Bouaké;M. Essai;\n${b};Centre d’alphabétisation;DRENA Essai;Bouaké;M. Essai;${a}\n`;
+  const drena = unique();
+  const school = unique();
+  const head = 'nom officiel;type;direction régionale;localité;responsable';
+  const csv = `${head}\n${drena};autorité;;;\n${school};primaire public;${drena};Bouaké;M. Essai\n`;
   const count = async () => (await ctx.db.select().from(organizations)).length;
   const before = await count();
   await withRole(ID.userAwa, ID.orgBaobabs, 'administrateur', async () => {
@@ -276,13 +281,13 @@ test('import CSV : aperçu sans rien écrire, puis création ; une erreur bloque
     );
     assert.equal(await count(), before);
 
-    const bad = `nom officiel,type,direction régionale,localité,responsable,parent\n${a},truc,R,L,Rep,\nab,collège,R,L,Rep,\n${a},collège,R,L,Rep,Inconnue\n`;
+    const bad = `${head}\n${school};truc;D;L;Rep\nab;collège;D;L;Rep\n${school};collège;Inconnue;L;Rep\n${school};collège;${drena};L;\n`;
     const errors = (
       await call(SUB.awa, 'post', '/team/organizations/import', 201, { csv: bad, confirm: false })
     ).body;
     assert.deepEqual(
       errors.lines.map((l: { status: string }) => l.status),
-      ['error', 'error', 'error'],
+      ['error', 'error', 'error', 'error'],
     );
     await call(SUB.awa, 'post', '/team/organizations/import', 400, { csv: bad, confirm: true });
     await call(SUB.awa, 'post', '/team/organizations/import', 400, {
@@ -305,20 +310,20 @@ test('import CSV : aperçu sans rien écrire, puis création ; une erreur bloque
       ['exists', 'exists'],
     );
   });
-  // Nettoyage : l’enfant d’abord.
-  for (const name of [b, a]) {
+  // Nettoyage : l'école d'abord.
+  for (const name of [school, drena]) {
     await ctx.db.delete(organizations).where(eq(organizations.name, name));
   }
-  // Un gestionnaire ne crée que sous sa zone.
-  await withRole(ID.userYao, ID.orgManguiers, 'gestionnaire', async () => {
+  // Un gestionnaire ne crée ni direction régionale, ni école hors de sa zone.
+  await withRole(ID.userYao, ID.orgRegion, 'gestionnaire', async () => {
     const c = unique();
-    const out = `nom officiel;type;direction régionale;localité;responsable;structure parente\n${c};collège;DRENA Essai;Bouaké;M. Essai;\n${c};collège;DRENA Essai;Bouaké;M. Essai;École primaire Les Baobabs (fictive)\n`;
+    const out = `${head}\n${c};autorité;;;\n${c};collège;Inconnue;Bouaké;M. Essai\n${c};collège;Direction régionale de démonstration (fictive);Bouaké;M. Essai\n`;
     const lines = (
       await call(SUB.yao, 'post', '/team/organizations/import', 201, { csv: out, confirm: false })
     ).body.lines;
     assert.deepEqual(
       lines.map((l: { status: string }) => l.status),
-      ['error', 'error'],
+      ['error', 'error', 'create'],
     );
   });
   await call(SUB.koffi, 'post', '/team/organizations/import', 403, { csv, confirm: false });

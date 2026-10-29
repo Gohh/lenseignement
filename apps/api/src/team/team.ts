@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
 import { GRANTABLE_ROLES, type TeamMember, type TeamOverview } from '@lenseignement/types';
 import { teamOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
@@ -84,6 +84,18 @@ export async function audit(
   });
 }
 
+/** Directions régionales (structures de type « autorité ») dans le champ de la personne. */
+async function directionsOf(
+  db: Database,
+  scope: SQL,
+): Promise<Array<{ id: string; name: string }>> {
+  return db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations)
+    .where(sql`${organizations.type} = 'authority' and ${organizations.id} in ${scope}`)
+    .orderBy(asc(organizations.name));
+}
+
 /** Structures, équipe et rôles accordables, pour la personne qui gère une équipe. */
 export async function teamOverview(db: Database, userId: string): Promise<TeamOverview> {
   const scope = teamOrganizationIds(userId);
@@ -100,7 +112,7 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
       grantable: [],
       canCreateOrganization: false,
       everywhere: false,
-      regions: [],
+      directions: [],
     };
   const rows = await db
     .select({
@@ -125,10 +137,6 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
       ),
     )
     .orderBy(asc(organizations.name), asc(users.displayName), asc(memberships.role));
-  const regions = await db.execute(
-    sql`select distinct o.region from organizations o
-        where o.region is not null and o.id in ${scope} order by o.region`,
-  );
   const members: TeamMember[] = rows.map((r) => ({
     id: r.id,
     userName: r.userName,
@@ -143,7 +151,7 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
     grantable: powers.grantable,
     canCreateOrganization: powers.canCreateOrganization,
     everywhere: powers.everywhere,
-    regions: regions.rows.map((r) => String((r as { region: string }).region)),
+    directions: await directionsOf(db, scope),
   };
 }
 

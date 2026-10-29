@@ -22,3 +22,20 @@ export async function joinTeamAction(form: FormData): Promise<void> {
     `${PATH}?message=${encodeURIComponent(`Bienvenue dans l’équipe de ${result.data.organization}.`)}`,
   );
 }
+
+export async function joinCohortAction(form: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) redirect(`/auth/login?returnTo=${encodeURIComponent(PATH)}`);
+  const result = await apiSend<{ cohort: string; organization: string }>(
+    session.accessToken,
+    'POST',
+    '/me/join-cohort',
+    { code: String(form.get('code') ?? '').trim() },
+  );
+  if (!result.ok) {
+    redirect(`${PATH}?erreur=${encodeURIComponent(result.message ?? 'Code de classe invalide.')}`);
+  }
+  redirect(
+    `${PATH}?message=${encodeURIComponent(`Tu es dans la classe ${result.data.cohort} de ${result.data.organization}.`)}`,
+  );
+}

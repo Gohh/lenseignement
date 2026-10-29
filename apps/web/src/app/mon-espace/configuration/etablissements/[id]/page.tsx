@@ -1,6 +1,7 @@
 import {
   ORGANIZATION_TYPE_LABELS,
   TEAM_ROLE_LABELS,
+  type OrganizationCohorts,
   type OrganizationDetail,
   type TeamOverview,
 } from '@lenseignement/types';
@@ -9,8 +10,15 @@ import { notFound, redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
+import { Dialog } from '../../Dialog';
 import {
+  addCohortTeacherAction,
+  archiveCohortAction,
   archiveOrganizationAction,
+  createCohortAction,
+  removeCohortTeacherAction,
+  renewCohortCodeAction,
+  restoreCohortAction,
   restoreOrganizationAction,
   updateOrganizationAction,
 } from '../../actions';
@@ -30,14 +38,19 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
   const session = await getSession();
   if (!session) redirect(`/auth/login?returnTo=/mon-espace/configuration/etablissements/${id}`);
   const query = await searchParams;
-  const [result, overview] = await Promise.all([
+  const [result, overview, classes] = await Promise.all([
     apiGet<OrganizationDetail>(session.accessToken, `/organizations/${id}`),
     apiGet<TeamOverview>(session.accessToken, '/team'),
+    apiGet<OrganizationCohorts>(session.accessToken, `/organizations/${id}/cohorts`),
   ]);
   if (!result.ok) notFound();
   const o = result.data;
   const directions = overview.ok ? overview.data.directions : [];
   const isDirection = o.type === 'authority';
+  // Année scolaire en cours : de septembre à août.
+  const now = new Date();
+  const startYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const defaultYear = `${startYear}-${startYear + 1}`;
 
   return (
     <section className="space-y-6">
@@ -170,6 +183,162 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
           </ul>
         )}
       </div>
+
+      {!isDirection && classes.ok && (
+        <div className={cardClass}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">Classes</h2>
+            {!o.archivedAt && classes.data.levels.length > 0 && (
+              <Dialog
+                label="+ Créer une classe"
+                title="Créer une classe"
+                primary
+                openAtStart={param(query.ouvrir) === 'classe'}
+              >
+                <form action={createCohortAction} className="space-y-4">
+                  <input type="hidden" name="organizationId" value={o.id} />
+                  <label className="block font-bold">
+                    Niveau
+                    <select name="level" className={inputClass} required>
+                      {classes.data.levels.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block font-bold">
+                    Nom de la classe
+                    <input
+                      name="name"
+                      className={inputClass}
+                      required
+                      maxLength={60}
+                      placeholder="Par exemple : CE2 A"
+                    />
+                  </label>
+                  <label className="block font-bold">
+                    Année scolaire
+                    <input
+                      name="schoolYear"
+                      className={inputClass}
+                      required
+                      pattern="[0-9]{4}-[0-9]{4}"
+                      defaultValue={defaultYear}
+                    />
+                  </label>
+                  <button type="submit" className={buttonClass}>
+                    Créer la classe
+                  </button>
+                </form>
+              </Dialog>
+            )}
+          </div>
+          {classes.data.items.length === 0 ? (
+            <p className="mt-2">Cet établissement n’a pas encore de classe.</p>
+          ) : (
+            <ul className="mt-3 space-y-3" role="list" data-testid="cohort-list">
+              {classes.data.items.map((c) => (
+                <li key={c.id} className="rounded-card border border-line p-4">
+                  <p className="text-lg font-bold">
+                    {c.name}{' '}
+                    <span className="font-normal text-ink-muted">
+                      · {c.levelLabel ?? 'Niveau non précisé'} · {c.schoolYear} · {c.learnerCount}{' '}
+                      élève{c.learnerCount > 1 ? 's' : ''}
+                      {c.archivedAt ? ' · archivée' : ''}
+                    </span>
+                  </p>
+                  <p className="mt-2">
+                    Code de classe :{' '}
+                    <span className="text-xl font-bold tracking-widest" data-testid="cohort-code">
+                      {c.joinCode ?? 'pas encore de code'}
+                    </span>
+                  </p>
+                  <div className="mt-2">
+                    <p className="font-bold">Enseignants</p>
+                    {c.teachers.length === 0 ? (
+                      <p className="text-ink-muted">Aucun enseignant affecté.</p>
+                    ) : (
+                      <ul role="list">
+                        {c.teachers.map((t) => (
+                          <li key={t.userId} className="flex flex-wrap items-center gap-3">
+                            {t.name}
+                            <form action={removeCohortTeacherAction}>
+                              <input type="hidden" name="organizationId" value={o.id} />
+                              <input type="hidden" name="cohortId" value={c.id} />
+                              <input type="hidden" name="userId" value={t.userId} />
+                              <button
+                                type="submit"
+                                className="min-h-[44px] font-bold text-primary underline"
+                              >
+                                Retirer
+                                <span className="sr-only">
+                                  {' '}
+                                  {t.name} de {c.name}
+                                </span>
+                              </button>
+                            </form>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {classes.data.teacherCandidates.some(
+                      (t) => !c.teachers.some((x) => x.userId === t.userId),
+                    ) && (
+                      <form
+                        action={addCohortTeacherAction}
+                        className="mt-2 flex flex-wrap items-end gap-3"
+                      >
+                        <input type="hidden" name="organizationId" value={o.id} />
+                        <input type="hidden" name="cohortId" value={c.id} />
+                        <label className="font-bold">
+                          Affecter un enseignant
+                          <select name="userId" className={inputClass}>
+                            {classes.data.teacherCandidates
+                              .filter((t) => !c.teachers.some((x) => x.userId === t.userId))
+                              .map((t) => (
+                                <option key={t.userId} value={t.userId}>
+                                  {t.name}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <button type="submit" className={secondaryButtonClass}>
+                          Affecter<span className="sr-only"> à {c.name}</span>
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <form action={renewCohortCodeAction}>
+                      <input type="hidden" name="organizationId" value={o.id} />
+                      <input type="hidden" name="cohortId" value={c.id} />
+                      <button type="submit" className={secondaryButtonClass}>
+                        {c.joinCode ? 'Changer le code' : 'Créer le code'}
+                        <span className="sr-only"> de {c.name}</span>
+                      </button>
+                    </form>
+                    <form action={c.archivedAt ? restoreCohortAction : archiveCohortAction}>
+                      <input type="hidden" name="organizationId" value={o.id} />
+                      <input type="hidden" name="cohortId" value={c.id} />
+                      <button type="submit" className={secondaryButtonClass}>
+                        {c.archivedAt ? 'Rétablir' : 'Archiver'}
+                        <span className="sr-only"> {c.name}</span>
+                      </button>
+                    </form>
+                    <Link
+                      href={`/mon-espace/classes/${c.id}`}
+                      className="inline-flex min-h-[44px] items-center font-bold underline"
+                    >
+                      Voir les élèves<span className="sr-only"> de {c.name}</span>
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {o.can.archive && (
         <div className={cardClass}>

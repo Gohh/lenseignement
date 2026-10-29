@@ -199,6 +199,12 @@ export default async function MyspacePage() {
                 className="inline-flex min-h-[48px] items-center rounded-card bg-primary px-6 font-display text-lg font-bold text-surface no-underline hover:bg-primary-dark"
               >
                 Choisir un cours
+              </Link>{' '}
+              <Link
+                href="/mon-espace/rejoindre"
+                className="inline-flex min-h-[48px] items-center font-bold underline"
+              >
+                J’ai un code de classe
               </Link>
             </div>
           )}

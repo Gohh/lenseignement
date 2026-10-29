@@ -10,17 +10,15 @@ export async function setLevelAction(form: FormData): Promise<void> {
   const session = await getSession();
   if (!session) redirect(`/auth/login?returnTo=${encodeURIComponent(PATH)}`);
   const level = String(form.get('level') ?? '');
-  if (!level) redirect(`${PATH}?erreur=${encodeURIComponent('Choisissez un niveau.')}`);
-  const result = await apiSend(session.accessToken, 'PUT', '/me/level', { level });
-  if (!result.ok) {
-    redirect(
-      `${PATH}?erreur=${encodeURIComponent(result.message ?? 'Enregistrement impossible.')}`,
-    );
-  }
   const next = String(form.get('next') ?? '');
-  redirect(
-    next.startsWith('/') && !next.startsWith('//')
-      ? next
-      : `${PATH}?message=${encodeURIComponent('Niveau enregistré.')}`,
-  );
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '';
+  // Une erreur garde l'étape d'accueil (bienvenue + suite) pour qu'on puisse corriger son choix.
+  const failure = (message: string): never =>
+    redirect(
+      `${PATH}?erreur=${encodeURIComponent(message)}${safeNext ? `&bienvenue=1&next=${encodeURIComponent(safeNext)}` : ''}`,
+    );
+  if (!level) failure('Choisissez un niveau.');
+  const result = await apiSend(session.accessToken, 'PUT', '/me/level', { level });
+  if (!result.ok) failure(result.message ?? 'Enregistrement impossible.');
+  redirect(safeNext || `${PATH}?message=${encodeURIComponent('Niveau enregistré.')}`);
 }

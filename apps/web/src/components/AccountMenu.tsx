@@ -2,8 +2,8 @@ import { apiGet, type Me } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { spaceMenuItems } from '@/lib/space-menu';
 
-/** Après l'inscription : choisir son cycle et son niveau, puis découvrir les cours. */
-const WELCOME = '/mon-espace/compte?bienvenue=1&next=/catalogue';
+/** Après l'inscription : choisir son profil (apprenant, parent, répétiteur, équipe). */
+const WELCOME = '/mon-espace/bienvenue';
 
 const itemClass =
   'flex min-h-[44px] items-center rounded-card px-3 font-bold text-ink no-underline hover:bg-primary-soft';

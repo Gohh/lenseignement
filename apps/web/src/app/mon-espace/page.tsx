@@ -1,9 +1,7 @@
 import type { LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
-import { AUTHOR_ROLES, VALIDATOR_ROLES } from '@/lib/roles';
 import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
   'admin-plateforme': 'Administrateur de la plateforme',
 };
 
-const cardClass = 'rounded-big border border-line bg-surface p-5';
+const cardClass = 'rounded-big border border-line bg-surface p-6 sm:p-8';
 
 export default async function MyspacePage() {
   const session = await getSession();
@@ -40,8 +38,8 @@ export default async function MyspacePage() {
   const resume = followed.find((c) => c.resumeAt && !c.finished);
 
   return (
-    <section className="space-y-6">
-      <div>
+    <section className="space-y-10">
+      <div className="space-y-1">
         <p className="font-bold text-ink-muted">
           {(me.ok && me.data.memberships[0]?.organizationName) || 'Mon espace'}
         </p>
@@ -73,44 +71,37 @@ export default async function MyspacePage() {
         </section>
       )}
 
-      <div className={cardClass}>
-        <h2 className="text-xl font-extrabold">Vos profils</h2>
+      <div className="space-y-4">
         {roles.length > 0 ? (
-          <ul className="mt-2 list-disc pl-6">
+          <ul className="flex flex-wrap gap-2" role="list">
             {roles.map((role) => (
-              <li key={role}>{ROLE_LABELS[role]}</li>
+              <li
+                key={role}
+                className="rounded-full bg-primary-soft px-4 py-1 font-bold text-primary"
+              >
+                {ROLE_LABELS[role]}
+              </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2">Aucun profil n’est encore attribué à votre compte.</p>
+          <p className="text-ink-muted">Aucun profil n’est encore attribué à votre compte.</p>
         )}
         {me.ok && me.data.memberships.length > 0 && (
-          <>
-            <h3 className="mt-4 font-bold">Vos établissements</h3>
-            <ul className="mt-2 list-disc pl-6" data-testid="memberships">
-              {me.data.memberships.map((m) => (
-                <li key={`${m.organizationId}-${m.role}`}>
-                  {m.organizationName} : {ROLE_LABELS[m.role] ?? m.role}
-                </li>
-              ))}
-            </ul>
-          </>
+          <ul className="space-y-1 text-ink-muted" data-testid="memberships">
+            {me.data.memberships.map((m) => (
+              <li key={`${m.organizationId}-${m.role}`}>
+                {m.organizationName} : {ROLE_LABELS[m.role] ?? m.role}
+              </li>
+            ))}
+          </ul>
         )}
-        <p className="mt-3">
-          <a href="/mon-espace/rejoindre" className="font-bold underline">
-            J’ai un code pour rejoindre une équipe
-          </a>
-        </p>
-        <p className="mt-3 text-sm text-ink-muted" data-testid="api-status">
-          {me.ok ? 'Compte reconnu par le service.' : 'Service momentanément indisponible.'}
-        </p>
       </div>
 
       {(followed.length > 0 || session.roles.includes('apprenant')) && (
         <div className={cardClass}>
-          <h2 className="text-xl font-extrabold">Mes cours suivis</h2>
+          <h2 className="text-2xl font-extrabold">Mes cours suivis</h2>
           {followed.length > 0 ? (
-            <ul className="mt-2 space-y-3" data-testid="learning-plan">
+            <ul className="mt-4 space-y-6" data-testid="learning-plan">
               {followed.map((c) => (
                 <li key={c.courseId}>
                   <Link
@@ -162,37 +153,6 @@ export default async function MyspacePage() {
         </div>
       )}
 
-      {session.roles.includes('apprenant') && (
-        <div className={cardClass}>
-          <h2 className="text-xl font-extrabold">Lecture</h2>
-          <Link
-            href="/mon-espace/bilan-lecture"
-            className="inline-flex min-h-[44px] items-center font-bold underline"
-          >
-            Mon bilan de lecture
-          </Link>
-          <p className="text-ink-muted">
-            Quelques questions pour voir ce que tu sais lire, puis un rattrapage adapté.
-          </p>
-        </div>
-      )}
-
-      {session.roles.includes('apprenant') && (
-        <div className={cardClass}>
-          <h2 className="text-xl font-extrabold">Atelier</h2>
-          <Link
-            href="/mon-espace/atelier-securite"
-            className="inline-flex min-h-[44px] items-center font-bold underline"
-          >
-            Atelier virtuel : sécurité
-          </Link>
-          <p className="text-ink-muted">
-            Une simulation pour apprendre les gestes sûrs, avant la séance pratique avec ton
-            formateur.
-          </p>
-        </div>
-      )}
-
       {cohorts.ok && cohorts.data.length > 0 && (
         <div className={cardClass}>
           <h2 className="text-xl font-extrabold">Mes classes</h2>
@@ -214,47 +174,6 @@ export default async function MyspacePage() {
         </div>
       )}
 
-      {me.ok && me.data.memberships.some((m) => AUTHOR_ROLES.has(m.role)) && (
-        <div className={cardClass}>
-          <h2 className="text-xl font-extrabold">Rédaction</h2>
-          <ul className="mt-2 space-y-1">
-            <li>
-              <Link
-                href="/mon-espace/cours"
-                className="inline-flex min-h-[44px] items-center font-bold underline"
-              >
-                Mes cours
-              </Link>
-            </li>
-            {me.data.memberships.some((m) => VALIDATOR_ROLES.has(m.role)) && (
-              <li>
-                <Link
-                  href="/mon-espace/relecture"
-                  className="inline-flex min-h-[44px] items-center font-bold underline"
-                >
-                  À relire et à publier
-                </Link>
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
-
-      {me.ok && me.data.memberships.some((m) => VALIDATOR_ROLES.has(m.role)) && (
-        <div className={cardClass}>
-          <h2 className="text-xl font-extrabold">Pilotage</h2>
-          <Link
-            href="/mon-espace/statistiques"
-            className="inline-flex min-h-[44px] items-center font-bold underline"
-          >
-            Statistiques anonymes
-          </Link>
-          <p className="text-ink-muted">
-            Des chiffres sur vos structures, sans aucun nom : cours, rattrapage, atelier.
-          </p>
-        </div>
-      )}
-
       {children.ok && children.data.length > 0 && (
         <div className={cardClass}>
           <h2 className="text-xl font-extrabold">Mes enfants</h2>
@@ -272,20 +191,6 @@ export default async function MyspacePage() {
           </ul>
         </div>
       )}
-
-      <div className={cardClass}>
-        <h2 className="text-xl font-extrabold">Cet appareil</h2>
-        <DeviceDataPanel />
-      </div>
-
-      <form method="post" action="/auth/logout">
-        <button
-          type="submit"
-          className="min-h-[44px] rounded-card border border-line-strong bg-surface px-5 font-bold text-ink"
-        >
-          Se déconnecter
-        </button>
-      </form>
     </section>
   );
 }

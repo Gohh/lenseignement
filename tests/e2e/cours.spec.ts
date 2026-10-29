@@ -13,7 +13,10 @@ test.describe('Rédaction des cours (ticket 8)', () => {
   }, testInfo) => {
     const title = `Cours E2E ${testInfo.project.name} ${Date.now()}`;
     await loginAs(page, 'enseignant.demo');
-    await page.getByRole('link', { name: 'Mes cours' }).click();
+    await page
+      .getByRole('navigation', { name: 'Menu de mon espace' })
+      .getByRole('link', { name: 'Rédiger' })
+      .click();
     await expect(
       page.getByRole('link', { name: 'Lire ses premières syllabes (démonstration)' }),
     ).toBeVisible();
@@ -60,7 +63,11 @@ test.describe('Rédaction des cours (ticket 8)', () => {
   test('un élève n’a pas accès à la rédaction ni aux brouillons', async ({ page }) => {
     await loginAs(page, 'apprenant.demo');
     await expect(page.getByRole('heading', { name: 'Bonjour, Awa' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Mes cours' })).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Menu de mon espace' })
+        .getByRole('link', { name: 'Rédiger' }),
+    ).toHaveCount(0);
 
     await page.goto('/mon-espace/cours');
     await expect(page.getByText('La rédaction de cours est réservée')).toBeVisible();

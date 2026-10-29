@@ -17,7 +17,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     await expect(page).toHaveURL(/\/mon-espace$/);
     await expect(page.getByRole('heading', { name: 'Bonjour, Awa' })).toBeVisible();
     await expect(page.getByText('Apprenant', { exact: true })).toBeVisible();
-    await expect(page.getByTestId('api-status')).toHaveText('Compte reconnu par le service.');
+    await expect(page.getByTestId('memberships')).toBeVisible();
   });
 
   test('le jeton d’accès expiré est renouvelé sans nouvelle connexion', async ({ page }) => {
@@ -30,7 +30,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     });
     await page.reload();
     await page.reload();
-    await expect(page.getByTestId('api-status')).toHaveText('Compte reconnu par le service.');
+    await expect(page.getByTestId('memberships')).toBeVisible();
     expect(reauthentications).toEqual([]);
   });
 
@@ -61,6 +61,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     await expect(page.getByRole('heading', { name: 'Bonjour, Awa' })).toBeVisible();
     const oldSession = (await context.cookies()).find((c) => c.name === 'lse_session')!.value;
 
+    await page.getByRole('banner').locator('summary').click();
     await page.getByRole('button', { name: 'Se déconnecter' }).click();
     await expect(page).toHaveURL(`${WEB_URL}/`);
     expect((await context.cookies()).find((c) => c.name === 'lse_session')).toBeUndefined();

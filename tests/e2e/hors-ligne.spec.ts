@@ -136,7 +136,7 @@ test.describe('Hors connexion et synchronisation (ticket 15)', () => {
     await enrollAndKeep(page, freshLearner(testInfo));
     expect(await lessonKept(page)).toBe(true);
 
-    await page.goto('/mon-espace');
+    await page.goto('/mon-espace/compte');
     await page.getByRole('button', { name: 'Effacer mes données sur cet appareil' }).click();
     await page.getByRole('button', { name: 'Oui, tout effacer' }).click();
     await expect(page.getByTestId('device-status')).toHaveText(
@@ -149,6 +149,7 @@ test.describe('Hors connexion et synchronisation (ticket 15)', () => {
     await page.getByRole('button', { name: 'Garder ce cours sur cet appareil' }).click();
     await expect(page.getByTestId('keep-status')).toContainText('disponible sans connexion');
     await page.goto('/mon-espace');
+    await page.getByRole('banner').locator('summary').click();
     await page.getByRole('button', { name: 'Se déconnecter' }).click();
     await page.waitForURL((url) => !url.pathname.startsWith('/auth'));
     expect(await lessonKept(page)).toBe(false);

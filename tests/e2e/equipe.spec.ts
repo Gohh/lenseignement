@@ -42,7 +42,7 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await member.goto('/mon-espace');
     await expect(
       member.getByRole('navigation', { name: 'Menu de mon espace' }).getByRole('link', {
-        name: 'Rédiger',
+        name: 'Cours',
       }),
     ).toBeVisible();
 

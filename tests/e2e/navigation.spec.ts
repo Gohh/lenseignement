@@ -9,14 +9,15 @@ test.describe('Navigation', () => {
   test('le menu de mon espace suit le profil et montre la page en cours', async ({ page }) => {
     await loginAs(page, 'directeur.demo', '/mon-espace');
     await expect(menu(page).getByRole('link')).toHaveText([
-      'Vue d’ensemble',
-      'Équipe',
-      'Configuration',
-      'Rédiger',
+      'Tableau de bord',
+      'Cours',
       'Relecture',
       'Statistiques',
+      'Établissements',
+      'Équipe et invitations',
     ]);
-    await expect(menu(page).getByRole('link', { name: 'Vue d’ensemble' })).toHaveAttribute(
+    await expect(page.getByTestId('circuit-published')).toBeVisible();
+    await expect(menu(page).getByRole('link', { name: 'Tableau de bord' })).toHaveAttribute(
       'aria-current',
       'page',
     );

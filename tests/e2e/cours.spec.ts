@@ -15,7 +15,7 @@ test.describe('Rédaction des cours (ticket 8)', () => {
     await loginAs(page, 'enseignant.demo');
     await page
       .getByRole('navigation', { name: 'Menu de mon espace' })
-      .getByRole('link', { name: 'Rédiger' })
+      .getByRole('link', { name: 'Cours' })
       .click();
     await expect(
       page.getByRole('link', { name: 'Lire ses premières syllabes (démonstration)' }),
@@ -66,7 +66,7 @@ test.describe('Rédaction des cours (ticket 8)', () => {
     await expect(
       page
         .getByRole('navigation', { name: 'Menu de mon espace' })
-        .getByRole('link', { name: 'Rédiger' }),
+        .getByRole('link', { name: 'Cours' }),
     ).toHaveCount(0);
 
     await page.goto('/mon-espace/cours');

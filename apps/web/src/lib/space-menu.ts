@@ -41,3 +41,49 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
       : []),
   ];
 }
+
+export interface StaffMenuGroup {
+  title: string;
+  items: SpaceMenuItem[];
+}
+
+export interface StaffMenu {
+  main: SpaceMenuItem[];
+  groups: StaffMenuGroup[];
+}
+
+/**
+ * Menu de l'espace d'administration (direction, gestionnaires, relecteurs, administrateurs) :
+ * entrées principales puis groupes repliables. Renvoie null pour les apprenants, parents, etc.,
+ * qui gardent le menu simple.
+ */
+export function staffMenu(sessionRoles: readonly string[], me: Me | null): StaffMenu | null {
+  const memberRoles = new Set(me ? me.memberships.map((m) => m.role) : []);
+  const has = (roles: Set<string>) => [...memberRoles].some((role) => roles.has(role));
+  const admin = sessionRoles.some((r) => r === 'superadministrateur' || r === 'administrateur');
+  const team = admin || has(TEAM_ROLES);
+  const author = has(AUTHOR_ROLES);
+  const validator = has(VALIDATOR_ROLES);
+  if (!team && !author && !validator) return null;
+  const main: SpaceMenuItem[] = [
+    { href: '/mon-espace', label: 'Tableau de bord' },
+    ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
+    ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
+    ...(validator || team ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }] : []),
+  ];
+  const groups: StaffMenuGroup[] = [
+    ...(team
+      ? [
+          {
+            title: 'Référentiels',
+            items: [{ href: '/mon-espace/configuration', label: 'Établissements', section: true }],
+          },
+          {
+            title: 'Comptes et droits',
+            items: [{ href: '/mon-espace/equipe', label: 'Équipe et invitations' }],
+          },
+        ]
+      : []),
+  ];
+  return { main, groups };
+}

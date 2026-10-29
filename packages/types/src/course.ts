@@ -161,7 +161,11 @@ export type ReviewCheck = keyof typeof REVIEW_CHECKS;
 const Comment = (min: number) =>
   z.string().trim().min(min, `Commentaire trop court (${min} caractères minimum).`).max(2000);
 
-export const SubmitForReviewSchema = z.object({ revision: z.number().int().positive() });
+export const SubmitForReviewSchema = z.object({
+  revision: z.number().int().positive(),
+  /** Référent désigné ; absent : n'importe quel référent de la structure. */
+  reviewerId: z.string().uuid().optional(),
+});
 
 export const ApproveSchema = z.object({
   checklist: z.object({
@@ -180,6 +184,10 @@ export type ReviewAction =
   'submitted' | 'changes_requested' | 'approved' | 'published' | 'replaced' | 'withdrawn';
 
 export interface CourseWorkflow {
+  /** Référent désigné pour relire cette version, s'il y en a un. */
+  reviewer: { id: string; name: string } | null;
+  /** Référents que l'auteur peut désigner (rempli pour un brouillon seulement). */
+  reviewers: Array<{ id: string; name: string }>;
   history: Array<{ action: ReviewAction; actorName: string; comment: string; createdAt: string }>;
   /** Ce que la personne connectée peut faire maintenant sur cette version. */
   can: {
@@ -208,6 +216,9 @@ export interface MyWorkItem {
   /** Remarque du validateur quand le cours est renvoyé pour correction. */
   remark: string | null;
   remarkBy: string | null;
+  /** Pour « à relire » : le référent désigné, et si c'est la personne connectée. */
+  reviewerName: string | null;
+  assignedToMe: boolean;
 }
 
 export interface ReviewQueueItem {

@@ -128,7 +128,10 @@ export async function submitForReviewAction(form: FormData): Promise<void> {
   await reviewStep(
     form,
     'submit',
-    { revision: Number(text(form, 'revision')) },
+    {
+      revision: Number(text(form, 'revision')),
+      reviewerId: text(form, 'reviewerId') || undefined,
+    },
     'Version envoyée en relecture.',
   );
 }

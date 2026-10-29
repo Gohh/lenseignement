@@ -88,10 +88,15 @@ test.describe('Relecture et publication des cours (ticket 9)', () => {
     const title = `Renvoi E2E ${testInfo.project.name} ${Date.now()}`;
     const versionPath = await writeCompleteCourse(page, title);
     await page.reload();
+    await page.getByLabel('Relecteur').selectOption({ index: 1 });
     await page.getByRole('button', { name: 'Envoyer en relecture' }).click();
     await expect(status(page, 'Version envoyée en relecture.')).toBeVisible();
 
-    await switchTo(page, 'referent.demo', '/mon-espace/relecture');
+    await switchTo(page, 'referent.demo', '/mon-espace/travail');
+    await expect(
+      page.getByTestId('work-to_review').getByText('Désigné pour vous').first(),
+    ).toBeVisible();
+    await page.goto('/mon-espace/relecture');
     await page.getByRole('link', { name: title }).click();
     await page.getByLabel('Modifications demandées').fill('Ajoutez un exemple avec « mi ».');
     await page.getByRole('button', { name: 'Demander des modifications' }).click();

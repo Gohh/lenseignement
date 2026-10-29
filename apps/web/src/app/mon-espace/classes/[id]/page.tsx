@@ -4,7 +4,9 @@ import type { CohortRosterTools } from '@lenseignement/types';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet, type CohortDetail } from '@/lib/api';
 import { getSession } from '@/lib/session';
+import { Dialog } from '../../configuration/Dialog';
 import { removeLearnerAction, transferLearnersAction } from './actions';
+import { AddLearners } from './AddLearners';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ma classe' };
@@ -47,7 +49,14 @@ export default async function CohortPage({ params, searchParams }: Props) {
             error={param(query.erreur as string | undefined)}
           />
           <div className="rounded-card border border-line bg-surface p-4">
-            <h2 className="text-lg font-bold">Élèves</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-bold">Élèves</h2>
+              {tools.ok && (
+                <Dialog label="+ Inscrire des élèves" title="Inscrire des élèves" primary>
+                  <AddLearners cohortId={id} configured={tools.data.canCreateAccounts} />
+                </Dialog>
+              )}
+            </div>
             {tools.ok ? (
               <form action={transferLearnersAction} className="mt-2 space-y-4">
                 <input type="hidden" name="cohortId" value={id} />

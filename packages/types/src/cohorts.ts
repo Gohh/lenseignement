@@ -64,4 +64,95 @@ export const TransferLearnersSchema = z.object({
 export interface CohortRosterTools {
   /** Autres classes ouvertes du même établissement, où on peut faire passer des élèves. */
   targets: Array<{ id: string; name: string; schoolYear: string; levelLabel: string | null }>;
+  /** Le réglage Keycloak permet-il de créer des comptes d'élèves ? */
+  canCreateAccounts: boolean;
+}
+
+export const NewLearnerSchema = z.object({
+  firstName: z.string().trim().min(1, 'Le prénom manque.').max(60),
+  lastName: z.string().trim().min(1, 'Le nom manque.').max(60),
+});
+
+export const AddLearnersSchema = z.object({
+  learners: z
+    .array(NewLearnerSchema)
+    .min(1, 'Ajoutez au moins un élève.')
+    .max(200, 'Pas plus de 200 élèves à la fois.'),
+});
+
+export type NewLearner = z.infer<typeof NewLearnerSchema>;
+
+/** Compte d'élève créé par la direction : à imprimer, le mot de passe n'est montré qu'une fois. */
+export interface CreatedLearner {
+  displayName: string;
+  username: string;
+  temporaryPassword: string;
+}
+
+export interface AddLearnersResult {
+  created: CreatedLearner[];
+  failed: Array<{ displayName: string; reason: string }>;
+}
+
+const HEADER_FIRST = /^pr[ée]noms?$/i;
+const HEADER_LAST = /^(nom|noms|nom de famille)$/i;
+
+/**
+ * Liste d'élèves collée ou lue dans un fichier CSV (Excel : « Enregistrer sous… CSV »).
+ * Une ligne par élève, « Nom ; Prénom » comme dans un registre. Une ligne d'en-tête
+ * « Prénom ; Nom » (dans n'importe quel ordre) est reconnue et fixe l'ordre des colonnes.
+ */
+export function parseLearnerList(text: string): { learners: NewLearner[]; errors: string[] } {
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const split = (line: string) =>
+    line.split(/[;,\t]/).map((cell) =>
+      cell
+        .trim()
+        .replace(/^"(.*)"$/, '$1')
+        .trim(),
+    );
+  let lastIndex = 0;
+  let firstIndex = 1;
+  const header = lines[0] ? split(lines[0]) : [];
+  const hFirst = header.findIndex((c) => HEADER_FIRST.test(c));
+  const hLast = header.findIndex((c) => HEADER_LAST.test(c));
+  if (hFirst >= 0 && hLast >= 0) {
+    firstIndex = hFirst;
+    lastIndex = hLast;
+    lines.shift();
+  }
+  const learners: NewLearner[] = [];
+  const errors: string[] = [];
+  lines.forEach((line, n) => {
+    const cells = split(line);
+    let lastName = cells[lastIndex] ?? '';
+    let firstName = cells[firstIndex] ?? '';
+    // Sans séparateur : « KONÉ Awa Marie » → nom = premier mot, prénoms = la suite.
+    if (cells.length === 1) {
+      const [head, ...rest] = line.split(/\s+/);
+      lastName = head ?? '';
+      firstName = rest.join(' ');
+    }
+    const parsed = NewLearnerSchema.safeParse({ firstName, lastName });
+    if (parsed.success) learners.push(parsed.data);
+    else errors.push(`Ligne ${n + 1} : « ${line} » n’a pas de nom et de prénom.`);
+  });
+  return { learners, errors };
+}
+
+/** Identifiant de connexion d'un élève sans e-mail : « awa.kone », sans accents ni espaces. */
+export function learnerUsername(learner: NewLearner): string {
+  const clean = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 20);
+  const first = clean(learner.firstName.split(/\s+/)[0] ?? '');
+  return [first, clean(learner.lastName)].filter(Boolean).join('.') || 'eleve';
 }

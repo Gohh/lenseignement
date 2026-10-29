@@ -337,6 +337,7 @@ export async function createAccount(
   const password = temporaryPassword();
   const created = await identity
     .createUser({
+      username: input.email,
       email: input.email,
       firstName: firstName!,
       lastName: rest.join(' '),

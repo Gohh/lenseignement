@@ -14,6 +14,7 @@ import {
   Req,
 } from '@nestjs/common';
 import {
+  AddLearnersSchema,
   CohortTeacherSchema,
   CreateCohortSchema,
   JoinCohortSchema,
@@ -23,10 +24,12 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
+import { IDENTITY_ADMIN, type IdentityAdmin } from '../team/identity-admin.js';
 import { TeamError } from '../team/team.js';
 import { UsersService } from '../users/users.service.js';
 import {
   addCohortTeacher,
+  addLearners,
   createCohort,
   joinCohort,
   organizationCohorts,
@@ -65,6 +68,7 @@ export class CohortAdminController {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly users: UsersService,
+    @Inject(IDENTITY_ADMIN) private readonly identity: IdentityAdmin,
   ) {}
 
   private async me(request: Request): Promise<string> {
@@ -135,7 +139,8 @@ export class CohortAdminController {
 
   @Get('cohorts/:id/roster-tools')
   async rosterTools(@Req() request: Request, @Param('id', ParseUUIDPipe) id: string) {
-    return guard(async () => rosterTools(this.db, await this.me(request), id));
+    const tools = await guard(async () => rosterTools(this.db, await this.me(request), id));
+    return { ...tools, canCreateAccounts: this.identity.configured() };
   }
 
   @Delete('cohorts/:id/learners/:learnerId')
@@ -149,6 +154,18 @@ export class CohortAdminController {
       removeLearner(this.db, await this.me(request), id, learnerId, request.traceId),
     );
     return { removed: true };
+  }
+
+  @Post('cohorts/:id/learners')
+  async addLearners(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const { learners } = parse(AddLearnersSchema, body);
+    return guard(async () =>
+      addLearners(this.db, this.identity, await this.me(request), id, learners, request.traceId),
+    );
   }
 
   @Post('cohorts/:id/transfer')

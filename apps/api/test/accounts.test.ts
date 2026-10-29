@@ -20,7 +20,7 @@ const fake: IdentityAdmin = {
     if (input.email === 'deja@exemple.test')
       throw new IdentityError('exists', 'Un compte existe déjà avec cet e-mail.');
     created.push({
-      email: input.email,
+      email: input.email ?? '',
       firstName: input.firstName,
       lastName: input.lastName,
       password: input.temporaryPassword,
@@ -101,6 +101,7 @@ test('Keycloak : non configuré, compte existant, création réussie', async () 
   const noSecret = new KeycloakAdmin({ issuerUrl: 'http://kc/realms/r', clientId: 'c' });
   assert.equal(noSecret.configured(), false);
   const input = {
+    username: 'a@b.test',
     email: 'a@b.test',
     firstName: 'A',
     lastName: 'B',

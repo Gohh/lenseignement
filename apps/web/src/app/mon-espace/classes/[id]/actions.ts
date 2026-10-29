@@ -1,5 +1,6 @@
 'use server';
 
+import { parseLearnerList, type AddLearnersResult } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -49,4 +50,36 @@ export async function removeLearnerAction(form: FormData): Promise<void> {
   );
   if (!result.ok) back(path, 'erreur', result.message ?? 'Retrait impossible.');
   back(path, 'message', 'Élève retiré de la classe.');
+}
+
+export interface AddLearnersState {
+  error?: string;
+  /** Lignes du fichier ou de la liste qui n'ont pas été comprises. */
+  skipped?: string[];
+  result?: AddLearnersResult;
+}
+
+/** Inscrit les élèves de la liste ; les mots de passe reviennent dans l'état, jamais dans l'adresse. */
+export async function addLearnersAction(
+  _previous: AddLearnersState,
+  form: FormData,
+): Promise<AddLearnersState> {
+  const id = text(form, 'cohortId');
+  const file = form.get('file');
+  const fromFile = file instanceof File && file.size > 0 ? await file.text() : '';
+  const { learners, errors } = parseLearnerList(`${text(form, 'list')}\n${fromFile}`);
+  if (learners.length === 0) {
+    return {
+      error: 'Aucun élève dans la liste. Écris une ligne par élève : Nom ; Prénom.',
+      skipped: errors,
+    };
+  }
+  const result = await apiSend<AddLearnersResult>(
+    await token(`/mon-espace/classes/${id}`),
+    'POST',
+    `/cohorts/${id}/learners`,
+    { learners },
+  );
+  if (!result.ok) return { error: result.message ?? 'Inscription impossible.', skipped: errors };
+  return { result: result.data, skipped: errors };
 }

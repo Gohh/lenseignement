@@ -157,6 +157,26 @@ export class AccessService {
     if (reason !== 'scope') throw new ForbiddenException(ACCESS_DENIED);
   }
 
+  /**
+   * Décision sur le niveau d'un apprenant (valider son passage au niveau supérieur) : son parent au
+   * lien vérifié ou le personnel de son périmètre ; ni l'apprenant lui-même ni un répétiteur.
+   */
+  async assertCanDecideLevel(request: AccessRequest): Promise<void> {
+    const decided = await this.decide(request);
+    const reason: AccessReason =
+      decided === 'scope' || decided === 'guardian' || decided === 'invalid_id'
+        ? decided
+        : 'out_of_scope';
+    await this.audit({ ...request, reason });
+    if (reason !== 'scope' && reason !== 'guardian') throw new ForbiddenException(ACCESS_DENIED);
+  }
+
+  /** Vrai si la personne peut décider du niveau de l'apprenant (sans journal). */
+  async canDecideLevel(request: AccessRequest): Promise<boolean> {
+    const reason = await this.decide(request);
+    return reason === 'scope' || reason === 'guardian';
+  }
+
   /** Vrai si la personne fait partie du personnel du périmètre de l'apprenant (sans journal). */
   async isInScope(request: AccessRequest): Promise<boolean> {
     return (await this.decide(request)) === 'scope';

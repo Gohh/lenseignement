@@ -1,12 +1,12 @@
-import type { RemediationOverview } from '@lenseignement/types';
+import { levelLabel, type LevelPromotion, type RemediationOverview } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { PlanCard, SkillResults } from '@/components/Remediation';
 import { apiGet, type LearnerDetail } from '@/lib/api';
 import { READING_DIAGNOSTIC as CODE } from '@/lib/remediation';
 import { getSession } from '@/lib/session';
-import { overrideRemediationAction } from '../../bilan-lecture/actions';
+import { decidePromotionAction, overrideRemediationAction } from '../../bilan-lecture/actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Fiche élève' };
@@ -38,6 +38,14 @@ export default async function LearnerPage({
       )
     : null;
 
+  const promotion = learner.ok
+    ? await apiGet<LevelPromotion>(
+        session.accessToken,
+        `/learners/${encodeURIComponent(id)}/promotion`,
+      )
+    : null;
+  const promo = promotion?.ok ? promotion.data : null;
+
   return (
     <section className="space-y-6">
       <Link href="/mon-espace" className="inline-flex min-h-[44px] items-center underline">
@@ -47,6 +55,38 @@ export default async function LearnerPage({
         <>
           <h1 className="text-3xl font-bold">{learner.data.displayName}</h1>
           <Notice message={param(query.message)} error={param(query.erreur)} />
+          {promo?.level && (
+            <div className="space-y-3 rounded-card border border-line bg-surface p-4">
+              <h2 className="text-lg font-bold">Niveau</h2>
+              <p data-testid="learner-level">{levelLabel(promo.level) ?? promo.level}</p>
+              {promo.canDecide && promo.nextLevel && (
+                <form action={decidePromotionAction} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="learnerId" value={id} />
+                  {promo.pending && (
+                    <p className="w-full font-bold">
+                      Une demande de passage en {levelLabel(promo.nextLevel) ?? promo.nextLevel}{' '}
+                      attend votre décision.
+                    </p>
+                  )}
+                  <button type="submit" name="decision" value="approve" className={buttonClass}>
+                    {promo.pending ? 'Accepter' : 'Passer'} en{' '}
+                    {levelLabel(promo.nextLevel) ?? promo.nextLevel}
+                  </button>
+                  {promo.pending && (
+                    <button
+                      type="submit"
+                      name="decision"
+                      value="decline"
+                      className={secondaryButtonClass}
+                    >
+                      Refuser
+                    </button>
+                  )}
+                </form>
+              )}
+              {!promo.canDecide && promo.pending && <p>Passage au niveau supérieur demandé.</p>}
+            </div>
+          )}
           <div className="rounded-card border border-line bg-surface p-4">
             <h2 className="text-lg font-bold">Classes</h2>
             {learner.data.cohorts.length > 0 ? (

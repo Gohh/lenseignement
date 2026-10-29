@@ -29,6 +29,28 @@ export const CreateTeamInvitationSchema = z.object({
   branches: Branches,
 });
 
+/** Création d'un compte d'équipe par le superadministrateur, l'administrateur ou la direction. */
+export const CreateAccountSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .max(120)
+    .refine((v) => v.split(/\s+/).length >= 2, 'Écrivez le prénom puis le nom.'),
+  email: z.string().trim().toLowerCase().email('Adresse e-mail invalide.').max(200),
+  organizationId: z.string().uuid(),
+  role: z.enum(GRANTABLE_ROLES),
+  branches: Branches,
+});
+
+export interface CreatedAccount {
+  email: string;
+  displayName: string;
+  organization: string;
+  role: string;
+  /** Affiché une seule fois : la personne doit le changer à sa première connexion. */
+  temporaryPassword: string;
+}
+
 export const ORGANIZATION_TYPE_LABELS = {
   primary_public: 'Primaire public',
   primary_private: 'Primaire privé',

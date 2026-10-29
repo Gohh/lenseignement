@@ -23,6 +23,23 @@ export const AnswerHelpSchema = z.object({
   answer: z.string().trim().min(1, 'Écris ta réponse.').max(2000),
 });
 
+export const HELP_ATTACHMENT_KINDS = ['photo', 'audio'] as const;
+export type HelpAttachmentKind = (typeof HELP_ATTACHMENT_KINDS)[number];
+
+/** Formats acceptés et poids maximal (en octets) des pièces jointes d'une question. */
+export const HELP_ATTACHMENT_RULES = {
+  photo: { mimes: ['image/jpeg', 'image/png', 'image/webp'], maxBytes: 3 * 1024 * 1024 },
+  audio: {
+    mimes: ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav'],
+    maxBytes: 2 * 1024 * 1024,
+  },
+} as const;
+
+export interface HelpAttachment {
+  id: string;
+  kind: HelpAttachmentKind;
+}
+
 export interface HelpQuestion {
   id: string;
   kind: HelpKind;
@@ -37,6 +54,8 @@ export interface HelpQuestion {
   createdAt: string;
   /** Réponse pas encore vue par l'apprenant. */
   unseen: boolean;
+  /** Photo et message vocal joints à la question. */
+  attachments: HelpAttachment[];
 }
 
 /** Question vue par la personne qui répond : on ajoute le nom de l'élève. */
@@ -55,4 +74,6 @@ export interface HelpBadge {
   toGrade: number;
   /** Séances de classe virtuelle en cours ou dans les 24 heures. */
   sessions: number;
+  /** Messages de parents ou d'enseignants pas encore lus. */
+  messages: number;
 }

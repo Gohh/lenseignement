@@ -1,12 +1,21 @@
-import type { AskHelp, HelpBadge, HelpInboxItem, HelpQuestion } from '@lenseignement/types';
+import {
+  HELP_ATTACHMENT_RULES,
+  type AskHelp,
+  type HelpAttachment,
+  type HelpBadge,
+  type HelpInboxItem,
+  type HelpQuestion,
+} from '@lenseignement/types';
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { myAssignments } from '../assignments/assignments.js';
 import type { Database } from '../db/database.js';
+import { unreadMessages } from '../messages/messages.js';
 import { mySessions } from '../sessions/class-sessions.js';
 import {
   cohortMembers,
   cohorts,
   courses,
+  helpAttachments,
   helpQuestions,
   memberships,
   tutorLinks,
@@ -108,7 +117,97 @@ function view(row: {
     answeredAt: row.answeredAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     unseen: row.answer !== null && row.learnerSeenAt === null,
+    attachments: [],
   };
+}
+
+/** Ajoute à chaque question sa photo et son message vocal éventuels. */
+async function withAttachments<T extends HelpQuestion>(db: Database, items: T[]): Promise<T[]> {
+  if (items.length === 0) return items;
+  const rows = await db
+    .select({
+      id: helpAttachments.id,
+      questionId: helpAttachments.questionId,
+      kind: helpAttachments.kind,
+    })
+    .from(helpAttachments)
+    .where(
+      inArray(
+        helpAttachments.questionId,
+        items.map((q) => q.id),
+      ),
+    );
+  for (const q of items) {
+    q.attachments = rows
+      .filter((r) => r.questionId === q.id)
+      .map((r) => ({ id: r.id, kind: r.kind as HelpAttachment['kind'] }));
+  }
+  return items;
+}
+
+/** Enregistre (ou remplace) la photo ou le message vocal d'une question, par son auteur. */
+export async function attachToQuestion(
+  db: Database,
+  learnerId: string,
+  questionId: string,
+  kind: string,
+  mime: string,
+  data: Buffer,
+): Promise<{ id: string }> {
+  const [question] = await db
+    .select({ learnerUserId: helpQuestions.learnerUserId })
+    .from(helpQuestions)
+    .where(eq(helpQuestions.id, questionId));
+  if (!question || question.learnerUserId !== learnerId) {
+    throw new HelpError('not_found', 'Question introuvable.');
+  }
+  if (kind !== 'photo' && kind !== 'audio')
+    throw new HelpError('invalid', 'Type de pièce inconnu.');
+  const rules = HELP_ATTACHMENT_RULES[kind];
+  const base = mime.split(';')[0]!.trim().toLowerCase();
+  if (!(rules.mimes as readonly string[]).includes(base)) {
+    throw new HelpError('invalid', 'Ce format n’est pas accepté.');
+  }
+  if (!Buffer.isBuffer(data) || data.length === 0) {
+    throw new HelpError('invalid', 'Le fichier est vide.');
+  }
+  if (data.length > rules.maxBytes) {
+    throw new HelpError('invalid', 'Le fichier est trop lourd.');
+  }
+  const [row] = await db
+    .insert(helpAttachments)
+    .values({ questionId, kind, mime: base, data })
+    .onConflictDoUpdate({
+      target: [helpAttachments.questionId, helpAttachments.kind],
+      set: { mime: base, data },
+    })
+    .returning({ id: helpAttachments.id });
+  return { id: row!.id };
+}
+
+/** Pièce jointe lue par son auteur ou par ceux qui répondent à ses questions. */
+export async function readAttachment(
+  db: Database,
+  userId: string,
+  attachmentId: string,
+): Promise<{ mime: string; data: Buffer }> {
+  const [row] = await db
+    .select({
+      mime: helpAttachments.mime,
+      data: helpAttachments.data,
+      learnerUserId: helpQuestions.learnerUserId,
+    })
+    .from(helpAttachments)
+    .innerJoin(helpQuestions, eq(helpQuestions.id, helpAttachments.questionId))
+    .where(eq(helpAttachments.id, attachmentId));
+  if (!row) throw new HelpError('not_found', 'Pièce introuvable.');
+  if (row.learnerUserId !== userId) {
+    const learners = await helpedLearnerIds(db, userId);
+    if (!learners.includes(row.learnerUserId)) {
+      throw new HelpError('not_found', 'Pièce introuvable.');
+    }
+  }
+  return { mime: row.mime, data: row.data };
 }
 
 const answeredByName = sql<
@@ -162,7 +261,7 @@ export async function myQuestions(db: Database, learnerId: string): Promise<Help
     .from(helpQuestions)
     .where(eq(helpQuestions.learnerUserId, learnerId))
     .orderBy(desc(helpQuestions.createdAt));
-  return rows.map(view);
+  return withAttachments(db, rows.map(view));
 }
 
 /** L'apprenant a lu ses réponses : la cloche s'éteint. */
@@ -194,7 +293,10 @@ export async function inbox(db: Database, userId: string): Promise<HelpInboxItem
     .where(inArray(helpQuestions.learnerUserId, learners))
     .orderBy(sql`(${helpQuestions.answer} is not null)`, helpQuestions.createdAt)
     .limit(200);
-  return rows.map((row) => ({ ...view(row), learnerName: row.learnerName ?? 'Élève' }));
+  return withAttachments(
+    db,
+    rows.map((row) => ({ ...view(row), learnerName: row.learnerName ?? 'Élève' })),
+  );
 }
 
 export async function answerHelp(
@@ -250,5 +352,12 @@ export async function badge(db: Database, userId: string): Promise<HelpBadge> {
   const sessions = (await mySessions(db, userId)).filter(
     (x) => Date.parse(x.endsAt) >= now && Date.parse(x.startsAt) <= now + 24 * 3600_000,
   ).length;
-  return { answers: mine?.n ?? 0, questions, homework, toGrade, sessions };
+  return {
+    answers: mine?.n ?? 0,
+    questions,
+    homework,
+    toGrade,
+    sessions,
+    messages: await unreadMessages(db, userId),
+  };
 }

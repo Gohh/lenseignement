@@ -6,6 +6,7 @@ import { CatalogCoursesController } from './catalog/catalog-courses.controller.j
 import { ClassSessionsController } from './sessions/class-sessions.controller.js';
 import { AssignmentsController } from './assignments/assignments.controller.js';
 import { EvaluationsController } from './evaluations/evaluations.controller.js';
+import { MessagesController } from './messages/messages.controller.js';
 import { LibraryController } from './library/library.controller.js';
 import { CohortAdminController } from './cohorts/cohort-admin.controller.js';
 import { CohortsController } from './cohorts/cohorts.controller.js';
@@ -23,6 +24,8 @@ import { MeController } from './me/me.controller.js';
 import { RemediationController } from './remediation/remediation.controller.js';
 import { SimulationController } from './simulation/simulation.controller.js';
 import { OrganizationsController } from './team/organizations.controller.js';
+import { IDENTITY_ADMIN, KeycloakAdmin } from './team/identity-admin.js';
+import { loadConfig } from './config.js';
 import { TeamController } from './team/team.controller.js';
 import { StatsController } from './stats/stats.controller.js';
 
@@ -39,6 +42,7 @@ import { StatsController } from './stats/stats.controller.js';
     ClassSessionsController,
     AssignmentsController,
     LibraryController,
+    MessagesController,
     EvaluationsController,
     LearnersController,
     AuthoringController,
@@ -52,6 +56,19 @@ import { StatsController } from './stats/stats.controller.js';
     OrganizationsController,
     HelpController,
   ],
-  providers: [OutboxRelayService],
+  providers: [
+    OutboxRelayService,
+    {
+      provide: IDENTITY_ADMIN,
+      useFactory: () => {
+        const config = loadConfig();
+        return new KeycloakAdmin({
+          issuerUrl: config.OIDC_ISSUER_URL,
+          clientId: config.KEYCLOAK_ADMIN_CLIENT_ID,
+          clientSecret: config.KEYCLOAK_ADMIN_CLIENT_SECRET,
+        });
+      },
+    },
+  ],
 })
 export class AppModule {}

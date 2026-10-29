@@ -17,6 +17,10 @@ test.describe('Classe virtuelle', () => {
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: '+ Programmer une séance' }).click();
     const dialog = page.getByRole('dialog');
+    // D'autres tests créent des classes : on choisit la classe de l'élève de démonstration.
+    await dialog
+      .getByLabel('Classe')
+      .selectOption(await dialog.getByRole('option', { name: /CP1 A/ }).getAttribute('value'));
     await dialog.getByLabel('Titre de la séance').fill(title);
     await dialog.getByLabel('Matière (facultatif)').fill('Mathématiques');
     await dialog.getByLabel('Date et heure').fill(now);

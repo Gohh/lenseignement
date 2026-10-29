@@ -1,5 +1,7 @@
 import { HELP_KIND_LABELS, HELP_KINDS, type HelpQuestion } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
+import { HelpAttachmentFields } from '@/components/HelpAttachmentFields';
+import { HelpAttachmentList } from '@/components/HelpAttachmentList';
 import { buttonClass, inputClass, Notice, param } from '@/components/Notice';
 import { apiGet, apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -73,6 +75,7 @@ export default async function HelpPage({ searchParams }: Props) {
             className={inputClass}
           />
         </label>
+        <HelpAttachmentFields />
         <button type="submit" className={buttonClass}>
           Envoyer ma question
         </button>
@@ -102,6 +105,7 @@ export default async function HelpPage({ searchParams }: Props) {
                   </span>
                 </p>
                 <p className="mt-2 whitespace-pre-line">{q.body}</p>
+                <HelpAttachmentList attachments={q.attachments} />
                 {q.answer && (
                   <blockquote className="mt-3 rounded-card border-l-4 border-primary bg-primary-soft p-3">
                     <p className="font-bold">{q.answeredByName ?? 'Ton enseignant'} répond :</p>

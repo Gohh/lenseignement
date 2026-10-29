@@ -15,6 +15,10 @@ test.describe('Évaluations', () => {
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: '+ Créer une évaluation' }).click();
     const dialog = page.getByRole('dialog');
+    // D'autres tests créent des classes : on choisit la classe de l'élève de démonstration.
+    await dialog
+      .getByLabel('Classe')
+      .selectOption(await dialog.getByRole('option', { name: /CP1 A/ }).getAttribute('value'));
     await dialog.getByLabel('Titre').fill(title);
     await dialog.getByLabel('Date').fill('2026-10-20');
     await dialog.getByRole('button', { name: 'Créer l’évaluation' }).click();

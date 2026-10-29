@@ -13,21 +13,29 @@ export async function HelpBell({
   quietWhenEmpty: boolean;
 }) {
   const result = await apiGet<HelpBadge>(accessToken, '/me/help-badge');
-  const empty = { answers: 0, questions: 0, homework: 0, toGrade: 0, sessions: 0 };
+  const empty = { answers: 0, questions: 0, homework: 0, toGrade: 0, sessions: 0, messages: 0 };
   const badge = result.ok ? result.data : empty;
-  const count = badge.answers + badge.questions + badge.homework + badge.toGrade + badge.sessions;
+  const count =
+    badge.answers +
+    badge.questions +
+    badge.homework +
+    badge.toGrade +
+    badge.sessions +
+    badge.messages;
   if (count === 0 && quietWhenEmpty) return null;
   // Le clic mène à ce qui demande le plus vite une action.
   const href =
-    badge.questions > 0
-      ? '/mon-espace/questions'
-      : badge.toGrade > 0 || badge.homework > 0
-        ? '/mon-espace/devoirs'
-        : badge.answers > 0
-          ? '/mon-espace/aide'
-          : badge.sessions > 0
-            ? '/mon-espace/classe'
-            : '/mon-espace/aide';
+    badge.messages > 0 && badge.questions === 0
+      ? '/mon-espace/messages'
+      : badge.questions > 0
+        ? '/mon-espace/questions'
+        : badge.toGrade > 0 || badge.homework > 0
+          ? '/mon-espace/devoirs'
+          : badge.answers > 0
+            ? '/mon-espace/aide'
+            : badge.sessions > 0
+              ? '/mon-espace/classe'
+              : '/mon-espace/aide';
   const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
   const label =
     count === 0
@@ -38,6 +46,7 @@ export async function HelpBell({
             plural(badge.questions, 'question en attente', 'questions en attente'),
           badge.homework > 0 && plural(badge.homework, 'devoir à rendre', 'devoirs à rendre'),
           badge.toGrade > 0 && plural(badge.toGrade, 'copie à corriger', 'copies à corriger'),
+          badge.messages > 0 && plural(badge.messages, 'message non lu', 'messages non lus'),
           badge.sessions > 0 &&
             plural(badge.sessions, 'séance de classe bientôt', 'séances de classe bientôt'),
         ]

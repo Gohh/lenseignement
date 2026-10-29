@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { BRANCH_CODES, LEVEL_CODES } from '@lenseignement/types';
 import {
   boolean,
+  customType,
   check,
   date,
   doublePrecision,
@@ -1252,4 +1253,64 @@ export const evaluationScores = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique('evaluation_scores_once').on(t.evaluationId, t.learnerUserId)],
+);
+
+/** Conversation entre un parent et l'enseignant de son enfant, à propos de cet enfant. */
+export const parentConversations = pgTable(
+  'parent_conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    parentUserId: uuid('parent_user_id')
+      .notNull()
+      .references(() => users.id),
+    teacherUserId: uuid('teacher_user_id')
+      .notNull()
+      .references(() => users.id),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('parent_conversations_trio').on(t.parentUserId, t.teacherUserId, t.learnerUserId),
+    index('parent_conversations_teacher_idx').on(t.teacherUserId),
+  ],
+);
+
+export const parentMessages = pgTable(
+  'parent_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => parentConversations.id, { onDelete: 'cascade' }),
+    senderUserId: uuid('sender_user_id')
+      .notNull()
+      .references(() => users.id),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (t) => [index('parent_messages_conversation_idx').on(t.conversationId, t.createdAt)],
+);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
+
+/** Photo ou message vocal joint à une question d'aide (une de chaque au plus). */
+export const helpAttachments = pgTable(
+  'help_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => helpQuestions.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    mime: text('mime').notNull(),
+    data: bytea('data').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('help_attachments_once').on(t.questionId, t.kind),
+    check('help_attachments_kind_check', sql`${t.kind} in ('photo','audio')`),
+  ],
 );

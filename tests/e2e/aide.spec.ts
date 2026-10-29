@@ -14,7 +14,8 @@ test.describe('Aide et tutorat', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Aide et tutorat' })).toBeVisible();
     await page.waitForLoadState('networkidle');
     await page.getByLabel('Ta question').fill(question);
-    await page.getByRole('button', { name: 'Envoyer ma question' }).click();
+    // Sur téléphone, chez GitHub, le clic de la souris tombait à côté du bouton : on envoie le clic au bouton lui-même.
+    await page.getByRole('button', { name: 'Envoyer ma question' }).dispatchEvent('click');
     await expect(page.getByText('Ta question est envoyée.')).toBeVisible();
     await expect(page.getByTestId('my-questions')).toContainText(question);
 

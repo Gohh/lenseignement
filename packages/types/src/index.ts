@@ -21,3 +21,4 @@ export * from './assignments.js';
 export * from './achievements.js';
 export * from './resources.js';
 export * from './evaluations.js';
+export * from './messages.js';

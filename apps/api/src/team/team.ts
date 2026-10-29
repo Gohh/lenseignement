@@ -1,8 +1,14 @@
 import { randomInt } from 'node:crypto';
 import { and, asc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
-import { GRANTABLE_ROLES, type TeamMember, type TeamOverview } from '@lenseignement/types';
+import {
+  GRANTABLE_ROLES,
+  type CreatedAccount,
+  type TeamMember,
+  type TeamOverview,
+} from '@lenseignement/types';
 import { teamOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
+import { IdentityError, temporaryPassword, type IdentityAdmin } from './identity-admin.js';
 import {
   auditLogs,
   memberships,
@@ -302,4 +308,73 @@ export async function removeMember(
     .set({ validUntil: sql`now()` })
     .where(eq(memberships.id, row.id));
   await audit(db, userId, 'team.member.remove', row.organizationId, traceId);
+}
+
+/**
+ * Crée le compte d'une personne de l'équipe : Keycloak (mot de passe provisoire à changer à la
+ * première connexion), puis la fiche et le rattachement avec le rôle choisi. Mêmes droits qu'une
+ * invitation.
+ */
+export async function createAccount(
+  db: Database,
+  identity: IdentityAdmin,
+  userId: string,
+  input: {
+    displayName: string;
+    email: string;
+    organizationId: string;
+    role: string;
+    branches: string[] | null;
+  },
+  traceId?: string,
+): Promise<CreatedAccount> {
+  await assertManages(db, userId, input.organizationId);
+  await assertActive(db, input.organizationId);
+  if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
+    throw new TeamError('forbidden', 'Accès refusé.');
+  }
+  const [firstName, ...rest] = input.displayName.split(/\s+/);
+  const password = temporaryPassword();
+  const created = await identity
+    .createUser({
+      email: input.email,
+      firstName: firstName!,
+      lastName: rest.join(' '),
+      temporaryPassword: password,
+    })
+    .catch((error: unknown) => {
+      if (error instanceof IdentityError) throw new TeamError('invalid', error.message);
+      throw error;
+    });
+  const [org] = await db
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, input.organizationId));
+  await db.transaction(async (tx) => {
+    const [user] = await tx
+      .insert(users)
+      .values({ oidcSubject: created.id, displayName: input.displayName, accountType: 'staff' })
+      .onConflictDoUpdate({
+        target: users.oidcSubject,
+        set: { displayName: input.displayName, accountType: 'staff' },
+      })
+      .returning({ id: users.id });
+    await tx
+      .insert(memberships)
+      .values({
+        userId: user!.id,
+        organizationId: input.organizationId,
+        role: input.role as never,
+        branches: input.branches,
+      })
+      .onConflictDoNothing();
+  });
+  await audit(db, userId, 'team.account.create', input.organizationId, traceId);
+  return {
+    email: input.email,
+    displayName: input.displayName,
+    organization: org!.name,
+    role: input.role,
+    temporaryPassword: password,
+  };
 }

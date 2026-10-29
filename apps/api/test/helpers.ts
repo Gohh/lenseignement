@@ -9,6 +9,7 @@ import { loadConfig } from '../src/config.js';
 import { createDatabase, type Database } from '../src/db/database.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { seedDemo } from '../src/db/seed.js';
+import { IDENTITY_ADMIN, type IdentityAdmin } from '../src/team/identity-admin.js';
 
 /** Base dédiée aux tests : elle est entièrement vidée à chaque fichier de test. */
 export const TEST_DATABASE_URL =
@@ -59,7 +60,9 @@ async function resetDatabase(db: Database): Promise<void> {
   await seedDemo(db);
 }
 
-export async function createTestApp(): Promise<TestContext> {
+export async function createTestApp(
+  options: { identityAdmin?: IdentityAdmin } = {},
+): Promise<TestContext> {
   process.env.DATABASE_URL = TEST_DATABASE_URL;
   // Les tests délivrent l'outbox eux-mêmes, au moment voulu.
   process.env.OUTBOX_RELAY_INTERVAL_MS = '0';
@@ -75,10 +78,13 @@ export async function createTestApp(): Promise<TestContext> {
     keys: createLocalJWKSet({ keys: [jwk] }),
   });
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(TOKEN_VERIFIER)
-    .useValue(verifier)
-    .compile();
+    .useValue(verifier);
+  if (options.identityAdmin) {
+    builder.overrideProvider(IDENTITY_ADMIN).useValue(options.identityAdmin);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication({ logger: false });
   configureApp(app, loadConfig({ NODE_ENV: 'test' }));
   await app.init();

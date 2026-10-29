@@ -13,7 +13,12 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
-import { CohortTeacherSchema, CreateCohortSchema, JoinCohortSchema } from '@lenseignement/types';
+import {
+  CohortTeacherSchema,
+  CreateCohortSchema,
+  JoinCohortSchema,
+  TransferLearnersSchema,
+} from '@lenseignement/types';
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
@@ -28,6 +33,9 @@ import {
   removeCohortTeacher,
   renewJoinCode,
   setCohortArchived,
+  removeLearner,
+  rosterTools,
+  transferLearners,
 } from './cohort-admin.js';
 
 async function guard<T>(run: () => Promise<T>): Promise<T> {
@@ -123,6 +131,37 @@ export class CohortAdminController {
       setCohortArchived(this.db, await this.me(request), id, false, request.traceId),
     );
     return { archived: false };
+  }
+
+  @Get('cohorts/:id/roster-tools')
+  async rosterTools(@Req() request: Request, @Param('id', ParseUUIDPipe) id: string) {
+    return guard(async () => rosterTools(this.db, await this.me(request), id));
+  }
+
+  @Delete('cohorts/:id/learners/:learnerId')
+  @HttpCode(200)
+  async removeLearner(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('learnerId', ParseUUIDPipe) learnerId: string,
+  ) {
+    await guard(async () =>
+      removeLearner(this.db, await this.me(request), id, learnerId, request.traceId),
+    );
+    return { removed: true };
+  }
+
+  @Post('cohorts/:id/transfer')
+  @HttpCode(200)
+  async transfer(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parse(TransferLearnersSchema, body);
+    return guard(async () =>
+      transferLearners(this.db, await this.me(request), id, input, request.traceId),
+    );
   }
 
   @Post('me/join-cohort')

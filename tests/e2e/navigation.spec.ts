@@ -66,6 +66,7 @@ test.describe('Navigation', () => {
       'Atelier',
       'Ma classe',
       'Mes devoirs',
+      'Mes réussites',
       'Aide et tutorat',
     ]);
     await expect(menu(page).getByRole('link', { name: 'Atelier' })).toHaveAttribute(

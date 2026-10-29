@@ -64,10 +64,12 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
         where u.oidc_subject = $1 and o.type = 'authority' and o.name like 'Direction régionale de démonstration%'`,
       [subjectOf(username)],
     );
-    await member.goto('/mon-espace/configuration?onglet=creer');
+    await member.goto('/mon-espace/configuration');
+    await member.waitForLoadState('networkidle');
+    await member.getByRole('button', { name: '+ Créer un établissement' }).click();
     const stamp = `${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
     const drena = `DRENA Essai ${stamp}`;
-    const form = member.locator('form', { hasText: 'Créer un établissement' });
+    const form = member.getByRole('dialog');
     await form.getByLabel('Nom officiel').fill(drena);
     await form
       .getByLabel('Type')
@@ -75,8 +77,9 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await form.getByRole('button', { name: 'Créer l’établissement' }).click();
     await expect(member.getByText('Établissement créé.')).toBeVisible();
 
-    await member.goto('/mon-espace/configuration?onglet=creer');
-    const school = member.locator('form', { hasText: 'Créer un établissement' });
+    await member.waitForLoadState('networkidle');
+    await member.getByRole('button', { name: '+ Créer un établissement' }).click();
+    const school = member.getByRole('dialog');
     await school.getByLabel('Nom officiel').fill(`École ${stamp}`);
     await school.locator('select[name="parentId"]').selectOption({ label: drena });
     await school.getByLabel('Localité').fill('Bouaké');
@@ -85,8 +88,8 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await expect(member.getByText('Établissement créé.')).toBeVisible();
 
     // Import : aperçu d'abord, rien n'est créé avant la confirmation (page dynamique : on attend).
-    await member.getByRole('link', { name: 'Importer (CSV)' }).click();
     await member.waitForLoadState('networkidle');
+    await member.getByRole('button', { name: 'Importer (CSV)' }).click();
     await member.getByLabel('Fichier CSV').setInputFiles({
       name: 'etablissements.csv',
       mimeType: 'text/csv',

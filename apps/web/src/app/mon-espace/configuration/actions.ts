@@ -34,8 +34,8 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
     managerName: text(form, 'managerName'),
     managerContact: text(form, 'managerContact'),
   });
-  // En cas d'erreur, on reste sur l'onglet de création.
-  if (!result.ok) back('erreur', result.message ?? 'Création impossible.', `${PATH}?onglet=creer`);
+  // En cas d'erreur, la fenêtre de création se rouvre.
+  if (!result.ok) back('erreur', result.message ?? 'Création impossible.', `${PATH}?ouvrir=creer`);
   // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
   if (result.data.managerCode) back('code', result.data.managerCode);
   back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');

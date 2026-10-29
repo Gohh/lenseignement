@@ -9,6 +9,7 @@ import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { createOrganizationAction } from './actions';
+import { Dialog } from './Dialog';
 import { ImportOrganizations } from './ImportOrganizations';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,6 @@ interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-const PATH = '/mon-espace/configuration';
 const cardClass = 'rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]';
 
 export default async function ConfigurationPage({ searchParams }: Props) {
@@ -63,13 +63,7 @@ export default async function ConfigurationPage({ searchParams }: Props) {
       };
   const items = list.data.items;
   const canCreate = team.canCreateOrganization && (team.everywhere || team.directions.length > 0);
-  const tabs = [
-    { key: 'liste', label: `Établissements (${items.length})` },
-    ...(canCreate ? [{ key: 'creer', label: 'Créer' }] : []),
-    ...(team.canCreateOrganization ? [{ key: 'importer', label: 'Importer (CSV)' }] : []),
-  ];
-  const wanted = param(query.onglet);
-  const tab = tabs.some((t) => t.key === wanted) ? wanted! : 'liste';
+  const open = param(query.ouvrir);
   const typeLabel = (value: string) =>
     ORGANIZATION_TYPE_LABELS[value as keyof typeof ORGANIZATION_TYPE_LABELS] ?? value;
   const cell = 'px-4 py-3 align-top';
@@ -99,198 +93,192 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         </div>
       )}
 
-      <nav aria-label="Sections de la configuration" className="border-b border-line">
-        <ul className="-mb-px flex flex-wrap gap-1" role="list">
-          {tabs.map((t) => (
-            <li key={t.key}>
-              <a
-                href={t.key === 'liste' ? PATH : `${PATH}?onglet=${t.key}`}
-                aria-current={t.key === tab ? 'page' : undefined}
-                className="inline-flex min-h-[44px] items-center rounded-t-card border-b-4 border-transparent px-4 font-bold text-ink-muted no-underline hover:bg-primary-soft aria-[current=page]:border-primary aria-[current=page]:text-primary"
+      <form method="get" className={`${cardClass} flex flex-wrap items-end gap-4`}>
+        <label className="block flex-1 basis-44 font-bold">
+          Rechercher
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Nom, localité ou responsable"
+            className={inputClass}
+          />
+        </label>
+        <label className="block flex-1 basis-36 font-bold">
+          Direction régionale
+          <select name="direction" defaultValue={direction} className={inputClass}>
+            <option value="">Toutes</option>
+            {team.directions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block flex-1 basis-36 font-bold">
+          Type
+          <select name="type" defaultValue={type} className={inputClass}>
+            <option value="">Tous</option>
+            {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex min-h-[44px] items-center gap-3">
+          <input
+            type="checkbox"
+            name="archives"
+            value="1"
+            defaultChecked={archived}
+            className="h-6 w-6 accent-primary"
+          />
+          Archivés
+        </label>
+        <button type="submit" className={secondaryButtonClass}>
+          Filtrer
+        </button>
+      </form>
+
+      <div className="overflow-hidden rounded-big border border-line bg-surface">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+          <h2 className="text-xl font-extrabold">
+            {archived ? 'Archivés' : 'Actifs'} ({items.length})
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {team.canCreateOrganization && (
+              <Dialog
+                label="Importer (CSV)"
+                title="Importer des établissements"
+                openAtStart={open === 'importer'}
               >
-                {t.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {tab === 'liste' && (
-        <>
-          <form method="get" className={`${cardClass} flex flex-wrap items-end gap-4`}>
-            <label className="block flex-1 basis-56 font-bold">
-              Rechercher
-              <input
-                name="q"
-                defaultValue={q}
-                placeholder="Nom, localité ou responsable"
-                className={inputClass}
-              />
-            </label>
-            <label className="block flex-1 basis-48 font-bold">
-              Direction régionale
-              <select name="direction" defaultValue={direction} className={inputClass}>
-                <option value="">Toutes</option>
-                {team.directions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block flex-1 basis-48 font-bold">
-              Type
-              <select name="type" defaultValue={type} className={inputClass}>
-                <option value="">Tous</option>
-                {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex min-h-[44px] items-center gap-3">
-              <input
-                type="checkbox"
-                name="archives"
-                value="1"
-                defaultChecked={archived}
-                className="h-6 w-6 accent-primary"
-              />
-              Archivés
-            </label>
-            <button type="submit" className={secondaryButtonClass}>
-              Filtrer
-            </button>
-          </form>
-
-          <div className="overflow-hidden rounded-big border border-line bg-surface">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
-              <h2 className="text-xl font-extrabold">
-                {archived ? 'Archivés' : 'Actifs'} ({items.length})
-              </h2>
-              {canCreate && (
-                <a href={`${PATH}?onglet=creer`} className={buttonClass}>
-                  + Créer un établissement
-                </a>
-              )}
-            </div>
-            {items.length === 0 ? (
-              <p className="p-4">Aucun établissement ne correspond.</p>
-            ) : (
-              <div className="overflow-x-auto" data-testid="organization-list">
-                <table className="w-full min-w-[40rem] text-left">
-                  <thead className="bg-primary-soft text-sm uppercase tracking-wide text-ink-muted">
-                    <tr>
-                      <th scope="col" className={cell}>
+                <ImportOrganizations />
+              </Dialog>
+            )}
+            {canCreate && (
+              <Dialog
+                primary
+                label="+ Créer un établissement"
+                title="Créer un établissement"
+                openAtStart={open === 'creer'}
+              >
+                <form action={createOrganizationAction} className="space-y-6">
+                  <fieldset className="space-y-4">
+                    <legend className="font-extrabold text-primary">Identité</legend>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block font-bold sm:col-span-2">
                         Nom officiel
-                      </th>
-                      <th scope="col" className={cell}>
+                        <input
+                          name="name"
+                          className={inputClass}
+                          required
+                          minLength={3}
+                          maxLength={160}
+                        />
+                      </label>
+                      <label className="block font-bold">
                         Type
-                      </th>
-                      <th scope="col" className={cell}>
-                        Direction régionale
-                      </th>
-                      <th scope="col" className={cell}>
+                        <select name="type" className={inputClass} defaultValue="primary_public">
+                          {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block font-bold">
                         Localité
-                      </th>
-                      <th scope="col" className={cell}>
-                        Responsable
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {items.map((o) => (
-                      <tr key={o.id} className="hover:bg-primary-soft">
-                        <th scope="row" className={`${cell} font-bold`}>
-                          <Link
-                            href={`/mon-espace/configuration/etablissements/${o.id}`}
-                            className="inline-flex min-h-[44px] items-center underline"
-                          >
-                            {o.name}
-                          </Link>
-                        </th>
-                        <td className={cell}>{typeLabel(o.type)}</td>
-                        <td className={cell}>{o.direction?.name ?? '–'}</td>
-                        <td className={cell}>{o.locality ?? '–'}</td>
-                        <td className={cell}>{o.managerName ?? '–'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        <input name="locality" className={inputClass} maxLength={160} />
+                      </label>
+                    </div>
+                  </fieldset>
+                  <fieldset className="space-y-4">
+                    <legend className="font-extrabold text-primary">Rattachement</legend>
+                    <label className="block font-bold">
+                      Direction régionale
+                      <select name="parentId" className={inputClass} defaultValue="">
+                        <option value="">
+                          {team.everywhere
+                            ? 'Aucune (si vous créez une direction régionale)'
+                            : 'Choisir…'}
+                        </option>
+                        {team.directions.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </fieldset>
+                  <fieldset className="space-y-4">
+                    <legend className="font-extrabold text-primary">Responsable</legend>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block font-bold">
+                        Responsable (nom)
+                        <input name="managerName" className={inputClass} maxLength={160} />
+                      </label>
+                      <label className="block font-bold">
+                        Contact du responsable (facultatif)
+                        <input name="managerContact" className={inputClass} maxLength={160} />
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" className={buttonClass}>
+                      Créer l’établissement
+                    </button>
+                  </div>
+                </form>
+              </Dialog>
             )}
           </div>
-        </>
-      )}
-
-      {tab === 'creer' && canCreate && (
-        <form action={createOrganizationAction} className={`${cardClass} space-y-6`}>
-          <h2 className="text-xl font-bold">Créer un établissement</h2>
-          <fieldset className="space-y-4">
-            <legend className="font-extrabold text-primary">Identité</legend>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block font-bold sm:col-span-2">
-                Nom officiel
-                <input name="name" className={inputClass} required minLength={3} maxLength={160} />
-              </label>
-              <label className="block font-bold">
-                Type
-                <select name="type" className={inputClass} defaultValue="primary_public">
-                  {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block font-bold">
-                Localité
-                <input name="locality" className={inputClass} maxLength={160} />
-              </label>
-            </div>
-          </fieldset>
-          <fieldset className="space-y-4">
-            <legend className="font-extrabold text-primary">Rattachement</legend>
-            <label className="block font-bold">
-              Direction régionale
-              <select name="parentId" className={inputClass} defaultValue="">
-                <option value="">
-                  {team.everywhere ? 'Aucune (si vous créez une direction régionale)' : 'Choisir…'}
-                </option>
-                {team.directions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
+        </div>
+        {items.length === 0 ? (
+          <p className="p-4">Aucun établissement ne correspond.</p>
+        ) : (
+          <div className="overflow-x-auto" data-testid="organization-list">
+            <table className="w-full min-w-[40rem] text-left">
+              <thead className="bg-primary-soft text-sm uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th scope="col" className={cell}>
+                    Nom officiel
+                  </th>
+                  <th scope="col" className={cell}>
+                    Type
+                  </th>
+                  <th scope="col" className={cell}>
+                    Direction régionale
+                  </th>
+                  <th scope="col" className={cell}>
+                    Localité
+                  </th>
+                  <th scope="col" className={cell}>
+                    Responsable
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {items.map((o) => (
+                  <tr key={o.id} className="hover:bg-primary-soft">
+                    <th scope="row" className={`${cell} font-bold`}>
+                      <Link
+                        href={`/mon-espace/configuration/etablissements/${o.id}`}
+                        className="inline-flex min-h-[44px] items-center underline"
+                      >
+                        {o.name}
+                      </Link>
+                    </th>
+                    <td className={cell}>{typeLabel(o.type)}</td>
+                    <td className={cell}>{o.direction?.name ?? '–'}</td>
+                    <td className={cell}>{o.locality ?? '–'}</td>
+                    <td className={cell}>{o.managerName ?? '–'}</td>
+                  </tr>
                 ))}
-              </select>
-            </label>
-          </fieldset>
-          <fieldset className="space-y-4">
-            <legend className="font-extrabold text-primary">Responsable</legend>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block font-bold">
-                Responsable (nom)
-                <input name="managerName" className={inputClass} maxLength={160} />
-              </label>
-              <label className="block font-bold">
-                Contact du responsable (facultatif)
-                <input name="managerContact" className={inputClass} maxLength={160} />
-              </label>
-            </div>
-          </fieldset>
-          <div className="flex flex-wrap gap-3">
-            <button type="submit" className={buttonClass}>
-              Créer l’établissement
-            </button>
-            <a href={PATH} className={secondaryButtonClass}>
-              Annuler
-            </a>
+              </tbody>
+            </table>
           </div>
-        </form>
-      )}
-
-      {tab === 'importer' && team.canCreateOrganization && <ImportOrganizations />}
+        )}
+      </div>
     </section>
   );
 }

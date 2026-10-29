@@ -5,11 +5,28 @@ import { LEVEL_CODES, LEVEL_GROUPS, type LevelCode } from './levels.js';
 
 export const SCHOOL_YEAR_PATTERN = /^\d{4}-\d{4}$/;
 
+/** Année scolaire d'une date : de septembre à août (« 2026-2027 » à partir de septembre 2026). */
+export function schoolYearOf(date: Date): string {
+  const start = date.getMonth() >= 8 ? date.getFullYear() : date.getFullYear() - 1;
+  return `${start}-${start + 1}`;
+}
+
+/** Années proposées à la création d'une classe : la précédente, l'année en cours et la suivante. */
+export function schoolYearChoices(date: Date): string[] {
+  const start = Number(schoolYearOf(date).slice(0, 4));
+  return [start - 1, start, start + 1].map((y) => `${y}-${y + 1}`);
+}
+
+const isConsecutive = (year: string) => Number(year.slice(5)) === Number(year.slice(0, 4)) + 1;
+
 export const CreateCohortSchema = z.object({
   organizationId: z.uuid(),
   level: z.enum(LEVEL_CODES),
   name: z.string().trim().min(1, 'Donnez un nom à la classe.').max(60),
-  schoolYear: z.string().regex(SCHOOL_YEAR_PATTERN, 'Année scolaire attendue : 2026-2027.'),
+  schoolYear: z
+    .string()
+    .regex(SCHOOL_YEAR_PATTERN, 'Année scolaire attendue : 2026-2027.')
+    .refine(isConsecutive, 'Année scolaire attendue : deux années qui se suivent, 2026-2027.'),
 });
 
 export const CohortTeacherSchema = z.object({ userId: z.uuid() });

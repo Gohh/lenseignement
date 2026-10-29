@@ -1,4 +1,6 @@
 import {
+  schoolYearChoices,
+  schoolYearOf,
   ORGANIZATION_TYPE_LABELS,
   TEAM_ROLE_LABELS,
   type OrganizationCohorts,
@@ -47,10 +49,25 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
   const o = result.data;
   const directions = overview.ok ? overview.data.directions : [];
   const isDirection = o.type === 'authority';
-  // Année scolaire en cours : de septembre à août.
   const now = new Date();
-  const startYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-  const defaultYear = `${startYear}-${startYear + 1}`;
+  const defaultYear = schoolYearOf(now);
+  // Les classes se rangent par année scolaire : l'année en cours d'abord, les autres d'un clic.
+  const years = classes.ok
+    ? [...new Set([defaultYear, ...classes.data.items.map((c) => c.schoolYear)])].sort().reverse()
+    : [];
+  const wantedYear = param(query.annee);
+  const withClasses = classes.ok ? classes.data.items.map((c) => c.schoolYear) : [];
+  // Sans choix : l'année en cours, ou à défaut la plus récente qui a des classes.
+  const fallbackYear = withClasses.includes(defaultYear)
+    ? defaultYear
+    : (years.find((y) => withClasses.includes(y)) ?? defaultYear);
+  const shownYear =
+    wantedYear === 'toutes' || (wantedYear && years.includes(wantedYear))
+      ? wantedYear
+      : fallbackYear;
+  const shownClasses = classes.ok
+    ? classes.data.items.filter((c) => shownYear === 'toutes' || c.schoolYear === shownYear)
+    : [];
 
   return (
     <section className="space-y-6">
@@ -219,13 +236,14 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
                   </label>
                   <label className="block font-bold">
                     Année scolaire
-                    <input
-                      name="schoolYear"
-                      className={inputClass}
-                      required
-                      pattern="[0-9]{4}-[0-9]{4}"
-                      defaultValue={defaultYear}
-                    />
+                    <select name="schoolYear" className={inputClass} defaultValue={defaultYear}>
+                      {schoolYearChoices(now).map((y) => (
+                        <option key={y} value={y}>
+                          {y}
+                          {y === defaultYear ? ' (année en cours)' : ''}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <button type="submit" className={buttonClass}>
                     Créer la classe
@@ -234,11 +252,29 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
               </Dialog>
             )}
           </div>
-          {classes.data.items.length === 0 ? (
-            <p className="mt-2">Cet établissement n’a pas encore de classe.</p>
+          {years.length > 1 && (
+            <nav aria-label="Années scolaires" className="mt-3 flex flex-wrap gap-2">
+              {[...years, 'toutes'].map((y) => (
+                <a
+                  key={y}
+                  href={`?annee=${y}`}
+                  aria-current={y === shownYear ? 'page' : undefined}
+                  className="inline-flex min-h-[44px] items-center rounded-card border border-line px-4 font-bold no-underline aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary"
+                >
+                  {y === 'toutes' ? 'Toutes les années' : y}
+                </a>
+              ))}
+            </nav>
+          )}
+          {shownClasses.length === 0 ? (
+            <p className="mt-2">
+              {classes.data.items.length === 0
+                ? 'Cet établissement n’a pas encore de classe.'
+                : `Pas de classe pour ${shownYear}.`}
+            </p>
           ) : (
             <ul className="mt-3 space-y-3" role="list" data-testid="cohort-list">
-              {classes.data.items.map((c) => (
+              {shownClasses.map((c) => (
                 <li key={c.id} className="rounded-card border border-line p-4">
                   <p className="text-lg font-bold">
                     {c.name}{' '}

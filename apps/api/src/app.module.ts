@@ -16,6 +16,7 @@ import { LearningController } from './learning/learning.controller.js';
 import { MeController } from './me/me.controller.js';
 import { RemediationController } from './remediation/remediation.controller.js';
 import { SimulationController } from './simulation/simulation.controller.js';
+import { OrganizationsController } from './team/organizations.controller.js';
 import { TeamController } from './team/team.controller.js';
 import { StatsController } from './stats/stats.controller.js';
 
@@ -37,6 +38,7 @@ import { StatsController } from './stats/stats.controller.js';
     FamilyController,
     PromotionController,
     TeamController,
+    OrganizationsController,
   ],
   providers: [OutboxRelayService],
 })

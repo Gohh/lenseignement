@@ -48,6 +48,8 @@ export const organizations = pgTable(
     /** Responsable (chef d'établissement) : un nom pour l'affichage, pas un compte. */
     managerName: text('manager_name'),
     managerContact: text('manager_contact'),
+    /** Archivé : n'apparaît plus dans les listes, l'historique reste. */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

@@ -328,3 +328,126 @@ test('import CSV : aperçu sans rien écrire, puis création ; une erreur bloque
   });
   await call(SUB.koffi, 'post', '/team/organizations/import', 403, { csv, confirm: false });
 });
+
+test('configuration : liste filtrée, modification selon les rôles, archivage et rétablissement', async () => {
+  const made: string[] = [];
+  const tag = unique();
+  try {
+    await withRole(ID.userAwa, ID.orgBaobabs, 'administrateur', async () => {
+      const drena = (
+        await call(SUB.awa, 'post', '/team/organizations', 201, {
+          name: `DRENA ${tag}`,
+          type: 'authority',
+        })
+      ).body;
+      made.push(drena.id);
+      const school = (
+        await call(SUB.awa, 'post', '/team/organizations', 201, {
+          name: `Collège ${tag}`,
+          type: 'college',
+          parentId: drena.id,
+          ...fiche,
+        })
+      ).body;
+      made.push(school.id);
+
+      // Liste : recherche, filtre par direction et par type ; fermée à qui ne gère rien.
+      await call(SUB.koffi, 'get', '/organizations', 403);
+      const found = (
+        await call(SUB.awa, 'get', `/organizations?search=${encodeURIComponent(tag)}`, 200)
+      ).body.items;
+      assert.deepEqual(found.map((o: { id: string }) => o.id).sort(), [drena.id, school.id].sort());
+      const byDirection = (await call(SUB.awa, 'get', `/organizations?direction=${drena.id}`, 200))
+        .body.items;
+      assert.deepEqual(ids(byDirection), [school.id]);
+      assert.equal(byDirection[0].direction.name, `DRENA ${tag}`);
+      const byType = (
+        await call(
+          SUB.awa,
+          'get',
+          `/organizations?type=college&search=${encodeURIComponent(tag)}`,
+          200,
+        )
+      ).body.items;
+      assert.deepEqual(ids(byType), [school.id]);
+
+      // Fiche et modification.
+      const detail = (await call(SUB.awa, 'get', `/organizations/${school.id}`, 200)).body;
+      assert.equal(detail.can.edit, true);
+      assert.equal(detail.can.editStructure, true);
+      const renamed = (
+        await call(SUB.awa, 'patch', `/organizations/${school.id}`, 200, {
+          locality: 'Korhogo',
+          managerContact: '0102030405',
+        })
+      ).body;
+      assert.equal(renamed.locality, 'Korhogo');
+      await call(SUB.awa, 'patch', `/organizations/${school.id}`, 400, { type: 'authority' });
+      await call(SUB.awa, 'patch', `/organizations/${school.id}`, 400, { parentId: ID.orgBaobabs });
+      await call(SUB.awa, 'get', '/organizations/pas-un-id', 404);
+
+      // Archivage : refusé pour une DRENA qui a un établissement actif.
+      await call(SUB.awa, 'post', `/organizations/${drena.id}/archive`, 400);
+      const archived = (await call(SUB.awa, 'post', `/organizations/${school.id}/archive`, 201))
+        .body;
+      assert.ok(archived.archivedAt);
+      assert.deepEqual(
+        ids(
+          (await call(SUB.awa, 'get', `/organizations?search=${encodeURIComponent(tag)}`, 200)).body
+            .items,
+        ),
+        [drena.id],
+      );
+      assert.deepEqual(
+        ids((await call(SUB.awa, 'get', '/organizations?archived=1', 200)).body.items),
+        [school.id],
+      );
+      const team = (await call(SUB.awa, 'get', '/team', 200)).body;
+      assert.ok(!ids(team.organizations).includes(school.id));
+      await call(SUB.awa, 'post', '/team/invitations', 400, {
+        organizationId: school.id,
+        role: 'enseignant',
+        branches: null,
+      });
+      // Rétablir la fiche, puis archiver la DRENA une fois vide.
+      await call(SUB.awa, 'post', `/organizations/${school.id}/restore`, 201);
+      await call(SUB.awa, 'post', `/organizations/${school.id}/archive`, 201);
+      await call(SUB.awa, 'post', `/organizations/${drena.id}/archive`, 201);
+      await call(SUB.awa, 'post', `/organizations/${school.id}/restore`, 400);
+      await call(SUB.awa, 'post', `/organizations/${drena.id}/restore`, 201);
+      await call(SUB.awa, 'post', `/organizations/${school.id}/restore`, 201);
+    });
+
+    // La direction d'un établissement modifie sa fiche, mais ni le type, ni la DRENA, ni l'archivage.
+    const own = (await call(SUB.bamba, 'get', `/organizations/${ID.orgManguiers}`, 200)).body;
+    assert.deepEqual(own.can, { edit: true, editStructure: false, archive: false });
+    await call(SUB.bamba, 'patch', `/organizations/${ID.orgManguiers}`, 200, {
+      managerName: 'M. Directeur',
+    });
+    await call(SUB.bamba, 'patch', `/organizations/${ID.orgManguiers}`, 403, { type: 'college' });
+    await call(SUB.bamba, 'post', `/organizations/${ID.orgManguiers}/archive`, 403);
+    await call(SUB.bamba, 'get', `/organizations/${ID.orgBaobabs}`, 404);
+    await call(SUB.bamba, 'patch', `/organizations/${ID.orgBaobabs}`, 404, {
+      locality: 'Ailleurs',
+    });
+
+    // Le gestionnaire de la DRENA modifie et archive dans sa zone, pas la DRENA elle-même.
+    await withRole(ID.userYao, ID.orgRegion, 'gestionnaire', async () => {
+      const zone = (await call(SUB.yao, 'get', `/organizations/${ID.orgBaobabs}`, 200)).body;
+      assert.deepEqual(zone.can, { edit: true, editStructure: false, archive: true });
+      const region = (await call(SUB.yao, 'get', `/organizations/${ID.orgRegion}`, 200)).body;
+      assert.deepEqual(region.can, { edit: false, editStructure: false, archive: false });
+      await call(SUB.yao, 'patch', `/organizations/${ID.orgRegion}`, 403, { name: 'Autre nom' });
+    });
+  } finally {
+    await ctx.db
+      .update(organizations)
+      .set({ archivedAt: null })
+      .where(inArray(organizations.id, made));
+    await ctx.db
+      .delete(membershipInvitations)
+      .where(inArray(membershipInvitations.organizationId, made));
+    for (const id of made.reverse())
+      await ctx.db.delete(organizations).where(eq(organizations.id, id));
+  }
+});

@@ -92,7 +92,9 @@ async function directionsOf(
   return db
     .select({ id: organizations.id, name: organizations.name })
     .from(organizations)
-    .where(sql`${organizations.type} = 'authority' and ${organizations.id} in ${scope}`)
+    .where(
+      sql`${organizations.type} = 'authority' and ${organizations.id} in ${scope} and ${organizations.archivedAt} is null`,
+    )
     .orderBy(asc(organizations.name));
 }
 
@@ -103,7 +105,7 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
   const orgs = await db
     .select({ id: organizations.id, name: organizations.name })
     .from(organizations)
-    .where(sql`${organizations.id} in ${scope}`)
+    .where(sql`${organizations.id} in ${scope} and ${organizations.archivedAt} is null`)
     .orderBy(asc(organizations.name));
   if (orgs.length === 0)
     return {
@@ -162,6 +164,14 @@ export async function assertManages(db: Database, userId: string, organizationId
   if (rows.length === 0) throw new TeamError('forbidden', 'Accès refusé.');
 }
 
+/** Une structure archivée ne reçoit plus d'invitation. */
+async function assertActive(db: Database, organizationId: string) {
+  const { rows } = await db.execute(
+    sql`select 1 from organizations where id = ${organizationId} and archived_at is null`,
+  );
+  if (rows.length === 0) throw new TeamError('invalid', 'Cet établissement est archivé.');
+}
+
 export async function createTeamInvitation(
   db: Database,
   userId: string,
@@ -169,6 +179,7 @@ export async function createTeamInvitation(
   traceId?: string,
 ): Promise<{ code: string; expiresAt: string }> {
   await assertManages(db, userId, input.organizationId);
+  await assertActive(db, input.organizationId);
   if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }

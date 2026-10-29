@@ -1,11 +1,6 @@
 'use server';
 
-import {
-  BRANCH_CODES,
-  type CreatedOrganization,
-  type OrganizationImportLine,
-  type OrganizationImportResult,
-} from '@lenseignement/types';
+import { BRANCH_CODES } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -32,21 +27,6 @@ function branchesOf(form: FormData): string[] | null {
   return chosen.length === 0 || chosen.length === BRANCH_CODES.length ? null : chosen;
 }
 
-export async function createOrganizationAction(form: FormData): Promise<void> {
-  const result = await apiSend<CreatedOrganization>(await token(), 'POST', '/team/organizations', {
-    name: text(form, 'name'),
-    type: text(form, 'type'),
-    parentId: text(form, 'parentId') || null,
-    locality: text(form, 'locality'),
-    managerName: text(form, 'managerName'),
-    managerContact: text(form, 'managerContact'),
-  });
-  if (!result.ok) back('erreur', result.message ?? 'Création impossible.');
-  // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
-  if (result.data.managerCode) back('code', result.data.managerCode);
-  back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');
-}
-
 export async function inviteMemberAction(form: FormData): Promise<void> {
   const result = await apiSend<{ code: string }>(await token(), 'POST', '/team/invitations', {
     organizationId: text(form, 'organizationId'),
@@ -69,28 +49,4 @@ export async function removeMemberAction(form: FormData): Promise<void> {
   const result = await apiSend(await token(), 'DELETE', `/team/members/${text(form, 'memberId')}`);
   if (!result.ok) back('erreur', result.message ?? 'Retrait impossible.');
   back('message', 'Rôle retiré.');
-}
-
-export type ImportState =
-  | { lines: OrganizationImportLine[]; created: number; confirmed: boolean; csv: string }
-  | { error: string }
-  | null;
-
-/** Aperçu du fichier, puis création si la personne a confirmé (même fichier, second bouton). */
-export async function importOrganizationsAction(
-  _previous: ImportState,
-  form: FormData,
-): Promise<ImportState> {
-  // Après l'aperçu, React vide le champ fichier : la confirmation reprend le texte gardé.
-  const file = form.get('file');
-  const csv =
-    file instanceof File && file.size > 0 ? await file.text() : String(form.get('csv') ?? '');
-  if (!csv.trim()) return { error: 'Choisissez un fichier CSV.' };
-  const result = await apiSend<OrganizationImportResult>(
-    await token(),
-    'POST',
-    '/team/organizations/import',
-    { csv, confirm: form.get('confirm') === '1' },
-  );
-  return result.ok ? { ...result.data, csv } : { error: result.message ?? 'Import impossible.' };
 }

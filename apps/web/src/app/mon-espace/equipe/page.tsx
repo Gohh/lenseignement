@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
+import { Dialog } from '../configuration/Dialog';
+import { CreateAccount } from './CreateAccount';
 import { inviteMemberAction, removeMemberAction, updateBranchesAction } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -54,6 +56,10 @@ export default async function TeamPage({ searchParams }: Props) {
         directions: [] as Array<{ id: string; name: string }>,
       };
   const code = param(query.code);
+  const accountStatus = await apiGet<{ configured: boolean }>(
+    session.accessToken,
+    '/team/accounts/status',
+  );
 
   if (team.organizations.length === 0) {
     return (
@@ -66,10 +72,19 @@ export default async function TeamPage({ searchParams }: Props) {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-3xl font-bold">Équipe</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-bold">Équipe</h1>
+        <Dialog label="+ Créer un compte" title="Créer un compte" primary>
+          <CreateAccount
+            organizations={team.organizations}
+            grantable={team.grantable}
+            configured={accountStatus.ok && accountStatus.data.configured}
+          />
+        </Dialog>
+      </div>
       <p>
-        Invitez des collègues avec un code, choisissez leur rôle et les cycles où ils travaillent.
-        Chacun ne voit que les cycles qui lui sont accordés.
+        Créez le compte d’un collègue, ou invitez-le avec un code. Choisissez leur rôle et les
+        cycles où ils travaillent. Chacun ne voit que les cycles qui lui sont accordés.
       </p>
       <Notice message={param(query.message)} error={param(query.erreur)} />
 

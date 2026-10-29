@@ -13,6 +13,7 @@ import {
   Req,
 } from '@nestjs/common';
 import {
+  CreateAccountSchema,
   CreateOrganizationSchema,
   ImportOrganizationsSchema,
   CreateTeamInvitationSchema,
@@ -24,8 +25,10 @@ import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
+import { IDENTITY_ADMIN, type IdentityAdmin } from './identity-admin.js';
 import { createOrganization, importOrganizations } from './organizations.js';
 import {
+  createAccount,
   createTeamInvitation,
   redeemTeamInvitation,
   removeMember,
@@ -64,6 +67,7 @@ export class TeamController {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly users: UsersService,
+    @Inject(IDENTITY_ADMIN) private readonly identity: IdentityAdmin,
   ) {}
 
   private async me(request: Request): Promise<string> {
@@ -88,6 +92,20 @@ export class TeamController {
     const input = parse(ImportOrganizationsSchema, body);
     return guard(async () =>
       importOrganizations(this.db, await this.me(request), input, request.traceId),
+    );
+  }
+
+  /** La création de comptes est-elle configurée dans Keycloak ? Sert à guider la personne. */
+  @Get('accounts/status')
+  async accountStatus() {
+    return { configured: this.identity.configured() };
+  }
+
+  @Post('accounts')
+  async createAccount(@Req() request: Request, @Body() body: unknown) {
+    const input = parse(CreateAccountSchema, body);
+    return guard(async () =>
+      createAccount(this.db, this.identity, await this.me(request), input, request.traceId),
     );
   }
 

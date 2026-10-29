@@ -6,6 +6,9 @@ const EnvSchema = z.object({
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
   OIDC_ISSUER_URL: z.string().url().default('http://localhost:8080/realms/lenseignement'),
   OIDC_AUDIENCE: z.string().min(1).default('lenseignement-api'),
+  /** Client de service qui crée les comptes dans Keycloak (page « Créer un compte »). */
+  KEYCLOAK_ADMIN_CLIENT_ID: z.string().min(1).default('lenseignement-admin'),
+  KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().min(1).optional(),
   DATABASE_URL: z
     .string()
     .min(1)

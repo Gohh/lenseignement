@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  doublePrecision,
   integer,
   index,
   jsonb,
@@ -1208,4 +1209,47 @@ export const classResources = pgTable(
       sql`${t.kind} in ('lien', 'document', 'video', 'exercice')`,
     ),
   ],
+);
+
+/** Évaluation notée d'une classe (contrôle, composition). */
+export const evaluations = pgTable(
+  'evaluations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cohortId: uuid('cohort_id')
+      .notNull()
+      .references(() => cohorts.id),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    title: text('title').notNull(),
+    subject: text('subject'),
+    heldOn: date('held_on').notNull(),
+    maxScore: integer('max_score').notNull().default(20),
+    coefficient: integer('coefficient').notNull().default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('evaluations_cohort_idx').on(t.cohortId, t.heldOn),
+    check('evaluations_max_check', sql`${t.maxScore} between 1 and 100`),
+    check('evaluations_coef_check', sql`${t.coefficient} between 1 and 10`),
+  ],
+);
+
+/** Note d'un élève à une évaluation. */
+export const evaluationScores = pgTable(
+  'evaluation_scores',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    evaluationId: uuid('evaluation_id')
+      .notNull()
+      .references(() => evaluations.id, { onDelete: 'cascade' }),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    score: doublePrecision('score').notNull(),
+    comment: text('comment'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('evaluation_scores_once').on(t.evaluationId, t.learnerUserId)],
 );

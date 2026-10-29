@@ -1,6 +1,6 @@
 'use server';
 
-import { BRANCH_CODES } from '@lenseignement/types';
+import { BRANCH_CODES, type CreatedAccount } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -49,4 +49,25 @@ export async function removeMemberAction(form: FormData): Promise<void> {
   const result = await apiSend(await token(), 'DELETE', `/team/members/${text(form, 'memberId')}`);
   if (!result.ok) back('erreur', result.message ?? 'Retrait impossible.');
   back('message', 'Rôle retiré.');
+}
+
+export interface CreateAccountState {
+  error?: string;
+  created?: CreatedAccount;
+}
+
+/** Crée le compte ; le mot de passe provisoire revient dans l'état, jamais dans l'adresse de la page. */
+export async function createAccountAction(
+  _previous: CreateAccountState,
+  form: FormData,
+): Promise<CreateAccountState> {
+  const result = await apiSend<CreatedAccount>(await token(), 'POST', '/team/accounts', {
+    displayName: text(form, 'displayName'),
+    email: text(form, 'email'),
+    organizationId: text(form, 'organizationId'),
+    role: text(form, 'role'),
+    branches: branchesOf(form),
+  });
+  if (!result.ok) return { error: result.message ?? 'Création impossible.' };
+  return { created: result.data };
 }

@@ -98,6 +98,19 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "lenseignement-admin",
+      "name": "Création de comptes (service)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-only-admin-secret-change-me",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true
     }
   ],
   "users": [
@@ -220,6 +233,14 @@
         }
       ],
       "realmRoles": ["chef-etablissement"]
+    },
+    {
+      "username": "service-account-lenseignement-admin",
+      "enabled": true,
+      "serviceAccountClientId": "lenseignement-admin",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users", "query-users"]
+      }
     }
   ]
 }

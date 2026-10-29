@@ -246,6 +246,13 @@
       "when": 1793294504274,
       "tag": "0034_aide_pieces_jointes",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793317240690,
+      "tag": "0035_masquer_plateforme",
+      "breakpoints": true
     }
   ]
 }

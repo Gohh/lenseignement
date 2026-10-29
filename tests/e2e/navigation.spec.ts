@@ -10,6 +10,7 @@ test.describe('Navigation', () => {
     await loginAs(page, 'directeur.demo', '/mon-espace');
     await expect(menu(page).getByRole('link')).toHaveText([
       'Tableau de bord',
+      'Mon travail',
       'Cours',
       'Relecture',
       'Statistiques',

@@ -54,6 +54,7 @@ import {
 import {
   approve,
   getWorkflow,
+  listMyWork,
   listReviewQueue,
   publish,
   requestChanges,
@@ -194,6 +195,12 @@ export class AuthoringController {
 
   // Circuit de validation (ADR-006). Le rôle est vérifié ici ; la séparation des personnes
   // (l'auteur ne s'approuve pas) est vérifiée par le service et par la base.
+
+  @Get('my-work')
+  async myWork(@Req() request: Request) {
+    const user = await this.users.resolve(request.principal as Principal);
+    return { items: await listMyWork(this.db, user.id) };
+  }
 
   @Get('reviews')
   async reviews(@Req() request: Request) {

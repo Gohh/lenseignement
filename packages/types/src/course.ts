@@ -193,6 +193,23 @@ export interface CourseWorkflow {
   missing: string[];
 }
 
+/** Ce qui attend la personne : rédiger, corriger un retour, relire ou publier. */
+export type MyWorkKind = 'to_write' | 'to_fix' | 'to_review' | 'to_publish';
+
+export interface MyWorkItem {
+  versionId: string;
+  courseId: string;
+  number: number;
+  status: CourseVersionStatus;
+  title: string;
+  organization: { id: string; name: string };
+  updatedAt: string;
+  kind: MyWorkKind;
+  /** Remarque du validateur quand le cours est renvoyé pour correction. */
+  remark: string | null;
+  remarkBy: string | null;
+}
+
 export interface ReviewQueueItem {
   versionId: string;
   courseId: string;

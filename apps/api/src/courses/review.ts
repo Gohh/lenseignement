@@ -2,6 +2,7 @@ import type {
   ApproveInput,
   CourseVersionStatus,
   CourseWorkflow,
+  MyWorkItem,
   ReviewAction,
   ReviewQueueItem,
 } from '@lenseignement/types';
@@ -183,6 +184,94 @@ export async function listReviewQueue(db: Database, userId: string): Promise<Rev
     )
     .orderBy(desc(courseVersions.updatedAt));
   return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
+}
+
+/**
+ * Tout ce qui attend la personne : ses brouillons (dont ceux renvoyés avec une remarque), les
+ * cours à relire et à publier. Les règles d'indépendance sont celles du circuit : on ne voit pas
+ * à relire ce qu'on a rédigé ou soumis, ni à publier ce qu'on a rédigé, soumis ou approuvé.
+ */
+export async function listMyWork(db: Database, userId: string): Promise<MyWorkItem[]> {
+  const columns = {
+    version: courseVersions,
+    courseId: courses.id,
+    organization: { id: organizations.id, name: organizations.name },
+  };
+  const base = () =>
+    db
+      .select(columns)
+      .from(courseVersions)
+      .innerJoin(courses, eq(courses.id, courseVersions.courseId))
+      .innerJoin(organizations, eq(organizations.id, courses.organizationId));
+  const [drafts, toReview, toPublish] = await Promise.all([
+    base().where(and(eq(courseVersions.status, 'draft'), eq(courseVersions.createdBy, userId))),
+    base().where(
+      and(
+        eq(courseVersions.status, 'in_review'),
+        sql`${courses.organizationId} in ${organizationIdsWithRoles(userId, REVIEWER_ROLES, sql`${courses.branch}`)}`,
+      ),
+    ),
+    base().where(
+      and(
+        eq(courseVersions.status, 'approved'),
+        sql`${courses.organizationId} in ${organizationIdsWithRoles(userId, PUBLISHER_ROLES, sql`${courses.branch}`)}`,
+      ),
+    ),
+  ]);
+
+  // Dernier événement de chaque brouillon : un renvoi pour correction porte la remarque.
+  const draftIds = drafts.map((d) => d.version.id);
+  const remarks = new Map<string, { comment: string; by: string | null }>();
+  if (draftIds.length > 0) {
+    const events = await db
+      .select({
+        versionId: courseReviewEvents.courseVersionId,
+        action: courseReviewEvents.action,
+        comment: courseReviewEvents.comment,
+        by: users.displayName,
+      })
+      .from(courseReviewEvents)
+      .leftJoin(users, eq(users.id, courseReviewEvents.actorUserId))
+      .where(inArray(courseReviewEvents.courseVersionId, draftIds))
+      .orderBy(asc(courseReviewEvents.createdAt));
+    for (const e of events) {
+      if (e.action === 'changes_requested') {
+        remarks.set(e.versionId, { comment: e.comment, by: e.by });
+      } else if (e.action === 'submitted') {
+        remarks.delete(e.versionId);
+      }
+    }
+  }
+
+  const items: MyWorkItem[] = [];
+  const add = (
+    row: (typeof drafts)[number],
+    kind: MyWorkItem['kind'],
+    remark?: { comment: string; by: string | null },
+  ) =>
+    items.push({
+      versionId: row.version.id,
+      courseId: row.courseId,
+      number: row.version.number,
+      status: row.version.status,
+      title: row.version.title,
+      organization: row.organization,
+      updatedAt: row.version.updatedAt.toISOString(),
+      kind,
+      remark: remark?.comment ?? null,
+      remarkBy: remark?.by ?? null,
+    });
+  for (const d of drafts) {
+    const remark = remarks.get(d.version.id);
+    add(d, remark ? 'to_fix' : 'to_write', remark);
+  }
+  for (const r of toReview) {
+    if (!involved(r.version, 'submitted').includes(userId)) add(r, 'to_review');
+  }
+  for (const r of toPublish) {
+    if (!involved(r.version, 'approved').includes(userId)) add(r, 'to_publish');
+  }
+  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 /** L'auteur envoie son brouillon en relecture ; il ne peut plus le modifier ensuite. */

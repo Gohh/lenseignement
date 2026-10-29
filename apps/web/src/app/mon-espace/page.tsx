@@ -42,7 +42,7 @@ export default async function MyspacePage() {
     me.ok &&
     me.data.profiles.length === 0 &&
     me.data.memberships.length === 0 &&
-    session.roles.length === 0
+    !session.roles.some((role) => role in ROLE_LABELS)
   ) {
     redirect('/mon-espace/bienvenue');
   }
@@ -113,7 +113,23 @@ export default async function MyspacePage() {
             ))}
           </ul>
         ) : (
-          <p className="text-ink-muted">Aucun profil n’est encore attribué à votre compte.</p>
+          <div className="space-y-3">
+            <p className="text-ink-muted">Aucun profil n’est encore attribué à votre compte.</p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/mon-espace/bienvenue"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-primary px-5 font-bold text-surface no-underline hover:bg-primary-dark"
+              >
+                Choisir mon profil
+              </Link>
+              <Link
+                href="/mon-espace/rejoindre"
+                className="inline-flex min-h-[44px] items-center rounded-full border border-primary px-5 font-bold text-primary no-underline hover:bg-primary-soft"
+              >
+                J’ai un code d’invitation
+              </Link>
+            </div>
+          </div>
         )}
         {me.ok && me.data.memberships.length > 0 && (
           <ul className="space-y-1 text-ink-muted" data-testid="memberships">

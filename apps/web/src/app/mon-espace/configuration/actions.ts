@@ -22,7 +22,7 @@ async function token(): Promise<string> {
 const text = (form: FormData, name: string) => String(form.get(name) ?? '').trim();
 
 function back(kind: 'message' | 'erreur' | 'code', value: string, path: string = PATH): never {
-  redirect(`${path}?${kind}=${encodeURIComponent(value)}`);
+  redirect(`${path}${path.includes('?') ? '&' : '?'}${kind}=${encodeURIComponent(value)}`);
 }
 
 export async function createOrganizationAction(form: FormData): Promise<void> {
@@ -34,7 +34,8 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
     managerName: text(form, 'managerName'),
     managerContact: text(form, 'managerContact'),
   });
-  if (!result.ok) back('erreur', result.message ?? 'Création impossible.');
+  // En cas d'erreur, on reste sur l'onglet de création.
+  if (!result.ok) back('erreur', result.message ?? 'Création impossible.', `${PATH}?onglet=creer`);
   // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
   if (result.data.managerCode) back('code', result.data.managerCode);
   back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');

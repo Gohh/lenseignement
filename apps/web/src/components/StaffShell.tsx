@@ -3,7 +3,7 @@ import { NavLink } from '@/components/NavLink';
 import type { StaffMenu } from '@/lib/space-menu';
 
 const linkClass =
-  'flex min-h-[44px] items-center rounded-card px-3 font-bold text-surface/85 no-underline hover:bg-surface/10 aria-[current=page]:bg-surface aria-[current=page]:text-primary';
+  'flex min-h-[44px] items-center rounded-card px-3 font-bold text-surface no-underline hover:bg-surface/15 aria-[current=page]:bg-surface aria-[current=page]:text-primary';
 
 const ROLE_TITLES: Record<string, string> = {
   superadministrateur: 'Superadministrateur',
@@ -51,7 +51,7 @@ export function StaffShell({ menu, displayName, roleLabel, taskCount, children }
     <div className="lg:flex lg:items-start lg:gap-6">
       <aside
         aria-label="Administration"
-        className="flex flex-col gap-4 rounded-big bg-ink-strong p-4 text-surface lg:sticky lg:top-4 lg:w-64 lg:flex-none"
+        className="flex flex-col gap-4 rounded-big bg-primary p-4 text-surface lg:sticky lg:top-4 lg:w-64 lg:flex-none"
       >
         <nav aria-label="Menu de mon espace" className="space-y-3">
           <ul role="list" className="space-y-1">
@@ -65,7 +65,7 @@ export function StaffShell({ menu, displayName, roleLabel, taskCount, children }
           </ul>
           {menu.groups.map((group) => (
             <details key={group.title} open className="group">
-              <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between px-3 text-sm font-bold uppercase tracking-widest text-surface/70 marker:hidden [&::-webkit-details-marker]:hidden">
+              <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between px-3 text-sm font-bold uppercase tracking-widest text-surface/90 marker:hidden [&::-webkit-details-marker]:hidden">
                 {group.title}
                 <span aria-hidden="true" className="transition-transform group-open:rotate-90">
                   ›
@@ -92,13 +92,13 @@ export function StaffShell({ menu, displayName, roleLabel, taskCount, children }
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold">{displayName}</p>
-            <p className="truncate text-sm text-surface/75">{roleLabel}</p>
+            <p className="truncate text-sm text-surface">{roleLabel}</p>
           </div>
         </div>
         <form method="post" action="/auth/logout">
           <button
             type="submit"
-            className="flex min-h-[44px] w-full items-center justify-center rounded-card border border-surface/40 font-bold text-surface hover:bg-surface/10"
+            className="flex min-h-[44px] w-full items-center justify-center rounded-card border border-surface/40 font-bold text-surface hover:bg-surface/15"
           >
             Déconnexion
           </button>

@@ -8,6 +8,7 @@ import { AuthoringController } from './courses/authoring.controller.js';
 import { CurriculaController } from './curricula/curricula.controller.js';
 import { DatabaseModule } from './db/database.module.js';
 import { FamilyController } from './family/family.controller.js';
+import { PromotionController } from './promotion/promotion.controller.js';
 import { OutboxRelayService } from './events/outbox-relay.service.js';
 import { HealthController } from './health/health.controller.js';
 import { LearnersController } from './learners/learners.controller.js';
@@ -34,6 +35,7 @@ import { StatsController } from './stats/stats.controller.js';
     SimulationController,
     StatsController,
     FamilyController,
+    PromotionController,
     TeamController,
   ],
   providers: [OutboxRelayService],

@@ -1,11 +1,11 @@
-import { levelLabel } from '@lenseignement/types';
+import { levelLabel, type LevelPromotion } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { LevelPicker } from '@/components/LevelPicker';
-import { buttonClass, Notice, param } from '@/components/Notice';
+import { buttonClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet, type Me } from '@/lib/api';
 import { getSession } from '@/lib/session';
-import { setLevelAction } from './actions';
+import { requestPromotionAction, setLevelAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Mon compte' };
@@ -25,6 +25,10 @@ export default async function AccountPage({ searchParams }: Props) {
   const query = await searchParams;
   const me = await apiGet<Me>(session.accessToken, '/me');
   const level = me.ok ? me.data.level : null;
+  const promotion = level
+    ? await apiGet<LevelPromotion>(session.accessToken, '/me/promotion')
+    : null;
+  const promo = promotion?.ok ? promotion.data : null;
 
   return (
     <section className="space-y-6">
@@ -62,6 +66,29 @@ export default async function AccountPage({ searchParams }: Props) {
           Enregistrer
         </button>
       </form>
+      {promo && (promo.nextLevel || promo.pending) && (
+        <div className="space-y-3 rounded-big border border-line bg-surface p-6 sm:p-8">
+          <h2 className="text-2xl font-extrabold">Niveau supérieur</h2>
+          {promo.pending ? (
+            <p data-testid="promotion-pending">
+              Ta demande est envoyée. Ton parent ou ton enseignant doit la valider.
+            </p>
+          ) : (
+            <>
+              <p className="text-ink-muted">
+                Tu as terminé ton niveau ? Demande à passer en{' '}
+                <strong>{levelLabel(promo.nextLevel!) ?? promo.nextLevel}</strong>.
+              </p>
+              <form action={requestPromotionAction}>
+                <button type="submit" className={secondaryButtonClass}>
+                  Demander le niveau supérieur
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="rounded-big border border-line bg-surface p-5">
         <h2 className="text-xl font-extrabold">Rejoindre une équipe</h2>
         <p className="mt-2 text-ink-muted">Tu as reçu un code d’invitation d’un établissement ?</p>

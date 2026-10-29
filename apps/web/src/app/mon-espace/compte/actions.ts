@@ -22,3 +22,21 @@ export async function setLevelAction(form: FormData): Promise<void> {
   if (!result.ok) failure(result.message ?? 'Enregistrement impossible.');
   redirect(safeNext || `${PATH}?message=${encodeURIComponent('Niveau enregistré.')}`);
 }
+
+export async function requestPromotionAction(): Promise<void> {
+  const session = await getSession();
+  if (!session) redirect(`/auth/login?returnTo=${encodeURIComponent(PATH)}`);
+  const result = await apiSend<{ status: 'pending' | 'applied'; level: string }>(
+    session.accessToken,
+    'POST',
+    '/me/level-request',
+  );
+  if (!result.ok) {
+    redirect(`${PATH}?erreur=${encodeURIComponent(result.message ?? 'Demande impossible.')}`);
+  }
+  const message =
+    result.data.status === 'applied'
+      ? 'Tu passes au niveau supérieur.'
+      : 'Demande envoyée. Ton parent ou ton enseignant va la valider.';
+  redirect(`${PATH}?message=${encodeURIComponent(message)}`);
+}

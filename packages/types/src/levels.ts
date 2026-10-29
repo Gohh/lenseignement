@@ -108,3 +108,19 @@ export function levelLabel(code: string): string | null {
 export function levelBranch(code: LevelCode): BranchCode {
   return BY_CODE.get(code)!.group.branch;
 }
+
+/**
+ * Niveau suivant dans le parcours scolaire (maternelle, primaire, collège, lycée). L'alphabétisation
+ * a ses propres niveaux. Renvoie null au dernier niveau d'un parcours.
+ */
+export function nextLevel(code: string): LevelCode | null {
+  const school = LEVEL_GROUPS.filter((g) => g.code !== 'alphabetisation').flatMap((g) =>
+    g.levels.map((l) => l.code),
+  );
+  const alpha = LEVEL_GROUPS.find((g) => g.code === 'alphabetisation')!.levels.map((l) => l.code);
+  for (const path of [school, alpha]) {
+    const i = path.indexOf(code as LevelCode);
+    if (i >= 0) return path[i + 1] ?? null;
+  }
+  return null;
+}

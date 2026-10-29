@@ -1036,3 +1036,32 @@ export const practiceRequests = pgTable(
   },
   (t) => [unique('practice_requests_once').on(t.userId, t.simulationId)],
 );
+
+export const LEVEL_REQUEST_STATUSES = ['pending', 'approved', 'declined'] as const;
+
+/**
+ * Demande de passage au niveau supérieur. Une seule demande en attente par apprenant ; le parent
+ * ou le personnel de son périmètre la valide ou la refuse.
+ */
+export const levelRequests = pgTable(
+  'level_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    learnerUserId: uuid('learner_user_id')
+      .notNull()
+      .references(() => users.id),
+    fromLevel: text('from_level').notNull(),
+    toLevel: text('to_level').notNull(),
+    status: text('status', { enum: LEVEL_REQUEST_STATUSES }).notNull().default('pending'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('level_requests_learner_idx').on(t.learnerUserId),
+    uniqueIndex('level_requests_one_pending')
+      .on(t.learnerUserId)
+      .where(sql`${t.status} = 'pending'`),
+    check('level_requests_status_check', sql`${t.status} in ('pending','approved','declined')`),
+  ],
+);

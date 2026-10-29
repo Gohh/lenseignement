@@ -75,3 +75,18 @@ export async function overrideRemediationAction(form: FormData): Promise<void> {
   if (!result.ok) back(path, 'erreur', result.message ?? 'Orientation non modifiée.');
   back(path, 'message', 'Orientation modifiée. L’élève la voit dans son bilan.');
 }
+
+/** Le parent ou l'enseignant décide du passage de l'élève au niveau supérieur. */
+export async function decidePromotionAction(form: FormData): Promise<void> {
+  const learnerId = String(form.get('learnerId') ?? '');
+  if (!UUID.test(learnerId)) back('/mon-espace', 'erreur', 'Élève inconnu.');
+  const page = `/mon-espace/eleves/${learnerId}`;
+  const approve = form.get('decision') === 'approve';
+  const result = await apiSend(
+    await token(page),
+    'POST',
+    `/learners/${learnerId}/promotion/${approve ? 'approve' : 'decline'}`,
+  );
+  if (!result.ok) back(page, 'erreur', result.message ?? 'Décision impossible.');
+  back(page, 'message', approve ? 'Niveau supérieur accordé.' : 'Demande refusée.');
+}

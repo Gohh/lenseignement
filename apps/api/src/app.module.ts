@@ -6,6 +6,7 @@ import { CatalogCoursesController } from './catalog/catalog-courses.controller.j
 import { ClassSessionsController } from './sessions/class-sessions.controller.js';
 import { AssignmentsController } from './assignments/assignments.controller.js';
 import { EvaluationsController } from './evaluations/evaluations.controller.js';
+import { MessagesController } from './messages/messages.controller.js';
 import { LibraryController } from './library/library.controller.js';
 import { CohortAdminController } from './cohorts/cohort-admin.controller.js';
 import { CohortsController } from './cohorts/cohorts.controller.js';
@@ -39,6 +40,7 @@ import { StatsController } from './stats/stats.controller.js';
     ClassSessionsController,
     AssignmentsController,
     LibraryController,
+    MessagesController,
     EvaluationsController,
     LearnersController,
     AuthoringController,

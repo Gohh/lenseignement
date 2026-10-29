@@ -2,6 +2,7 @@ import type { AskHelp, HelpBadge, HelpInboxItem, HelpQuestion } from '@lenseigne
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { myAssignments } from '../assignments/assignments.js';
 import type { Database } from '../db/database.js';
+import { unreadMessages } from '../messages/messages.js';
 import { mySessions } from '../sessions/class-sessions.js';
 import {
   cohortMembers,
@@ -250,5 +251,12 @@ export async function badge(db: Database, userId: string): Promise<HelpBadge> {
   const sessions = (await mySessions(db, userId)).filter(
     (x) => Date.parse(x.endsAt) >= now && Date.parse(x.startsAt) <= now + 24 * 3600_000,
   ).length;
-  return { answers: mine?.n ?? 0, questions, homework, toGrade, sessions };
+  return {
+    answers: mine?.n ?? 0,
+    questions,
+    homework,
+    toGrade,
+    sessions,
+    messages: await unreadMessages(db, userId),
+  };
 }

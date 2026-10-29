@@ -53,13 +53,14 @@ export const TEAM_ROLES = [
 
 /**
  * Structures dont la personne gère l'équipe : celles qu'elle dirige ou gère (sous-structures
- * comprises) ; le superadministrateur et son adjoint, l'administrateur, les gèrent toutes.
+ * comprises) ; le superadministrateur et son adjoint, l'administrateur, les gèrent toutes, sauf la
+ * structure technique « Plateforme », qui n'est jamais listée.
  * Renvoie une sous-requête entre parenthèses.
  */
 export function teamOrganizationIds(userId: string): SQL {
   return sql`(
     select o.id from organizations o
-     where exists (
+     where not o.internal and exists (
        select 1 from memberships m
         where m.user_id = ${userId}
           and m.role in ('superadministrateur', 'administrateur')

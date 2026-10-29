@@ -129,6 +129,13 @@ test("la commande superadmin rend le rôle à un compte qui l'avait perdu", asyn
       .from(memberships)
       .where(eq(memberships.id, row!.id));
     assert.equal(after!.validUntil, null);
+    // La structure technique « Plateforme » porte le rôle mais n'apparaît dans aucune liste.
+    const names = (o: { name: string }) => o.name;
+    const listed = (await call(SUB.yao, 'get', '/organizations', 200)).body.items.map(names);
+    assert.ok(listed.length > 0);
+    assert.ok(!listed.includes('Plateforme'));
+    const team = (await call(SUB.yao, 'get', '/team', 200)).body;
+    assert.ok(!team.organizations.map(names).includes('Plateforme'));
   } finally {
     await ctx.db.delete(memberships).where(eq(memberships.id, row!.id));
     // La commande crée la structure « Plateforme » : on la retire pour ne pas fausser les autres tests.

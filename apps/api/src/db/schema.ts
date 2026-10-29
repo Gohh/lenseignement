@@ -52,6 +52,8 @@ export const organizations = pgTable(
     managerContact: text('manager_contact'),
     /** Archivé : n'apparaît plus dans les listes, l'historique reste. */
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /** Structure technique (« Plateforme ») qui porte le superadministrateur : jamais listée. */
+    internal: boolean('internal').notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [

@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { Database } from './database.js';
 import { memberships, organizations, users } from './schema.js';
 
@@ -14,12 +14,12 @@ export async function createSuperadmin(db: Database, oidcSubject: string): Promi
     let [org] = await tx
       .select({ id: organizations.id })
       .from(organizations)
-      .where(and(eq(organizations.name, PLATFORM_NAME), eq(organizations.type, 'authority')))
+      .where(eq(organizations.internal, true))
       .limit(1);
     if (!org) {
       [org] = await tx
         .insert(organizations)
-        .values({ name: PLATFORM_NAME, type: 'authority' })
+        .values({ name: PLATFORM_NAME, type: 'authority', internal: true })
         .returning({ id: organizations.id });
     }
     const [user] = await tx

@@ -19,3 +19,4 @@ export * from './cohorts.js';
 export * from './class-sessions.js';
 export * from './assignments.js';
 export * from './achievements.js';
+export * from './resources.js';

@@ -218,6 +218,13 @@
       "when": 1793291224676,
       "tag": "0030_devoirs",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793293308369,
+      "tag": "0031_bibliotheque",
+      "breakpoints": true
     }
   ]
 }

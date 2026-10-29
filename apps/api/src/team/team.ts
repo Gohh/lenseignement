@@ -252,6 +252,7 @@ async function managedMembership(db: Database, userId: string, memberId: string)
   const [row] = await db
     .select({
       id: memberships.id,
+      userId: memberships.userId,
       organizationId: memberships.organizationId,
       role: memberships.role,
     })
@@ -288,6 +289,14 @@ export async function removeMember(
   traceId?: string,
 ): Promise<void> {
   const row = await managedMembership(db, userId, memberId);
+  // Garde-fou : on ne se retire pas son propre rôle (un clic de trop et on perd l'accès), et le
+  // rôle de superadministrateur ne se retire jamais depuis l'écran (il se donne par la commande).
+  if (row.userId === userId) {
+    throw new TeamError('forbidden', 'Vous ne pouvez pas retirer votre propre rôle.');
+  }
+  if (row.role === 'superadministrateur') {
+    throw new TeamError('forbidden', 'Le rôle de superadministrateur ne se retire pas ici.');
+  }
   await db
     .update(memberships)
     .set({ validUntil: sql`now()` })

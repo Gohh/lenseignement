@@ -30,6 +30,10 @@ export async function createSuperadmin(db: Database, oidcSubject: string): Promi
     await tx
       .insert(memberships)
       .values({ userId: user!.id, organizationId: org!.id, role: 'superadministrateur' })
-      .onConflictDoNothing();
+      // Rend le rôle s'il avait été retiré (fin de validité) : la commande répare l'accès.
+      .onConflictDoUpdate({
+        target: [memberships.userId, memberships.organizationId, memberships.role],
+        set: { validUntil: null },
+      });
   });
 }

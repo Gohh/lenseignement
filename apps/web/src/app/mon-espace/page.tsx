@@ -43,7 +43,14 @@ export default async function MyspacePage() {
   ) {
     redirect('/mon-espace/bienvenue');
   }
-  const roles = session.roles.filter((role) => role in ROLE_LABELS);
+  // Profils choisis, rôles du jeton et rôles d'équipe reçus par invitation, sans doublon.
+  const roles = [
+    ...new Set([
+      ...session.roles,
+      ...(me.ok ? me.data.profiles : []),
+      ...(me.ok ? me.data.memberships.map((m) => m.role) : []),
+    ]),
+  ].filter((role) => role in ROLE_LABELS);
   const resume = followed.find((c) => c.resumeAt && !c.finished);
 
   return (

@@ -1,4 +1,4 @@
-import type { LearningPlanItem } from '@lenseignement/types';
+import { BRANCHES, type LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
@@ -82,7 +82,7 @@ export default async function MyspacePage() {
         >
           <div className="min-w-0 flex-1 basis-72">
             <p id="reprendre-title" className="font-bold">
-              Reprendre où tu en étais
+              Continuer où tu en étais
             </p>
             <p className="font-display text-3xl font-extrabold leading-tight">{resume.title}</p>
             <p>
@@ -94,7 +94,7 @@ export default async function MyspacePage() {
             href={`/catalogue/${resume.courseId}/lecons/${resume.resumeAt}`}
             className="inline-flex min-h-[56px] items-center rounded-card bg-surface px-7 font-display text-xl font-bold text-primary no-underline shadow-[0_5px_0_var(--color-primary-dark)]"
           >
-            Reprendre la leçon {resume.resumeAt}
+            Continuer la leçon {resume.resumeAt}
             <span className="sr-only"> de « {resume.title} »</span>
           </Link>
         </section>
@@ -145,14 +145,17 @@ export default async function MyspacePage() {
 
       {(followed.length > 0 || session.roles.includes('apprenant')) && (
         <div className={cardClass}>
-          <h2 className="text-2xl font-extrabold">Mes cours suivis</h2>
+          <h2 className="text-2xl font-extrabold">Mon parcours</h2>
           {followed.length > 0 ? (
-            <ul className="mt-4 space-y-6" data-testid="learning-plan">
+            <ul className="mt-4 grid gap-4 sm:grid-cols-2" data-testid="learning-plan">
               {followed.map((c) => (
-                <li key={c.courseId}>
+                <li key={c.courseId} className="rounded-card border border-line p-4">
+                  <p className="text-sm font-bold text-ink-muted">
+                    {BRANCHES.find((b) => b.code === c.branch)?.title ?? c.branch}
+                  </p>
                   <Link
                     href={`/catalogue/${c.courseId}`}
-                    className="inline-flex min-h-[44px] items-center font-bold underline"
+                    className="inline-flex min-h-[44px] items-center font-display text-xl font-bold underline"
                   >
                     {c.title}
                   </Link>
@@ -162,7 +165,7 @@ export default async function MyspacePage() {
                     aria-valuemin={0}
                     aria-valuemax={c.total}
                     aria-valuenow={c.completed.length}
-                    className="my-1 h-3 max-w-sm overflow-hidden rounded-full bg-primary-soft"
+                    className="my-1 h-3 overflow-hidden rounded-full bg-primary-soft"
                   >
                     <div
                       className="h-full rounded-full bg-primary"
@@ -179,7 +182,7 @@ export default async function MyspacePage() {
                   {c.resumeAt && (
                     <Link
                       href={`/catalogue/${c.courseId}/lecons/${c.resumeAt}`}
-                      className="inline-flex min-h-[44px] items-center underline"
+                      className="inline-flex min-h-[44px] items-center font-bold text-primary underline"
                     >
                       Reprendre : leçon {c.resumeAt}
                       <span className="sr-only"> de « {c.title} »</span>

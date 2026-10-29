@@ -197,6 +197,13 @@
       "when": 1793286788434,
       "tag": "0027_aide_tutorat",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793288856789,
+      "tag": "0028_classes_code",
+      "breakpoints": true
     }
   ]
 }

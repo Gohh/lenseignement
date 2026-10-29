@@ -97,3 +97,66 @@ export async function importOrganizationsAction(
   );
   return result.ok ? { ...result.data, csv } : { error: result.message ?? 'Import impossible.' };
 }
+
+// Classes d'un établissement : création, enseignants, code de classe, archivage.
+
+const orgPath = (form: FormData) => `${PATH}/etablissements/${text(form, 'organizationId')}`;
+
+export async function createCohortAction(form: FormData): Promise<void> {
+  const path = orgPath(form);
+  const result = await apiSend(await token(), 'POST', '/cohorts', {
+    organizationId: text(form, 'organizationId'),
+    level: text(form, 'level'),
+    name: text(form, 'name'),
+    schoolYear: text(form, 'schoolYear'),
+  });
+  // En cas d'erreur, la fenêtre de création se rouvre.
+  if (!result.ok) back('erreur', result.message ?? 'Création impossible.', `${path}?ouvrir=classe`);
+  back('message', 'Classe créée. Donnez son code aux élèves.', path);
+}
+
+export async function addCohortTeacherAction(form: FormData): Promise<void> {
+  const path = orgPath(form);
+  const result = await apiSend(
+    await token(),
+    'POST',
+    `/cohorts/${text(form, 'cohortId')}/teachers`,
+    {
+      userId: text(form, 'userId'),
+    },
+  );
+  if (!result.ok) back('erreur', result.message ?? 'Affectation impossible.', path);
+  back('message', 'Enseignant affecté à la classe.', path);
+}
+
+export async function removeCohortTeacherAction(form: FormData): Promise<void> {
+  const path = orgPath(form);
+  const result = await apiSend(
+    await token(),
+    'DELETE',
+    `/cohorts/${text(form, 'cohortId')}/teachers/${text(form, 'userId')}`,
+  );
+  if (!result.ok) back('erreur', result.message ?? 'Retrait impossible.', path);
+  back('message', 'Enseignant retiré de la classe.', path);
+}
+
+export async function renewCohortCodeAction(form: FormData): Promise<void> {
+  const path = orgPath(form);
+  const result = await apiSend(await token(), 'POST', `/cohorts/${text(form, 'cohortId')}/code`);
+  if (!result.ok) back('erreur', result.message ?? 'Changement impossible.', path);
+  back('message', 'Nouveau code de classe créé. L’ancien ne marche plus.', path);
+}
+
+export async function archiveCohortAction(form: FormData): Promise<void> {
+  const path = orgPath(form);
+  const result = await apiSend(await token(), 'POST', `/cohorts/${text(form, 'cohortId')}/archive`);
+  if (!result.ok) back('erreur', result.message ?? 'Archivage impossible.', path);
+  back('message', 'Classe archivée.', path);
+}
+
+export async function restoreCohortAction(form: FormData): Promise<void> {
+  const path = orgPath(form);
+  const result = await apiSend(await token(), 'POST', `/cohorts/${text(form, 'cohortId')}/restore`);
+  if (!result.ok) back('erreur', result.message ?? 'Rétablissement impossible.', path);
+  back('message', 'Classe rétablie.', path);
+}

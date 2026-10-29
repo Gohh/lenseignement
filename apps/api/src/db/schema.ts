@@ -154,6 +154,11 @@ export const cohorts = pgTable(
     code: text('code').notNull(),
     name: text('name').notNull(),
     schoolYear: text('school_year').notNull(),
+    /** Niveau de la classe (CP1, CE2, 6e…), choisi à la création ; vide pour les classes anciennes. */
+    level: text('level'),
+    /** Code que les élèves saisissent pour rejoindre la classe. */
+    joinCode: text('join_code').unique(),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [unique('cohorts_org_code_year_unique').on(t.organizationId, t.code, t.schoolYear)],

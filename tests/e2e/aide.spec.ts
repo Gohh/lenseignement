@@ -14,7 +14,27 @@ test.describe('Aide et tutorat', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Aide et tutorat' })).toBeVisible();
     await page.waitForLoadState('networkidle');
     await page.getByLabel('Ta question').fill(question);
-    await page.getByRole('button', { name: 'Envoyer ma question' }).click();
+    const send = page.getByRole('button', { name: 'Envoyer ma question' });
+    await send.click({ timeout: 8000 }).catch(async (error) => {
+      // DIAGNOSTIC TEMPORAIRE
+      const info = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+        const b = [...document.querySelectorAll('button')].find((x) =>
+          x.textContent?.includes('Envoyer ma question'),
+        );
+        return JSON.stringify({
+          viewport: [innerWidth, innerHeight],
+          scrollY,
+          docHeight: document.documentElement.scrollHeight,
+          button: b?.getBoundingClientRect(),
+          nav: box('nav'),
+          form: box('form'),
+          forms: document.querySelectorAll('form').length,
+          html: b?.parentElement?.outerHTML.slice(0, 400),
+        });
+      });
+      throw new Error(`DIAG ${info} :: ${String(error).slice(0, 200)}`);
+    });
     await expect(page.getByText('Ta question est envoyée.')).toBeVisible();
     await expect(page.getByTestId('my-questions')).toContainText(question);
 

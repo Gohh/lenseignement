@@ -1183,3 +1183,29 @@ export const assignmentSubmissions = pgTable(
   },
   (t) => [unique('assignment_submissions_once').on(t.assignmentId, t.learnerUserId)],
 );
+
+/** Ressource de la bibliothèque, partagée avec une classe par son enseignant. */
+export const classResources = pgTable(
+  'class_resources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cohortId: uuid('cohort_id')
+      .notNull()
+      .references(() => cohorts.id),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    url: text('url').notNull(),
+    kind: text('kind').notNull().default('lien'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('class_resources_cohort_idx').on(t.cohortId, t.createdAt),
+    check(
+      'class_resources_kind_check',
+      sql`${t.kind} in ('lien', 'document', 'video', 'exercice')`,
+    ),
+  ],
+);

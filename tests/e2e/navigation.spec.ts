@@ -15,6 +15,7 @@ test.describe('Navigation', () => {
       'Relecture',
       'Classe virtuelle',
       'Devoirs',
+      'Bibliothèque',
       'Questions des élèves',
       'Statistiques',
       'Établissements',
@@ -66,6 +67,7 @@ test.describe('Navigation', () => {
       'Atelier',
       'Ma classe',
       'Mes devoirs',
+      'Bibliothèque',
       'Mes réussites',
       'Aide et tutorat',
     ]);

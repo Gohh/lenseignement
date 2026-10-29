@@ -2,6 +2,9 @@ import type { LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
+import { StaffDashboard } from '@/components/StaffDashboard';
+import { topRoleLabel } from '@/components/StaffShell';
+import { staffMenu } from '@/lib/space-menu';
 import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -53,14 +56,24 @@ export default async function MyspacePage() {
   ].filter((role) => role in ROLE_LABELS);
   const resume = followed.find((c) => c.resumeAt && !c.finished);
 
+  const staff = staffMenu(session.roles, me.ok ? me.data : null) !== null;
+
   return (
     <section className="space-y-10">
-      <div className="space-y-1">
-        <p className="font-bold text-ink-muted">
-          {(me.ok && me.data.memberships[0]?.organizationName) || 'Mon espace'}
-        </p>
-        <h1 className="text-4xl font-extrabold">Bonjour, {session.displayName}</h1>
-      </div>
+      {staff ? (
+        <StaffDashboard
+          accessToken={session.accessToken}
+          displayName={session.displayName}
+          roleLabel={topRoleLabel(roles)}
+        />
+      ) : (
+        <div className="space-y-1">
+          <p className="font-bold text-ink-muted">
+            {(me.ok && me.data.memberships[0]?.organizationName) || 'Mon espace'}
+          </p>
+          <h1 className="text-4xl font-extrabold">Bonjour, {session.displayName}</h1>
+        </div>
+      )}
 
       {resume && (
         <section

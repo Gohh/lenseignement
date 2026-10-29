@@ -1,7 +1,9 @@
+import type { CourseSummary } from '@lenseignement/types';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
+import { StaffShell, topRoleLabel } from '@/components/StaffShell';
 import { apiGet, type Me } from '@/lib/api';
-import { spaceMenuItems } from '@/lib/space-menu';
+import { spaceMenuItems, staffMenu } from '@/lib/space-menu';
 import { getSession } from '@/lib/session';
 
 // Menu latéral sur ordinateur ; barre fixe en bas sur téléphone (maquette « Mon espace »).
@@ -15,6 +17,25 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
   if (!session) return children;
 
   const me = await apiGet<Me>(session.accessToken, '/me');
+  const staff = staffMenu(session.roles, me.ok ? me.data : null);
+  if (staff) {
+    // Les rôles d'équipe viennent des rattachements autant que du jeton.
+    const roles = [...session.roles, ...(me.ok ? me.data.memberships.map((m) => m.role) : [])];
+    const courses = await apiGet<{ items: CourseSummary[] }>(
+      session.accessToken,
+      '/authoring/courses',
+    );
+    return (
+      <StaffShell
+        menu={staff}
+        displayName={session.displayName}
+        roleLabel={topRoleLabel(roles)}
+        courses={courses.ok ? courses.data.items : []}
+      >
+        {children}
+      </StaffShell>
+    );
+  }
   const items = spaceMenuItems(session.roles, me.ok ? me.data : null);
 
   const single = items.length <= 1;

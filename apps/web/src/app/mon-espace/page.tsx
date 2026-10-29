@@ -277,15 +277,6 @@ export default async function MyspacePage() {
         <h2 className="text-xl font-extrabold">Cet appareil</h2>
         <DeviceDataPanel />
       </div>
-
-      <form method="post" action="/auth/logout">
-        <button
-          type="submit"
-          className="min-h-[44px] rounded-card border border-line-strong bg-surface px-5 font-bold text-ink"
-        >
-          Se déconnecter
-        </button>
-      </form>
     </section>
   );
 }

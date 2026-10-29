@@ -61,6 +61,7 @@ test.describe('Connexion OIDC (ticket 5)', () => {
     await expect(page.getByRole('heading', { name: 'Bonjour, Awa' })).toBeVisible();
     const oldSession = (await context.cookies()).find((c) => c.name === 'lse_session')!.value;
 
+    await page.getByRole('banner').locator('summary').click();
     await page.getByRole('button', { name: 'Se déconnecter' }).click();
     await expect(page).toHaveURL(`${WEB_URL}/`);
     expect((await context.cookies()).find((c) => c.name === 'lse_session')).toBeUndefined();

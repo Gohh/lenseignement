@@ -15,6 +15,8 @@ export class IdentityError extends Error {
 export interface IdentityAdmin {
   configured(): boolean;
   createUser(input: NewIdentity): Promise<{ id: string }>;
+  /** Supprime un compte jamais utilisé ; un compte déjà absent n'est pas une erreur. */
+  deleteUser?(id: string): Promise<void>;
 }
 
 export interface NewIdentity {
@@ -110,6 +112,27 @@ export class KeycloakAdmin implements IdentityAdmin {
       throw new IdentityError('failed', 'Keycloak n’a pas pu créer le compte.');
     }
     return { id };
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    if (!this.configured()) {
+      throw new IdentityError('not_configured', 'Keycloak n’est pas encore configuré.');
+    }
+    const token = await this.token();
+    const res = await this.fetch(`${this.adminBase}/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${token}` },
+    }).catch(() => undefined);
+    if (!res) throw new IdentityError('failed', 'Keycloak ne répond pas.');
+    if (res.status === 403) {
+      throw new IdentityError(
+        'failed',
+        'Le client de service n’a pas le droit de supprimer des comptes dans Keycloak.',
+      );
+    }
+    if (res.status !== 204 && res.status !== 404) {
+      throw new IdentityError('failed', 'Keycloak n’a pas pu supprimer le compte.');
+    }
   }
 }
 

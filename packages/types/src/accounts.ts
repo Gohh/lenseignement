@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { LevelCodeSchema } from './levels.js';
+import type { CreatedAccount } from './team.js';
 
 /**
  * Comptes et journal des actions (administration). Les comptes : superadministrateur et
@@ -13,6 +15,8 @@ export interface AccountListItem {
   /** Rôles d'équipe actifs, avec leur structure. */
   roles: Array<{ role: string; organization: string }>;
   status: 'active' | 'suspended';
+  /** Niveau ou classe d'un apprenant. */
+  level: string | null;
   createdAt: string;
   lastSeenAt: string | null;
 }
@@ -32,6 +36,25 @@ export const AccountQuerySchema = z.object({
   role: z.string().max(40).optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
+
+/** Profils qu'une personne choisit pour elle-même (les rôles d'équipe se gèrent dans Équipe). */
+export const ACCOUNT_PROFILES = ['apprenant', 'parent', 'repetiteur'] as const;
+
+export const UpdateAccountSchema = z.object({
+  displayName: z.string().trim().min(2, 'Le nom est trop court.').max(120),
+  profiles: z.array(z.enum(ACCOUNT_PROFILES)).max(3),
+  level: LevelCodeSchema.nullable(),
+});
+
+export const ImportAccountsSchema = z.object({
+  csv: z.string().min(1, 'Le fichier est vide.').max(300_000, 'Le fichier est trop gros.'),
+});
+
+export interface AccountImportResult {
+  /** Mots de passe provisoires : affichés une seule fois. */
+  created: CreatedAccount[];
+  failed: Array<{ line: number; name: string; reason: string }>;
+}
 
 export const SetAccountStatusSchema = z.object({ status: z.enum(['active', 'suspended']) });
 
@@ -88,6 +111,8 @@ export const AUDIT_DOMAIN_LABELS: Record<string, string> = {
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'account.suspend': 'Compte suspendu',
   'account.reactivate': 'Compte réactivé',
+  'account.update': 'Compte modifié',
+  'account.delete': 'Compte supprimé (jamais utilisé)',
   'assignment.create': 'Devoir donné',
   'assignment.delete': 'Devoir supprimé',
   'assignment.grade': 'Copie corrigée',

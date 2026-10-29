@@ -1,13 +1,20 @@
-import type {
-  AccountList,
-  AccountListItem,
-  AuditLogItem,
-  AuditLogPage,
+import {
+  GRANTABLE_ROLES,
+  parseCsv,
+  TEAM_ROLE_LABELS,
+  type AccountImportResult,
+  type AccountList,
+  type AccountListItem,
+  type AuditLogItem,
+  type AuditLogPage,
+  type CreatedAccount,
 } from '@lenseignement/types';
 import { and, desc, eq, gte, ilike, lt, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { auditLogs, users } from '../db/schema.js';
-import { TeamError, teamPowers } from '../team/team.js';
+import { teamOrganizationIds } from '../access/access.service.js';
+import { IdentityError, type IdentityAdmin } from '../team/identity-admin.js';
+import { createAccount, TeamError, teamPowers } from '../team/team.js';
 
 const PAGE_SIZE = 50;
 
@@ -66,6 +73,7 @@ export async function listAccounts(
       id: users.id,
       displayName: users.displayName,
       profiles: users.profiles,
+      level: users.level,
       status: users.status,
       createdAt: users.createdAt,
       lastSeenAt: users.lastSeenAt,
@@ -93,6 +101,7 @@ export async function listAccounts(
     id: r.id,
     displayName: r.displayName,
     profiles: r.profiles,
+    level: r.level,
     status: r.status === 'suspended' ? 'suspended' : 'active',
     createdAt: r.createdAt.toISOString(),
     lastSeenAt: r.lastSeenAt?.toISOString() ?? null,
@@ -101,6 +110,45 @@ export async function listAccounts(
       .map(({ role, organization }) => ({ role, organization })),
   }));
   return { items, total, page: query.page, pageSize: PAGE_SIZE, canSeeJournal: powers.isSuper };
+}
+
+/**
+ * Garde-fous sur le compte d'une autre personne. Avec `verb` (suspendre, supprimer…) : jamais
+ * soi-même, jamais un superadministrateur, et un administrateur seulement par le
+ * superadministrateur. Sans `verb` (réactiver), seul l'accès à l'écran compte.
+ */
+async function assertCanManage(
+  db: Database,
+  userId: string,
+  targetId: string,
+  verb: string | null,
+) {
+  const powers = await assertEverywhere(db, userId);
+  const [target] = await db
+    .select({ id: users.id, oidcSubject: users.oidcSubject, lastSeenAt: users.lastSeenAt })
+    .from(users)
+    .where(eq(users.id, targetId));
+  if (!target) throw new TeamError('not_found', 'Compte introuvable.');
+  if (verb) {
+    if (targetId === userId) {
+      throw new TeamError('invalid', `Vous ne pouvez pas ${verb} votre propre compte.`);
+    }
+    const { rows } = await db.execute(sql`
+      select m.role from memberships m
+       where m.user_id = ${targetId} and m.role in ('superadministrateur', 'administrateur')
+         and ${activeRole}`);
+    const targetRoles = new Set((rows as Array<{ role: string }>).map((r) => r.role));
+    if (targetRoles.has('superadministrateur')) {
+      throw new TeamError('forbidden', `On ne peut pas ${verb} un compte de superadministrateur.`);
+    }
+    if (targetRoles.has('administrateur') && !powers.isSuper) {
+      throw new TeamError(
+        'forbidden',
+        `Seul le superadministrateur peut ${verb} un administrateur.`,
+      );
+    }
+  }
+  return target;
 }
 
 /**
@@ -115,25 +163,7 @@ export async function setAccountStatus(
   status: 'active' | 'suspended',
   traceId?: string,
 ): Promise<void> {
-  const powers = await assertEverywhere(db, userId);
-  const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, targetId));
-  if (!target) throw new TeamError('not_found', 'Compte introuvable.');
-  if (status === 'suspended') {
-    if (targetId === userId) {
-      throw new TeamError('invalid', 'Vous ne pouvez pas suspendre votre propre compte.');
-    }
-    const { rows } = await db.execute(sql`
-      select m.role from memberships m
-       where m.user_id = ${targetId} and m.role in ('superadministrateur', 'administrateur')
-         and ${activeRole}`);
-    const targetRoles = new Set((rows as Array<{ role: string }>).map((r) => r.role));
-    if (targetRoles.has('superadministrateur')) {
-      throw new TeamError('forbidden', 'Un compte de superadministrateur ne se suspend pas.');
-    }
-    if (targetRoles.has('administrateur') && !powers.isSuper) {
-      throw new TeamError('forbidden', 'Seul le superadministrateur suspend un administrateur.');
-    }
-  }
+  await assertCanManage(db, userId, targetId, status === 'suspended' ? 'suspendre' : null);
   await db.update(users).set({ status }).where(eq(users.id, targetId));
   await audit(
     db,
@@ -142,6 +172,181 @@ export async function setAccountStatus(
     targetId,
     traceId,
   );
+}
+
+/** Complète ou corrige un compte : nom affiché, profils choisis et niveau d'un apprenant. */
+export async function updateAccount(
+  db: Database,
+  userId: string,
+  targetId: string,
+  input: { displayName: string; profiles: string[]; level: string | null },
+  traceId?: string,
+): Promise<void> {
+  await assertCanManage(db, userId, targetId, targetId === userId ? null : 'modifier');
+  await db
+    .update(users)
+    .set({
+      displayName: input.displayName,
+      profiles: [...new Set(input.profiles)],
+      level: input.level,
+    })
+    .where(eq(users.id, targetId));
+  await audit(db, userId, 'account.update', targetId, traceId);
+}
+
+/**
+ * Supprime un compte qui n'a jamais servi (personne ne s'y est connecté, aucune donnée ne s'y
+ * rattache) : fiche, rôles, classes, et le compte Keycloak. Un compte déjà utilisé se suspend.
+ */
+export async function deleteAccount(
+  db: Database,
+  identity: IdentityAdmin,
+  userId: string,
+  targetId: string,
+  traceId?: string,
+): Promise<{ removedFromKeycloak: boolean }> {
+  const target = await assertCanManage(db, userId, targetId, 'supprimer');
+  if (target.lastSeenAt) {
+    throw new TeamError(
+      'invalid',
+      'Ce compte a déjà servi : il ne peut pas être supprimé. Suspendez-le plutôt.',
+    );
+  }
+  const keycloak = identity.configured() && typeof identity.deleteUser === 'function';
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`delete from cohort_members where user_id = ${targetId}`);
+      await tx.execute(sql`delete from memberships where user_id = ${targetId}`);
+      await tx.execute(sql`delete from users where id = ${targetId}`);
+      // Keycloak en dernier : s'il refuse, rien n'est supprimé ici non plus.
+      if (keycloak) await identity.deleteUser!(target.oidcSubject);
+    });
+  } catch (error) {
+    if (error instanceof IdentityError) throw new TeamError('invalid', error.message);
+    const code =
+      (error as { code?: string }).code ?? (error as { cause?: { code?: string } }).cause?.code;
+    if (code === '23503') {
+      throw new TeamError(
+        'invalid',
+        'Des données sont déjà rattachées à ce compte : il ne peut pas être supprimé. Suspendez-le plutôt.',
+      );
+    }
+    throw error;
+  }
+  await audit(db, userId, 'account.delete', targetId, traceId);
+  return { removedFromKeycloak: keycloak };
+}
+
+const IMPORT_COLUMNS = {
+  lastName: /^nom/,
+  firstName: /^prenom/,
+  email: /(mail|courriel)/,
+  role: /^(role|fonction)/,
+  organization: /^(etablissement|structure|ecole)/,
+} as const;
+
+const plainText = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’']/g, "'")
+    .toLowerCase()
+    .trim();
+
+/**
+ * Crée des comptes d'équipe depuis un tableau : Nom ; Prénom ; E-mail ; Rôle ; Établissement.
+ * Chaque ligne suit les mêmes règles qu'une création à la main (rôles accordables, structures
+ * gérées). Les lignes refusées sont listées avec leur raison ; les autres sont créées.
+ */
+export async function importAccounts(
+  db: Database,
+  identity: IdentityAdmin,
+  userId: string,
+  csv: string,
+  traceId?: string,
+): Promise<AccountImportResult> {
+  await assertEverywhere(db, userId);
+  if (!identity.configured()) {
+    throw new TeamError(
+      'invalid',
+      'La création de comptes n’est pas encore configurée dans Keycloak.',
+    );
+  }
+  const rows = parseCsv(csv).map((r) => r.map((c) => c.trim()));
+  const header = (rows.shift() ?? []).map(plainText);
+  const col = Object.fromEntries(
+    Object.entries(IMPORT_COLUMNS).map(([k, re]) => [k, header.findIndex((h) => re.test(h))]),
+  ) as Record<keyof typeof IMPORT_COLUMNS, number>;
+  if (Object.values(col).some((i) => i < 0)) {
+    throw new TeamError(
+      'invalid',
+      'La première ligne doit donner les titres : Nom ; Prénom ; E-mail ; Rôle ; Établissement. Partez du modèle.',
+    );
+  }
+  if (rows.length === 0) throw new TeamError('invalid', 'Le tableau ne contient aucun compte.');
+  if (rows.length > 200) throw new TeamError('invalid', 'Au plus 200 comptes à la fois.');
+
+  const { rows: orgRows } = await db.execute(sql`
+    select o.id, o.name from organizations o
+     where o.id in ${teamOrganizationIds(userId)} and o.archived_at is null`);
+  const orgsByName = new Map<string, Array<{ id: string; name: string }>>();
+  for (const o of orgRows as Array<{ id: string; name: string }>) {
+    const key = plainText(o.name);
+    orgsByName.set(key, [...(orgsByName.get(key) ?? []), o]);
+  }
+  const roleOf = (raw: string) => {
+    const wanted = plainText(raw);
+    return GRANTABLE_ROLES.find(
+      (r) => r === wanted || plainText(TEAM_ROLE_LABELS[r] ?? '') === wanted,
+    );
+  };
+
+  const created: CreatedAccount[] = [];
+  const failed: AccountImportResult['failed'] = [];
+  for (const [i, row] of rows.entries()) {
+    const line = i + 2;
+    const cell = (k: keyof typeof IMPORT_COLUMNS) => row[col[k]] ?? '';
+    const name = `${cell('firstName')} ${cell('lastName')}`.trim();
+    const fail = (reason: string) => failed.push({ line, name: name || '(sans nom)', reason });
+    if (!cell('firstName') || !cell('lastName')) {
+      fail('Il manque le nom ou le prénom.');
+      continue;
+    }
+    const role = roleOf(cell('role'));
+    if (!role) {
+      fail(`Rôle inconnu : « ${cell('role')} ».`);
+      continue;
+    }
+    const orgs = orgsByName.get(plainText(cell('organization'))) ?? [];
+    if (orgs.length !== 1) {
+      fail(
+        orgs.length === 0
+          ? `Établissement introuvable : « ${cell('organization')} ».`
+          : `Plusieurs établissements portent ce nom : « ${cell('organization')} ».`,
+      );
+      continue;
+    }
+    const email = cell('email').toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      fail(`Adresse e-mail invalide : « ${cell('email')} ».`);
+      continue;
+    }
+    try {
+      created.push(
+        await createAccount(
+          db,
+          identity,
+          userId,
+          { displayName: name, email, organizationId: orgs[0]!.id, role, branches: null },
+          traceId,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof TeamError) fail(error.message);
+      else throw error;
+    }
+  }
+  return { created, failed };
 }
 
 /** Journal des actions, du plus récent au plus ancien. Superadministrateur seulement. */

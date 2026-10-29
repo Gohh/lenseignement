@@ -53,6 +53,28 @@ test.describe('Comptes et journal des actions', () => {
     await expect(page.getByText('Compte réactivé.')).toBeVisible();
     await targetContext.close();
 
+    // Modifier : compléter le nom affiché.
+    const row = page.getByTestId('accounts').locator(':scope > li').filter({ hasText: name });
+    await row.getByRole('button', { name: 'Modifier' }).click();
+    const edit = page.getByRole('dialog');
+    await edit.getByLabel('Nom affiché').fill(`${name} Koné`);
+    await edit.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(page.getByText('Compte modifié.')).toBeVisible();
+    await expect(page.getByTestId('accounts')).toContainText(`${name} Koné`);
+    // Ce compte a servi : pas de suppression possible.
+    await expect(page.getByRole('button', { name: `Supprimer ${name} Koné` })).toHaveCount(0);
+
+    // Un compte jamais utilisé se supprime.
+    const unused = `Jamais connecté ${stamp}`;
+    await sql(`insert into users (oidc_subject, display_name) values ($1, $2)`, [
+      `inutilise-${stamp}`,
+      unused,
+    ]);
+    await page.goto(`/mon-espace/comptes?q=${encodeURIComponent(unused)}`);
+    await page.getByRole('button', { name: `Supprimer ${unused}` }).click();
+    await expect(page.getByText(/Compte supprimé/)).toBeVisible();
+    await expect(page.getByTestId('account-total')).toHaveText('0 compte');
+
     await page.goto('/mon-espace/journal?domaine=account');
     await expect(page.getByTestId('journal')).toContainText('Compte suspendu');
     await expect(page.getByTestId('journal')).toContainText('Compte réactivé');

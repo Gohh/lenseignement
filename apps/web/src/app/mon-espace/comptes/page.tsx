@@ -1,9 +1,19 @@
-import { TEAM_ROLE_LABELS, type AccountList } from '@lenseignement/types';
+import {
+  ACCOUNT_PROFILES,
+  LEVEL_GROUPS,
+  levelLabel,
+  TEAM_ROLE_LABELS,
+  type AccountList,
+  type TeamOverview,
+} from '@lenseignement/types';
 import { redirect } from 'next/navigation';
-import { inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
-import { setAccountStatusAction } from './actions';
+import { Dialog } from '../configuration/Dialog';
+import { CreateAccount } from '../equipe/CreateAccount';
+import { deleteAccountAction, setAccountStatusAction, updateAccountAction } from './actions';
+import { ImportAccounts } from './ImportAccounts';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Comptes' };
@@ -42,7 +52,12 @@ export default async function ComptesPage({ searchParams }: Props) {
   if (status === 'active' || status === 'suspended') filter.set('status', status);
   if (role) filter.set('role', role);
   filter.set('page', String(page));
-  const result = await apiGet<AccountList>(session.accessToken, `/admin/accounts?${filter}`);
+  const [result, team, accountStatus] = await Promise.all([
+    apiGet<AccountList>(session.accessToken, `/admin/accounts?${filter}`),
+    apiGet<TeamOverview>(session.accessToken, '/team'),
+    apiGet<{ configured: boolean }>(session.accessToken, '/team/accounts/status'),
+  ]);
+  const configured = accountStatus.ok && accountStatus.data.configured;
   if (!result.ok) {
     return (
       <section className="space-y-4">
@@ -70,7 +85,7 @@ export default async function ComptesPage({ searchParams }: Props) {
         <h1 className="text-4xl font-extrabold">Comptes</h1>
         <p className="text-ink-muted">
           Toutes les personnes inscrites. Un compte suspendu ne peut plus rien faire sur la
-          plateforme, jusqu’à sa réactivation.
+          plateforme, jusqu’à sa réactivation. Un compte jamais utilisé peut être supprimé.
           {canSeeJournal && (
             <>
               {' '}
@@ -81,6 +96,21 @@ export default async function ComptesPage({ searchParams }: Props) {
         </p>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />
+
+      <div className="flex flex-wrap gap-3">
+        {team.ok && (
+          <Dialog primary label="+ Créer un compte" title="Créer un compte">
+            <CreateAccount
+              organizations={team.data.organizations}
+              grantable={team.data.grantable}
+              configured={configured}
+            />
+          </Dialog>
+        )}
+        <Dialog label="Importer (tableau)" title="Importer des comptes">
+          <ImportAccounts configured={configured} />
+        </Dialog>
+      </div>
 
       <form method="get" className={`${cardClass} flex flex-wrap items-end gap-4`}>
         <label className="block flex-1 basis-44 font-bold">
@@ -133,26 +163,94 @@ export default async function ComptesPage({ searchParams }: Props) {
                 ].join(' · ') || 'Aucun rôle'}
               </p>
               <p className="text-sm text-ink-muted">
+                {a.level ? `${levelLabel(a.level) ?? a.level} · ` : ''}
                 Inscrit le {formatDate(a.createdAt)}
                 {a.lastSeenAt ? ` · vu le ${formatDate(a.lastSeenAt)}` : ' · jamais connecté'}
               </p>
             </div>
-            <form action={setAccountStatusAction}>
-              <input type="hidden" name="id" value={a.id} />
-              <input type="hidden" name="back" value={here} />
-              <input
-                type="hidden"
-                name="status"
-                value={a.status === 'suspended' ? 'active' : 'suspended'}
-              />
-              <button
-                type="submit"
-                className={secondaryButtonClass}
-                aria-label={`${a.status === 'suspended' ? 'Réactiver' : 'Suspendre'} ${a.displayName ?? 'ce compte'}`}
-              >
-                {a.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
-              </button>
-            </form>
+            <div className="flex flex-wrap gap-2">
+              <Dialog label="Modifier" title={`Modifier : ${a.displayName ?? 'compte sans nom'}`}>
+                <form action={updateAccountAction} className="space-y-4">
+                  <input type="hidden" name="id" value={a.id} />
+                  <input type="hidden" name="back" value={here} />
+                  <label className="block font-bold">
+                    Nom affiché
+                    <input
+                      name="displayName"
+                      required
+                      defaultValue={a.displayName ?? ''}
+                      className={inputClass}
+                    />
+                  </label>
+                  <fieldset>
+                    <legend className="font-bold">Profils</legend>
+                    {ACCOUNT_PROFILES.map((p) => (
+                      <label key={p} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          name="profiles"
+                          value={p}
+                          defaultChecked={a.profiles.includes(p)}
+                          className="h-5 w-5"
+                        />
+                        {PROFILE_LABELS[p]}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <label className="block font-bold">
+                    Niveau (pour un apprenant)
+                    <select name="level" defaultValue={a.level ?? ''} className={inputClass}>
+                      <option value="">Aucun</option>
+                      {LEVEL_GROUPS.map((g) => (
+                        <optgroup key={g.code} label={g.title}>
+                          {g.levels.map((l) => (
+                            <option key={l.code} value={l.code}>
+                              {l.title}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="text-sm text-ink-muted">
+                    Les rôles d’équipe (enseignant, direction…) se changent dans « Équipe et
+                    invitations ».
+                  </p>
+                  <button type="submit" className={buttonClass}>
+                    Enregistrer
+                  </button>
+                </form>
+              </Dialog>
+              <form action={setAccountStatusAction}>
+                <input type="hidden" name="id" value={a.id} />
+                <input type="hidden" name="back" value={here} />
+                <input
+                  type="hidden"
+                  name="status"
+                  value={a.status === 'suspended' ? 'active' : 'suspended'}
+                />
+                <button
+                  type="submit"
+                  className={secondaryButtonClass}
+                  aria-label={`${a.status === 'suspended' ? 'Réactiver' : 'Suspendre'} ${a.displayName ?? 'ce compte'}`}
+                >
+                  {a.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
+                </button>
+              </form>
+              {!a.lastSeenAt && (
+                <form action={deleteAccountAction}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <input type="hidden" name="back" value={here} />
+                  <button
+                    type="submit"
+                    className={secondaryButtonClass}
+                    aria-label={`Supprimer ${a.displayName ?? 'ce compte'}`}
+                  >
+                    Supprimer
+                  </button>
+                </form>
+              )}
+            </div>
           </li>
         ))}
       </ul>

@@ -18,22 +18,34 @@ test.describe('Aide et tutorat', () => {
     await send.click({ timeout: 8000 }).catch(async (error) => {
       // DIAGNOSTIC TEMPORAIRE
       const info = await page.evaluate(() => {
-        const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
         const b = [...document.querySelectorAll('button')].find((x) =>
           x.textContent?.includes('Envoyer ma question'),
-        );
+        )!;
+        b.scrollIntoView({ block: 'center' });
+        const r = b.getBoundingClientRect();
+        const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        const chain: string[] = [];
+        for (let e: Element | null = at; e && chain.length < 5; e = e.parentElement) {
+          const q = e.getBoundingClientRect();
+          chain.push(
+            `${e.tagName}.${String(e.className).slice(0, 40)}@${Math.round(q.x)},${Math.round(q.y)},${Math.round(q.width)}x${Math.round(q.height)}`,
+          );
+        }
+        const menu = document
+          .querySelector('nav[aria-label="Menu de mon espace"]')
+          ?.getBoundingClientRect();
         return JSON.stringify({
           viewport: [innerWidth, innerHeight],
           scrollY,
-          docHeight: document.documentElement.scrollHeight,
-          button: b?.getBoundingClientRect(),
-          nav: box('nav'),
-          form: box('form'),
-          forms: document.querySelectorAll('form').length,
-          html: b?.parentElement?.outerHTML.slice(0, 400),
+          button: [r.x, r.y, r.width, r.height],
+          menu: menu && [menu.x, menu.y, menu.width, menu.height],
+          menuPos: getComputedStyle(document.querySelector('nav[aria-label="Menu de mon espace"]')!)
+            .position,
+          hit: chain,
+          sw: document.documentElement.scrollWidth,
         });
       });
-      throw new Error(`DIAG ${info} :: ${String(error).slice(0, 200)}`);
+      throw new Error(`DIAG ${info} :: ${String(error).replace(/\s+/g, ' ').slice(0, 1500)}`);
     });
     await expect(page.getByText('Ta question est envoyée.')).toBeVisible();
     await expect(page.getByTestId('my-questions')).toContainText(question);

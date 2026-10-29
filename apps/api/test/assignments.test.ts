@@ -49,6 +49,9 @@ test('devoir : donné par l’enseignant, rendu par l’élève, corrigé avec u
   const other = (await call(SUB.aminata, 'get', '/me/assignments', 200)).body.items;
   assert.ok(!other.some((a: { id: string }) => a.id === id));
 
+  // La cloche de l'élève annonce le devoir à rendre.
+  assert.ok((await call(SUB.awa, 'get', '/me/help-badge', 200)).body.homework >= 1);
+
   // Il rend sa copie, puis la remplace ; un étranger à la classe ne peut pas.
   await call(SUB.awa, 'post', `/assignments/${id}/submission`, 400, { body: ' ' });
   await call(SUB.fatou, 'post', `/assignments/${id}/submission`, 404, { body: 'Moi aussi' });
@@ -56,6 +59,9 @@ test('devoir : donné par l’enseignant, rendu par l’élève, corrigé avec u
   await call(SUB.awa, 'post', `/assignments/${id}/submission`, 200, {
     body: 'Quatre parts égales.',
   });
+
+  // Celle de l'enseignant annonce la copie à corriger.
+  assert.ok((await call(SUB.koffi, 'get', '/me/help-badge', 200)).body.toGrade >= 1);
 
   const review = (await call(SUB.koffi, 'get', `/assignments/${id}/review`, 200)).body;
   assert.equal(review.assignment.submittedCount, 1);

@@ -1,6 +1,8 @@
 import type { AskHelp, HelpBadge, HelpInboxItem, HelpQuestion } from '@lenseignement/types';
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { myAssignments } from '../assignments/assignments.js';
 import type { Database } from '../db/database.js';
+import { mySessions } from '../sessions/class-sessions.js';
 import {
   cohortMembers,
   cohorts,
@@ -239,5 +241,14 @@ export async function badge(db: Database, userId: string): Promise<HelpBadge> {
       .where(and(inArray(helpQuestions.learnerUserId, learners), isNull(helpQuestions.answer)));
     questions = open?.n ?? 0;
   }
-  return { answers: mine?.n ?? 0, questions };
+  const assignments = await myAssignments(db, userId);
+  const homework = assignments.filter((a) => !a.canManage && !a.mine).length;
+  const toGrade = assignments
+    .filter((a) => a.canManage)
+    .reduce((sum, a) => sum + (a.submittedCount - a.gradedCount), 0);
+  const now = Date.now();
+  const sessions = (await mySessions(db, userId)).filter(
+    (x) => Date.parse(x.endsAt) >= now && Date.parse(x.startsAt) <= now + 24 * 3600_000,
+  ).length;
+  return { answers: mine?.n ?? 0, questions, homework, toGrade, sessions };
 }

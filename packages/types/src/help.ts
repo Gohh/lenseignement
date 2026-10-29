@@ -49,4 +49,10 @@ export interface HelpBadge {
   answers: number;
   /** Questions en attente dans mon périmètre (côté enseignant ou répétiteur). */
   questions: number;
+  /** Devoirs donnés à ma classe que je n'ai pas encore rendus (apprenant). */
+  homework: number;
+  /** Copies rendues qui attendent ma correction (enseignant). */
+  toGrade: number;
+  /** Séances de classe virtuelle en cours ou dans les 24 heures. */
+  sessions: number;
 }

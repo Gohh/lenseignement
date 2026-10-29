@@ -2,7 +2,7 @@ import type { HelpBadge } from '@lenseignement/types';
 import { apiGet } from '@/lib/api';
 
 /**
- * Cloche de l'en-tête : un point orange quand une réponse t'attend (apprenant) ou qu'une question
+ * Cloche de l’en-tête : un point orange quand une réponse, un devoir ou une séance t’attend, ou qu’une question
  * attend ta réponse (enseignant, répétiteur). Le clic mène à la bonne page.
  */
 export async function HelpBell({
@@ -13,18 +13,33 @@ export async function HelpBell({
   quietWhenEmpty: boolean;
 }) {
   const result = await apiGet<HelpBadge>(accessToken, '/me/help-badge');
-  const badge = result.ok ? result.data : { answers: 0, questions: 0 };
-  const count = badge.answers + badge.questions;
+  const empty = { answers: 0, questions: 0, homework: 0, toGrade: 0, sessions: 0 };
+  const badge = result.ok ? result.data : empty;
+  const count = badge.answers + badge.questions + badge.homework + badge.toGrade + badge.sessions;
   if (count === 0 && quietWhenEmpty) return null;
-  const href = badge.questions > 0 ? '/mon-espace/questions' : '/mon-espace/aide';
+  // Le clic mène à ce qui demande le plus vite une action.
+  const href =
+    badge.questions > 0
+      ? '/mon-espace/questions'
+      : badge.toGrade > 0 || badge.homework > 0
+        ? '/mon-espace/devoirs'
+        : badge.answers > 0
+          ? '/mon-espace/aide'
+          : badge.sessions > 0
+            ? '/mon-espace/classe'
+            : '/mon-espace/aide';
+  const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
   const label =
     count === 0
       ? 'Aucune nouveauté'
       : [
-          badge.answers > 0 &&
-            `${badge.answers} réponse${badge.answers > 1 ? 's' : ''} reçue${badge.answers > 1 ? 's' : ''}`,
+          badge.answers > 0 && plural(badge.answers, 'réponse reçue', 'réponses reçues'),
           badge.questions > 0 &&
-            `${badge.questions} question${badge.questions > 1 ? 's' : ''} en attente`,
+            plural(badge.questions, 'question en attente', 'questions en attente'),
+          badge.homework > 0 && plural(badge.homework, 'devoir à rendre', 'devoirs à rendre'),
+          badge.toGrade > 0 && plural(badge.toGrade, 'copie à corriger', 'copies à corriger'),
+          badge.sessions > 0 &&
+            plural(badge.sessions, 'séance de classe bientôt', 'séances de classe bientôt'),
         ]
           .filter(Boolean)
           .join(', ');

@@ -17,11 +17,7 @@ export function ImportOrganizations() {
   const toCreate = result?.lines.filter((l) => l.status === 'create').length ?? 0;
 
   return (
-    <form
-      action={action}
-      className="space-y-4 rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]"
-    >
-      <h2 className="text-xl font-bold">Importer des établissements</h2>
+    <form action={action} className="space-y-4">
       <p>
         Un fichier CSV avec les colonnes : nom officiel, type, direction régionale, localité,
         responsable (facultatif : contact). Une ligne de type « autorité » crée une direction

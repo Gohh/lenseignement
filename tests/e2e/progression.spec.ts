@@ -28,7 +28,7 @@ test.describe('Inscription et progression (ticket 12)', () => {
     page,
   }, testInfo) => {
     await loginAs(page, freshLearner(testInfo), '/mon-espace');
-    await expect(page.getByText('Vous ne suivez encore aucun cours.')).toBeVisible();
+    await expect(page.getByText('Tu ne suis encore aucun cours.')).toBeVisible();
 
     await page.goto(`/catalogue/${COURSE}`);
     await page.getByRole('button', { name: 'Suivre ce cours' }).click();

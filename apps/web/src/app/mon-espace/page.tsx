@@ -143,7 +143,7 @@ export default async function MyspacePage() {
         )}
       </div>
 
-      {(followed.length > 0 || session.roles.includes('apprenant')) && (
+      {(followed.length > 0 || roles.includes('apprenant')) && (
         <div className={cardClass}>
           <h2 className="text-2xl font-extrabold">Mon parcours</h2>
           {followed.length > 0 ? (
@@ -192,12 +192,15 @@ export default async function MyspacePage() {
               ))}
             </ul>
           ) : (
-            <p className="mt-2">
-              Vous ne suivez encore aucun cours.{' '}
-              <Link href="/catalogue" className="inline-flex min-h-[44px] items-center underline">
-                Parcourir le catalogue
+            <div className="mt-2 space-y-3">
+              <p>Tu ne suis encore aucun cours. Choisis ton premier cours pour commencer.</p>
+              <Link
+                href="/catalogue"
+                className="inline-flex min-h-[48px] items-center rounded-card bg-primary px-6 font-display text-lg font-bold text-surface no-underline hover:bg-primary-dark"
+              >
+                Choisir un cours
               </Link>
-            </p>
+            </div>
           )}
         </div>
       )}

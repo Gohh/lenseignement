@@ -14,7 +14,7 @@ test.describe('Navigation', () => {
     await loginAs(page, 'directeur.demo', '/mon-espace/configuration');
     const footer = page.getByTestId('site-footer');
     await expect(footer).toBeVisible();
-    await expect(footer.getByRole('link', { name: 'Catalogue des leçons' })).toBeVisible();
+    await expect(footer).toContainText('L’Enseignement');
   });
 
   test('le menu de mon espace suit le profil et montre la page en cours', async ({ page }) => {

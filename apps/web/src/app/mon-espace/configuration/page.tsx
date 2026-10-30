@@ -1,16 +1,16 @@
 import {
   ORGANIZATION_TYPE_LABELS,
-  type OrganizationListItem,
+  type OrganizationListEntry,
   type TeamOverview,
 } from '@lenseignement/types';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { createOrganizationAction } from './actions';
 import { Dialog } from './Dialog';
-import { ImportOrganizations } from './ImportOrganizations';
+import { asCategory } from './etablissements/fiche';
+import { IconLink, RemoveButton } from './etablissements/RowActions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Configuration' };
@@ -37,7 +37,7 @@ export default async function ConfigurationPage({ searchParams }: Props) {
   if (type) filter.set('type', type);
   if (archived) filter.set('archived', '1');
   const [list, overview] = await Promise.all([
-    apiGet<{ items: OrganizationListItem[] }>(
+    apiGet<{ items: OrganizationListEntry[] }>(
       session.accessToken,
       `/organizations${filter.size ? `?${filter}` : ''}`,
     ),
@@ -73,8 +73,8 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         <p className="font-bold text-ink-muted">Référentiels / Établissements</p>
         <h1 className="text-4xl font-extrabold">Configuration</h1>
         <p className="text-ink-muted">
-          Les établissements et les directions régionales que vous gérez. Ce que vous créez ici
-          apparaît ensuite dans les listes des autres écrans.
+          Les établissements et les directions régionales que vous gérez. Le tableau montre
+          l’essentiel ; l’icône en forme d’œil ouvre la fiche complète.
         </p>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />
@@ -98,7 +98,7 @@ export default async function ConfigurationPage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="Nom, localité ou responsable"
+            placeholder="Nom, code, localité ou responsable"
             className={inputClass}
           />
         </label>
@@ -145,15 +145,6 @@ export default async function ConfigurationPage({ searchParams }: Props) {
             {archived ? 'Archivés' : 'Actifs'} ({items.length})
           </h2>
           <div className="flex flex-wrap gap-2">
-            {team.canCreateOrganization && (
-              <Dialog
-                label="Importer (CSV)"
-                title="Importer des établissements"
-                openAtStart={open === 'importer'}
-              >
-                <ImportOrganizations />
-              </Dialog>
-            )}
             {team.canCreateOrganization && team.everywhere && (
               <Dialog
                 label="+ Créer une direction régionale"
@@ -194,111 +185,9 @@ export default async function ConfigurationPage({ searchParams }: Props) {
               </Dialog>
             )}
             {team.canCreateOrganization && (team.everywhere || team.directions.length > 0) && (
-              <Dialog
-                primary
-                label="+ Créer un établissement"
-                title="Créer un établissement"
-                openAtStart={open === 'creer'}
-              >
-                {team.directions.length === 0 ? (
-                  <div className="space-y-4" data-testid="needs-direction">
-                    <p>
-                      Un établissement se rattache toujours à une direction régionale (DRENA). Il
-                      n’en existe encore aucune : créez-la d’abord.
-                    </p>
-                    {team.everywhere && (
-                      <a href="/mon-espace/configuration?ouvrir=drena" className={buttonClass}>
-                        + Créer une direction régionale
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  <form action={createOrganizationAction} className="space-y-6">
-                    <fieldset className="space-y-4">
-                      <legend className="font-extrabold text-primary">Identité</legend>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block font-bold sm:col-span-2">
-                          Nom officiel
-                          <input
-                            name="name"
-                            className={inputClass}
-                            required
-                            minLength={3}
-                            maxLength={160}
-                          />
-                        </label>
-                        <label className="block font-bold">
-                          Type
-                          <select name="type" className={inputClass} defaultValue="primary_public">
-                            {Object.entries(ORGANIZATION_TYPE_LABELS)
-                              .filter(([value]) => value !== 'authority')
-                              .map(([value, label]) => (
-                                <option key={value} value={value}>
-                                  {label}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        <label className="block font-bold">
-                          Localité
-                          <input
-                            name="locality"
-                            className={inputClass}
-                            required
-                            minLength={2}
-                            maxLength={160}
-                          />
-                        </label>
-                      </div>
-                    </fieldset>
-                    <fieldset className="space-y-4">
-                      <legend className="font-extrabold text-primary">Rattachement</legend>
-                      <label className="block font-bold">
-                        Direction régionale (DRENA)
-                        <select
-                          name="parentId"
-                          className={inputClass}
-                          required
-                          defaultValue={team.directions.length === 1 ? team.directions[0]!.id : ''}
-                        >
-                          <option value="" disabled>
-                            Choisir…
-                          </option>
-                          {team.directions.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </fieldset>
-                    <fieldset className="space-y-4">
-                      <legend className="font-extrabold text-primary">Responsable</legend>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block font-bold">
-                          Responsable (nom)
-                          <input
-                            name="managerName"
-                            className={inputClass}
-                            required
-                            minLength={2}
-                            maxLength={160}
-                          />
-                        </label>
-                        <label className="block font-bold">
-                          Contact du responsable (facultatif)
-                          <input name="managerContact" className={inputClass} maxLength={160} />
-                        </label>
-                      </div>
-                    </fieldset>
-                    <div className="flex flex-wrap gap-3">
-                      <button type="submit" className={buttonClass}>
-                        Créer l’établissement
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </Dialog>
+              <a href="/mon-espace/configuration/etablissements/nouveau" className={buttonClass}>
+                + Ajouter un établissement
+              </a>
             )}
           </div>
         </div>
@@ -310,39 +199,79 @@ export default async function ConfigurationPage({ searchParams }: Props) {
               <thead className="bg-primary-soft text-sm uppercase tracking-wide text-ink-muted">
                 <tr>
                   <th scope="col" className={cell}>
-                    Nom officiel
+                    Établissement
                   </th>
                   <th scope="col" className={cell}>
                     Type
                   </th>
                   <th scope="col" className={cell}>
-                    Direction régionale
+                    DRENA
                   </th>
                   <th scope="col" className={cell}>
                     Localité
                   </th>
-                  <th scope="col" className={cell}>
-                    Responsable
+                  <th scope="col" className={`${cell} text-right`}>
+                    Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {items.map((o) => (
-                  <tr key={o.id} className="hover:bg-primary-soft">
-                    <th scope="row" className={`${cell} font-bold`}>
-                      <Link
-                        href={`/mon-espace/configuration/etablissements/${o.id}`}
-                        className="inline-flex min-h-[44px] items-center underline"
-                      >
-                        {o.name}
-                      </Link>
-                    </th>
-                    <td className={cell}>{typeLabel(o.type)}</td>
-                    <td className={cell}>{o.direction?.name ?? '–'}</td>
-                    <td className={cell}>{o.locality ?? '–'}</td>
-                    <td className={cell}>{o.managerName ?? '–'}</td>
-                  </tr>
-                ))}
+                {items.map((o) => {
+                  const fiche = `/mon-espace/configuration/etablissements/${o.id}`;
+                  const isEstablishment = asCategory(o.type) !== null;
+                  const editable = o.can.edit && !o.archivedAt;
+                  return (
+                    <tr key={o.id} className="hover:bg-primary-soft">
+                      <th scope="row" className={`${cell} font-bold`}>
+                        <a href={fiche} className="underline">
+                          {o.name}
+                        </a>
+                        {o.officialCode && (
+                          <span className="block text-sm font-normal text-ink-muted">
+                            Code {o.officialCode}
+                          </span>
+                        )}
+                      </th>
+                      <td className={cell}>{typeLabel(o.type)}</td>
+                      <td className={cell}>{o.direction?.name ?? '–'}</td>
+                      <td className={cell}>{o.locality ?? '–'}</td>
+                      <td className={`${cell} py-2`}>
+                        <div className="flex justify-end gap-2">
+                          <IconLink
+                            href={fiche}
+                            icon="voir"
+                            label={`Voir la fiche de ${o.name}`}
+                            tip="Voir : la fiche complète"
+                          />
+                          {editable && (
+                            <IconLink
+                              href={isEstablishment ? `${fiche}/modifier` : fiche}
+                              icon="modifier"
+                              label={`Modifier ${o.name}`}
+                              tip="Modifier : corriger une erreur de saisie"
+                            />
+                          )}
+                          {editable && isEstablishment && (
+                            <IconLink
+                              href={`${fiche}?ouvrir=maj`}
+                              icon="actualiser"
+                              label={`Mettre à jour ${o.name}`}
+                              tip="Mettre à jour : enregistrer un changement daté (historique)"
+                            />
+                          )}
+                          {o.can.archive && (
+                            <RemoveButton
+                              id={o.id}
+                              name={o.name}
+                              archived={Boolean(o.archivedAt)}
+                              from="liste"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

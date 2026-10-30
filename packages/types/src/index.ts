@@ -28,3 +28,4 @@ export * from './csv.js';
 export * from './curriculum-table.js';
 export * from './consult.js';
 export * from './rights.js';
+export * from './establishments.js';

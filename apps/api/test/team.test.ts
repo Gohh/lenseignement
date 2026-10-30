@@ -196,7 +196,7 @@ test('création : la DRENA est une structure ; superadmin et administrateur part
   const made: string[] = [];
   try {
     // Sans rôle de gestion, ou avec la seule direction : refus.
-    const school = { type: 'primary_public', parentId: ID.orgRegion, ...fiche };
+    const school = { type: 'primary', parentId: ID.orgRegion, ...fiche };
     await call(SUB.koffi, 'post', '/team/organizations', 403, { name: unique(), ...school });
     await call(SUB.bamba, 'post', '/team/organizations', 403, { name: unique(), ...school });
 

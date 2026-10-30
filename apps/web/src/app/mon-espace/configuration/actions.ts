@@ -1,9 +1,11 @@
 'use server';
 
 import {
+  ESTABLISHMENT_CATEGORIES,
+  establishmentFields,
   type CreatedOrganization,
-  type OrganizationImportLine,
-  type OrganizationImportResult,
+  type EstablishmentCategory,
+  type EstablishmentImportResult,
 } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
@@ -64,44 +66,126 @@ export async function updateOrganizationAction(form: FormData): Promise<void> {
   back('message', 'Fiche enregistrée.', path);
 }
 
+/** Page de retour après « Retirer » : la liste (bouton de la ligne) ou la fiche. */
+function afterRemoval(form: FormData): string {
+  return text(form, 'retour') === 'liste' ? PATH : `${PATH}/etablissements/${text(form, 'id')}`;
+}
+
 export async function archiveOrganizationAction(form: FormData): Promise<void> {
-  const id = text(form, 'id');
-  const path = `${PATH}/etablissements/${id}`;
-  const result = await apiSend(await token(), 'POST', `/organizations/${id}/archive`);
-  if (!result.ok) back('erreur', result.message ?? 'Archivage impossible.', path);
-  back('message', 'Établissement archivé : il n’apparaît plus dans les listes.', path);
+  const path = afterRemoval(form);
+  const result = await apiSend(await token(), 'POST', `/organizations/${text(form, 'id')}/archive`);
+  if (!result.ok) back('erreur', result.message ?? 'Retrait impossible.', path);
+  back(
+    'message',
+    `« ${text(form, 'name')} » est retiré de la liste active. Il reste dans « Archivés ».`,
+    path,
+  );
 }
 
 export async function restoreOrganizationAction(form: FormData): Promise<void> {
-  const id = text(form, 'id');
-  const path = `${PATH}/etablissements/${id}`;
-  const result = await apiSend(await token(), 'POST', `/organizations/${id}/restore`);
+  const path = afterRemoval(form);
+  const result = await apiSend(await token(), 'POST', `/organizations/${text(form, 'id')}/restore`);
   if (!result.ok) back('erreur', result.message ?? 'Rétablissement impossible.', path);
-  back('message', 'Établissement rétabli.', path);
+  back('message', 'Établissement rétabli dans la liste active.', path);
 }
 
-export type ImportState =
-  | { lines: OrganizationImportLine[]; created: number; confirmed: boolean; csv: string }
-  | { error: string }
-  | null;
+// Établissements des six catégories : formulaire, import contrôlé, « Mettre à jour ».
 
-/** Aperçu du fichier, puis création si la personne a confirmé (même fichier, second bouton). */
-export async function importOrganizationsAction(
-  _previous: ImportState,
+const categoryOf = (form: FormData): EstablishmentCategory | null => {
+  const value = text(form, 'category');
+  return (ESTABLISHMENT_CATEGORIES as readonly string[]).includes(value)
+    ? (value as EstablishmentCategory)
+    : null;
+};
+
+/** Saisie brute des champs de la catégorie ; les cases à cocher sont jointes par des virgules. */
+function establishmentInput(form: FormData, category: EstablishmentCategory) {
+  const fields: Record<string, string> = {};
+  for (const field of establishmentFields(category)) {
+    if (field.kind === 'direction') continue;
+    fields[field.key] = joined(form, field.key);
+  }
+  return fields;
+}
+
+const joined = (form: FormData, name: string) =>
+  form
+    .getAll(name)
+    .map((v) => String(v).trim())
+    .filter((v) => v !== '')
+    .join(', ');
+
+export type FormState = { error: string } | null;
+
+/** Création (formulaire) ou correction (« Modifier ») d'une fiche. */
+export async function saveEstablishmentAction(
+  _previous: FormState,
   form: FormData,
-): Promise<ImportState> {
-  // Après l'aperçu, React vide le champ fichier : la confirmation reprend le texte gardé.
+): Promise<FormState> {
+  const category = categoryOf(form);
+  if (!category) return { error: 'Choisissez le type d’établissement.' };
+  const id = text(form, 'id');
+  const fields = establishmentInput(form, category);
+  const parentId = text(form, 'parentId');
+  if (!id) {
+    const result = await apiSend<CreatedOrganization>(
+      await token(),
+      'POST',
+      '/organizations/establishments',
+      { category, parentId, fields },
+    );
+    if (!result.ok) return { error: result.message ?? 'Création impossible.' };
+    const path = `${PATH}/etablissements/${result.data.id}`;
+    // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
+    if (result.data.managerCode) back('code', result.data.managerCode, path);
+    back('message', 'Établissement enregistré.', path);
+  }
+  // Catégorie et DRENA : envoyées seulement par qui peut les changer.
+  const body: Record<string, unknown> = { fields };
+  if (form.has('structure')) Object.assign(body, { category, parentId });
+  const result = await apiSend(await token(), 'PUT', `/organizations/${id}/fiche`, body);
+  if (!result.ok) return { error: result.message ?? 'Modification impossible.' };
+  back('message', 'Fiche corrigée.', `${PATH}/etablissements/${id}`);
+}
+
+export type EstablishmentImportState =
+  (EstablishmentImportResult & { csv: string }) | { error: string } | null;
+
+/** Contrôle du fichier, puis enregistrement si la personne confirme (même fichier gardé). */
+export async function importEstablishmentsAction(
+  _previous: EstablishmentImportState,
+  form: FormData,
+): Promise<EstablishmentImportState> {
+  const category = categoryOf(form);
+  if (!category) return { error: 'Choisissez le type d’établissement.' };
+  // Après le contrôle, React vide le champ fichier : la confirmation reprend le texte gardé.
   const file = form.get('file');
   const csv =
     file instanceof File && file.size > 0 ? await file.text() : String(form.get('csv') ?? '');
-  if (!csv.trim()) return { error: 'Choisissez un fichier CSV.' };
-  const result = await apiSend<OrganizationImportResult>(
+  if (!csv.trim()) return { error: 'Choisissez un fichier.' };
+  const result = await apiSend<EstablishmentImportResult>(
     await token(),
     'POST',
-    '/team/organizations/import',
-    { csv, confirm: form.get('confirm') === '1' },
+    '/organizations/establishments/import',
+    { category, csv, confirm: form.get('confirm') === '1' },
   );
   return result.ok ? { ...result.data, csv } : { error: result.message ?? 'Import impossible.' };
+}
+
+/** « Mettre à jour » : un changement réel, daté, gardé dans l'historique de la fiche. */
+export async function establishmentChangeAction(
+  _previous: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const id = text(form, 'id');
+  const result = await apiSend(await token(), 'POST', `/organizations/${id}/changes`, {
+    field: text(form, 'field'),
+    value: joined(form, 'value'),
+    effectiveOn: text(form, 'effectiveOn'),
+    note: text(form, 'note') || undefined,
+  });
+  if (!result.ok) return { error: result.message ?? 'Mise à jour impossible.' };
+  back('message', 'Mise à jour enregistrée dans l’historique.', `${PATH}/etablissements/${id}`);
 }
 
 // Classes d'un établissement : création, enseignants, code de classe, archivage.

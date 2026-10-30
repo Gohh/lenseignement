@@ -1,10 +1,17 @@
 import { eq, sql } from 'drizzle-orm';
 import {
+  ESTABLISHMENT_CATEGORIES,
+  establishmentFields,
+  establishmentValue,
   ORGANIZATION_TYPE_LABELS,
   parseCsv,
+  type EstablishmentCategory,
+  type EstablishmentChange,
+  type EstablishmentValue,
   type CreatedOrganization,
   type MyEstablishment,
   type OrganizationDetail,
+  type OrganizationListEntry,
   type OrganizationListItem,
   type OrganizationImportLine,
   type OrganizationImportResult,
@@ -21,13 +28,24 @@ const norm = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 const deaccent = (value: string) => norm(value).normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const TYPE_ALIASES: Record<string, OrganizationType> = {
+  prescolaire: 'preschool',
+  maternelle: 'preschool',
+  primaire: 'primary',
+  'primaire public': 'primary',
+  'primaire prive': 'primary',
+  ecole: 'primary',
   lycee: 'lycee',
   'secondaire public': 'lycee',
-  'primaire prive': 'primary_private',
+  'secondaire prive': 'lycee',
   'centre technique': 'technical_center',
   'centre de formation': 'technical_center',
+  'centre de formation technique': 'technical_center',
+  technique: 'technical_center',
   "centre d'alphabetisation": 'literacy_center',
+  alphabetisation: 'literacy_center',
   autorite: 'authority',
+  drena: 'authority',
+  'direction regionale': 'authority',
 };
 
 /** Accepte le code (« school »), un nom court (« école ») ou le libellé complet, sans accents ni casse. */
@@ -194,7 +212,7 @@ export async function importOrganizations(
     const type = parseType(cells[typeCol] ?? '');
     if (!type)
       return fail(
-        'Type inconnu. Types possibles : primaire public, primaire privé, collège, lycée, secondaire privé, centre technique, centre d’alphabétisation, autorité, partenaire.',
+        'Type inconnu. Types possibles : préscolaire, primaire, collège, lycée, alphabétisation, technique, DRENA.',
       );
     let parentKey: string | null = null;
     if (type === 'authority') {
@@ -262,7 +280,7 @@ export async function importOrganizations(
 // Configuration des établissements : liste, fiche, modification, archivage.
 // ---------------------------------------------------------------------------------------------
 
-interface OrgRow {
+export interface OrgRow {
   id: string;
   name: string;
   type: string;
@@ -272,7 +290,18 @@ interface OrgRow {
   archived_at: Date | null;
   parent_id: string | null;
   parent_name: string | null;
+  status: string | null;
+  official_code: string | null;
+  municipality: string | null;
+  phone: string | null;
+  email: string | null;
+  opened_year: number | null;
+  details: Record<string, string | number | string[]> | null;
 }
+
+const ROW_COLUMNS = sql`o.id, o.name, o.type, o.locality, o.manager_name, o.manager_contact,
+  o.archived_at, o.parent_id, p.name as parent_name, o.status, o.official_code, o.municipality,
+  o.phone, o.email, o.opened_year, o.details`;
 
 const toItem = (r: OrgRow): OrganizationListItem => ({
   id: r.id,
@@ -283,7 +312,20 @@ const toItem = (r: OrgRow): OrganizationListItem => ({
   managerContact: r.manager_contact,
   archivedAt: r.archived_at ? new Date(r.archived_at).toISOString() : null,
   direction: r.parent_id ? { id: r.parent_id, name: r.parent_name ?? '' } : null,
+  status: r.status,
+  officialCode: r.official_code,
+  municipality: r.municipality,
+  phone: r.phone,
+  email: r.email,
+  openedYear: r.opened_year,
+  details: r.details ?? {},
 });
+
+const isCategory = (type: string): type is EstablishmentCategory =>
+  (ESTABLISHMENT_CATEGORIES as readonly string[]).includes(type);
+
+const isEmptyValue = (v: EstablishmentValue | null | undefined) =>
+  v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
 
 export interface OrganizationFilters {
   search?: string;
@@ -297,26 +339,42 @@ export async function listOrganizations(
   db: Database,
   userId: string,
   filters: OrganizationFilters,
-): Promise<OrganizationListItem[]> {
+): Promise<OrganizationListEntry[]> {
   const powers = await teamPowers(db, userId);
   if (!powers.canCreateOrganization && !(await isManager(db, userId))) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }
   const like = filters.search ? `%${filters.search.replace(/[%_\\]/g, '')}%` : null;
   const { rows } = await db.execute(sql`
-    select o.id, o.name, o.type, o.locality, o.manager_name, o.manager_contact, o.archived_at,
-           o.parent_id, p.name as parent_name
+    select ${ROW_COLUMNS}
       from organizations o
       left join organizations p on p.id = o.parent_id
      where o.id in ${teamOrganizationIds(userId)}
        and (${filters.archived ? sql`o.archived_at is not null` : sql`o.archived_at is null`})
        and (${like}::text is null or o.name ilike ${like} or o.locality ilike ${like}
-            or o.manager_name ilike ${like})
+            or o.manager_name ilike ${like} or o.official_code ilike ${like})
        and (${filters.directionId ?? null}::uuid is null or o.parent_id = ${filters.directionId ?? null})
        and (${filters.type ?? null}::text is null or o.type = ${filters.type ?? null})
      order by o.name
      limit 300`);
-  return (rows as unknown as OrgRow[]).map(toItem);
+  // Droits ligne par ligne, sans requête par ligne : les rôles de la personne sur chaque
+  // structure, puis ceux de la direction régionale parente.
+  const { rows: mine } = await db.execute(sql`
+    select organization_id as "organizationId", role from memberships
+     where user_id = ${userId} and (valid_until is null or valid_until > now())`);
+  const roles = new Map<string, Set<string>>();
+  for (const m of mine as unknown as Array<{ organizationId: string; role: string }>) {
+    roles.set(m.organizationId, (roles.get(m.organizationId) ?? new Set()).add(m.role));
+  }
+  return (rows as unknown as OrgRow[]).map((row) => {
+    const item = toItem(row);
+    const here = new Set([
+      ...(roles.get(row.id) ?? []),
+      ...(row.parent_id ? (roles.get(row.parent_id) ?? []) : []),
+    ]);
+    const { edit, archive } = powersFrom(powers, here, row.type === 'authority');
+    return { ...item, can: { edit, archive } };
+  });
 }
 
 /** Dirige-t-elle une structure (direction ou gestionnaire) : accès en lecture à la configuration. */
@@ -339,11 +397,17 @@ async function rolesIn(db: Database, userId: string, organizationId: string) {
 }
 
 /** Ce que la personne peut faire sur une fiche, d'après ses rôles sur la structure et ses parents. */
-async function powersOn(db: Database, userId: string, org: { id: string; type: string }) {
+export async function powersOn(db: Database, userId: string, org: { id: string; type: string }) {
   const powers = await teamPowers(db, userId);
   await assertManages(db, userId, org.id);
-  const here = await rolesIn(db, userId, org.id);
-  const isDirection = org.type === 'authority';
+  return powersFrom(powers, await rolesIn(db, userId, org.id), org.type === 'authority');
+}
+
+function powersFrom(
+  powers: { everywhere: boolean; rights: Set<string> },
+  here: Set<string>,
+  isDirection: boolean,
+) {
   const manager = powers.everywhere || here.has('gestionnaire');
   // Sans le droit « établissements » (écran Droits), seule la direction modifie encore sa fiche.
   const can = powers.rights.has('etablissements');
@@ -356,10 +420,9 @@ async function powersOn(db: Database, userId: string, org: { id: string; type: s
   };
 }
 
-async function loadRow(db: Database, id: string): Promise<OrgRow> {
+export async function loadRow(db: Database, id: string): Promise<OrgRow> {
   const { rows } = await db.execute(sql`
-    select o.id, o.name, o.type, o.locality, o.manager_name, o.manager_contact, o.archived_at,
-           o.parent_id, p.name as parent_name
+    select ${ROW_COLUMNS}
       from organizations o left join organizations p on p.id = o.parent_id
      where o.id = ${id}`);
   const row = rows[0] as unknown as OrgRow | undefined;
@@ -418,11 +481,32 @@ export async function getOrganization(
        and m.role in ('chef-etablissement','gestionnaire','enseignant','alphabetiseur','referent-pedagogique','administrateur')
      order by m.role, u.display_name`);
   const c = counts[0] as unknown as { children: number; cohorts: number };
+  const { rows: changeRows } = await db.execute(sql`
+    select c.id, c.field, c.old_value as "oldValue", c.new_value as "newValue",
+           c.effective_on::text as "effectiveOn", c.note, u.display_name as author,
+           c.created_at as "createdAt"
+      from organization_changes c left join users u on u.id = c.changed_by
+     where c.organization_id = ${id}
+     order by c.effective_on desc, c.created_at desc
+     limit 100`);
+  const item = toItem(row);
+  const category = isCategory(row.type) ? row.type : null;
+  const fields = category ? establishmentFields(category) : [];
   return {
-    ...toItem(row),
+    ...item,
     activeChildren: c.children,
     cohortCount: c.cohorts,
     members: members as unknown as OrganizationDetail['members'],
+    changes: (changeRows as Array<Omit<EstablishmentChange, 'label'> & { createdAt: Date }>).map(
+      (ch) => ({
+        ...ch,
+        label: fields.find((f) => f.key === ch.field)?.label ?? ch.field,
+        createdAt: new Date(ch.createdAt).toISOString(),
+      }),
+    ),
+    missing: fields
+      .filter((f) => f.required && isEmptyValue(establishmentValue(item, f.key)))
+      .map((f) => f.label),
     can,
   };
 }

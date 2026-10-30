@@ -27,13 +27,12 @@ import {
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const ORGANIZATION_TYPES = [
-  'primary_public',
-  'primary_private',
+  'preschool',
+  'primary',
   'college',
   'lycee',
-  'secondary_private',
-  'technical_center',
   'literacy_center',
+  'technical_center',
   'authority',
   'partner',
 ] as const;
@@ -54,14 +53,51 @@ export const organizations = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     /** Structure technique (« Plateforme ») qui porte le superadministrateur : jamais listée. */
     internal: boolean('internal').notNull().default(false),
+    /** Public, privé laïc, privé confessionnel, communautaire (types `ESTABLISHMENT_STATUSES`). */
+    status: text('status'),
+    /** Code donné par le ministère, unique quand il est renseigné. */
+    officialCode: text('official_code'),
+    municipality: text('municipality'),
+    phone: text('phone'),
+    email: text('email'),
+    openedYear: integer('opened_year'),
+    /** Champs propres à la catégorie (IEPP, sections, filières…), cf. `CATEGORY_ESTABLISHMENT_FIELDS`. */
+    details: jsonb('details')
+      .$type<Record<string, string | number | string[]>>()
+      .notNull()
+      .default({}),
     createdAt: createdAt(),
   },
   (t) => [
     check(
       'organizations_type_check',
-      sql`${t.type} in ('primary_public','primary_private','college','lycee','secondary_private','technical_center','literacy_center','authority','partner')`,
+      sql`${t.type} in ('preschool','primary','college','lycee','literacy_center','technical_center','authority','partner')`,
     ),
+    uniqueIndex('organizations_official_code_unique')
+      .on(sql`lower(${t.officialCode})`)
+      .where(sql`${t.officialCode} is not null`),
   ],
+);
+
+/** « Mettre à jour » : changement réel et daté d'une fiche ; l'ancienne valeur reste lisible. */
+export const organizationChanges = pgTable(
+  'organization_changes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    field: text('field').notNull(),
+    oldValue: text('old_value').notNull().default(''),
+    newValue: text('new_value').notNull().default(''),
+    effectiveOn: date('effective_on').notNull(),
+    note: text('note'),
+    changedBy: uuid('changed_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('organization_changes_org_idx').on(t.organizationId, t.effectiveOn)],
 );
 
 /** Profils qu'une personne choisit pour elle-même à l'inscription (les rôles d'équipe, eux, s'obtiennent par invitation). */

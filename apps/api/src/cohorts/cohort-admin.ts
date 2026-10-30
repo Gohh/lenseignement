@@ -9,9 +9,17 @@ import {
   type CohortRosterTools,
   type OrganizationCohorts,
 } from '@lenseignement/types';
-import { and, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
-import { cohortMembers, cohorts, memberships, organizations, users } from '../db/schema.js';
+import {
+  cohortMembers,
+  cohorts,
+  memberships,
+  organizations,
+  parentCodes,
+  users,
+} from '../db/schema.js';
+import { issueParentCode, parentCounts } from '../family/family.js';
 import { IdentityError, temporaryPassword, type IdentityAdmin } from '../team/identity-admin.js';
 import { assertManages, audit, TeamError } from '../team/team.js';
 
@@ -278,13 +286,34 @@ export async function joinCohort(
   return { cohort: row.name, organization: row.organization };
 }
 
-/** Outils d'élèves d'une classe pour la direction : les classes de destination possibles. */
+/** Élèves (rôle apprenant) d'une classe. */
+async function learnerIds(db: Database, cohortId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: cohortMembers.userId })
+    .from(cohortMembers)
+    .where(and(eq(cohortMembers.cohortId, cohortId), eq(cohortMembers.role, 'apprenant')));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Outils d'élèves d'une classe pour la direction : les classes de destination possibles, et le
+ * code parent de chaque élève avec le nombre de parents déjà reliés.
+ */
 export async function rosterTools(
   db: Database,
   userId: string,
   cohortId: string,
 ): Promise<Omit<CohortRosterTools, 'canCreateAccounts'>> {
   const cohort = await managedCohort(db, userId, cohortId);
+  const ids = await learnerIds(db, cohortId);
+  const codes =
+    ids.length === 0
+      ? []
+      : await db
+          .select({ id: parentCodes.learnerUserId, code: parentCodes.code })
+          .from(parentCodes)
+          .where(inArray(parentCodes.learnerUserId, ids));
+  const counts = await parentCounts(db, ids);
   const rows = await db
     .select()
     .from(cohorts)
@@ -303,7 +332,29 @@ export async function rosterTools(
       schoolYear: c.schoolYear,
       levelLabel: c.level ? levelLabel(c.level) : null,
     })),
+    parents: ids.map((id) => ({
+      learnerId: id,
+      code: codes.find((c) => c.id === id)?.code ?? null,
+      linked: counts.get(id) ?? 0,
+    })),
   };
+}
+
+/** Nouveau code parent pour un élève de la classe : l'ancien ne marche plus. */
+export async function renewParentCode(
+  db: Database,
+  userId: string,
+  cohortId: string,
+  learnerId: string,
+  traceId?: string,
+): Promise<{ code: string }> {
+  await managedCohort(db, userId, cohortId);
+  if (!(await learnerIds(db, cohortId)).includes(learnerId)) {
+    throw new TeamError('not_found', 'Élève introuvable dans cette classe.');
+  }
+  const code = await issueParentCode(db, learnerId, userId);
+  await audit(db, userId, 'learner.parent_code', learnerId, traceId);
+  return { code };
 }
 
 export async function removeLearner(
@@ -426,7 +477,7 @@ export async function addLearners(
       result.failed.push({ displayName, reason });
       continue;
     }
-    await db.transaction(async (tx) => {
+    const parentCode = await db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
         .values({
@@ -444,8 +495,14 @@ export async function addLearners(
         .insert(memberships)
         .values({ userId: user!.id, organizationId: cohort.organizationId, role: 'apprenant' })
         .onConflictDoNothing();
+      return issueParentCode(tx, user!.id, userId);
     });
-    result.created.push({ displayName, username: account.username, temporaryPassword: password });
+    result.created.push({
+      displayName,
+      username: account.username,
+      temporaryPassword: password,
+      parentCode,
+    });
   }
   await audit(db, userId, 'cohort.learners.add', cohortId, traceId);
   return result;

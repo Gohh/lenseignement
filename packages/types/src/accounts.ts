@@ -138,6 +138,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'evaluation.delete': 'Évaluation supprimée',
   'evaluation.scores': 'Notes saisies',
   'family.child.create': 'Enfant ajouté',
+  'family.child.link': 'Parent relié à un élève (code parent)',
+  'learner.parent_code': 'Nouveau code parent',
   'family.invitation.create': 'Invitation familiale créée',
   'family.invitation.redeem': 'Invitation familiale utilisée',
   'family.tutor.revoke': 'Répétiteur retiré',

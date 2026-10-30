@@ -267,6 +267,13 @@
       "when": 1793360012045,
       "tag": "0037_etablissements_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793380413808,
+      "tag": "0038_codes_parents",
+      "breakpoints": true
     }
   ]
 }

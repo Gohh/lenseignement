@@ -5,7 +5,7 @@ import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/
 import { apiGet, type CohortDetail } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../../configuration/Dialog';
-import { removeLearnerAction, transferLearnersAction } from './actions';
+import { removeLearnerAction, renewParentCodeAction, transferLearnersAction } from './actions';
 import { AddLearners } from './AddLearners';
 
 export const dynamic = 'force-dynamic';
@@ -73,11 +73,14 @@ export default async function CohortPage({ params, searchParams }: Props) {
                       >
                         Voir<span className="sr-only"> {learner.displayName}</span>
                       </Link>
+                      <ParentCode
+                        learnerId={learner.id}
+                        name={learner.displayName ?? 'cet élève'}
+                        info={tools.data.parents.find((p) => p.learnerId === learner.id)}
+                      />
                       <button
                         type="submit"
-                        formAction={removeLearnerAction}
-                        name="removeId"
-                        value={learner.id}
+                        formAction={removeLearnerAction.bind(null, learner.id)}
                         className={secondaryButtonClass}
                       >
                         Retirer<span className="sr-only"> {learner.displayName}</span>
@@ -135,5 +138,37 @@ export default async function CohortPage({ params, searchParams }: Props) {
         </>
       )}
     </section>
+  );
+}
+
+/** Code parent d'un élève, à remettre au parent, et bouton pour en donner un nouveau. */
+function ParentCode({
+  learnerId,
+  name,
+  info,
+}: {
+  learnerId: string;
+  name: string;
+  info: CohortRosterTools['parents'][number] | undefined;
+}) {
+  const linked = info?.linked ?? 0;
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-sm" data-testid="parent-code">
+      <span>
+        Code parent : <strong className="tracking-widest">{info?.code ?? 'aucun'}</strong> ·{' '}
+        {linked === 0
+          ? 'aucun parent relié'
+          : `${linked} parent${linked > 1 ? 's' : ''} relié${linked > 1 ? 's' : ''}`}
+      </span>
+      <button
+        type="submit"
+        formAction={renewParentCodeAction.bind(null, learnerId)}
+        formNoValidate
+        className="inline-flex min-h-[44px] items-center font-bold underline"
+      >
+        {info?.code ? 'Nouveau code' : 'Créer le code'}
+        <span className="sr-only"> parent de {name}</span>
+      </button>
+    </span>
   );
 }

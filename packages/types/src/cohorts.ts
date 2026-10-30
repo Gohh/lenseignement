@@ -82,6 +82,8 @@ export interface CohortRosterTools {
   targets: Array<{ id: string; name: string; schoolYear: string; levelLabel: string | null }>;
   /** Le réglage Keycloak permet-il de créer des comptes d'élèves ? */
   canCreateAccounts: boolean;
+  /** Code parent de chaque élève de la classe et nombre de parents déjà reliés. */
+  parents: Array<{ learnerId: string; code: string | null; linked: number }>;
 }
 
 export const NewLearnerSchema = z.object({
@@ -103,6 +105,8 @@ export interface CreatedLearner {
   displayName: string;
   username: string;
   temporaryPassword: string;
+  /** À remettre au parent : il le saisit dans « Ma famille » pour suivre cet élève. */
+  parentCode: string;
 }
 
 export interface AddLearnersResult {

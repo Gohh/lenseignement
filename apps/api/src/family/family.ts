@@ -2,7 +2,17 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { CreateChildInput, FamilyChild, TutoredChild } from '@lenseignement/types';
 import type { Database } from '../db/database.js';
-import { auditLogs, guardianLinks, tutorInvitations, tutorLinks, users } from '../db/schema.js';
+import {
+  auditLogs,
+  cohortMembers,
+  cohorts,
+  guardianLinks,
+  organizations,
+  parentCodes,
+  tutorInvitations,
+  tutorLinks,
+  users,
+} from '../db/schema.js';
 
 export class FamilyError extends Error {
   constructor(
@@ -14,12 +24,116 @@ export class FamilyError extends Error {
 }
 
 const MAX_CHILDREN = 10;
+/** Parents qu'un même code parent peut relier à un élève (la mère et le père, par exemple). */
+export const MAX_PARENTS_PER_CODE = 2;
 const INVITATION_DAYS = 7;
 /** Sans 0, O, 1, I ni L : le code se recopie à la main. */
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 function newCode(): string {
   return Array.from({ length: 8 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
+}
+
+const cleanCode = (raw: string) => raw.replace(/[\s-]/g, '').toUpperCase();
+
+/**
+ * Donne (ou remplace) le code parent d'un élève inscrit par l'école. L'ancien code ne marche plus ;
+ * les parents déjà reliés le restent.
+ */
+export async function issueParentCode(
+  db: Pick<Database, 'insert'>,
+  learnerId: string,
+  byUserId: string,
+): Promise<string> {
+  const code = newCode();
+  await db
+    .insert(parentCodes)
+    .values({ learnerUserId: learnerId, code, createdByUserId: byUserId })
+    .onConflictDoUpdate({
+      target: parentCodes.learnerUserId,
+      set: { code, createdByUserId: byUserId, createdAt: sql`now()` },
+    });
+  return code;
+}
+
+/** Nombre de parents vérifiés de chaque élève. */
+export async function parentCounts(
+  db: Database,
+  learnerIds: string[],
+): Promise<Map<string, number>> {
+  if (learnerIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: guardianLinks.learnerUserId, n: sql<number>`count(*)::int` })
+    .from(guardianLinks)
+    .where(
+      and(inArray(guardianLinks.learnerUserId, learnerIds), eq(guardianLinks.status, 'verified')),
+    )
+    .groupBy(guardianLinks.learnerUserId);
+  return new Map(rows.map((r) => [r.id, r.n]));
+}
+
+/**
+ * Le parent saisit le code parent remis par l'école : il est relié à l'élève réel (sa classe, ses
+ * résultats, ses enseignants). Deux parents au plus par code ; au-delà, l'école en donne un nouveau.
+ */
+export async function linkWithParentCode(
+  db: Database,
+  guardianId: string,
+  rawCode: string,
+  traceId?: string,
+): Promise<{ id: string; displayName: string | null }> {
+  const child = await db.transaction(async (tx) => {
+    const [entry] = await tx
+      .select({ learnerId: parentCodes.learnerUserId, displayName: users.displayName })
+      .from(parentCodes)
+      .innerJoin(users, eq(users.id, parentCodes.learnerUserId))
+      .where(eq(parentCodes.code, cleanCode(rawCode)))
+      .for('update');
+    // Message unique : on ne révèle pas si le code a existé.
+    if (!entry || entry.learnerId === guardianId) {
+      throw new FamilyError(
+        'not_found',
+        'Code parent invalide. Vérifiez-le ou demandez-le à l’école.',
+      );
+    }
+    const parents = await tx
+      .select({ guardianId: guardianLinks.guardianUserId })
+      .from(guardianLinks)
+      .where(
+        and(eq(guardianLinks.learnerUserId, entry.learnerId), eq(guardianLinks.status, 'verified')),
+      );
+    if (parents.some((p) => p.guardianId === guardianId)) {
+      throw new FamilyError(
+        'invalid',
+        `${entry.displayName ?? 'Cet élève'} est déjà relié à votre compte.`,
+      );
+    }
+    if (parents.length >= MAX_PARENTS_PER_CODE) {
+      throw new FamilyError(
+        'invalid',
+        'Deux parents sont déjà reliés à cet élève. Demandez un nouveau code à l’école.',
+      );
+    }
+    await tx
+      .insert(guardianLinks)
+      .values({
+        guardianUserId: guardianId,
+        learnerUserId: entry.learnerId,
+        status: 'verified',
+        verifiedAt: sql`now()`,
+      })
+      .onConflictDoUpdate({
+        target: [guardianLinks.guardianUserId, guardianLinks.learnerUserId],
+        set: { status: 'verified', verifiedAt: sql`now()`, revokedAt: null },
+      });
+    await tx
+      .update(users)
+      .set({ profiles: sql`array(select distinct unnest(profiles || array['parent']))` })
+      .where(eq(users.id, guardianId));
+    return { id: entry.learnerId, displayName: entry.displayName };
+  });
+  await audit(db, guardianId, 'family.child.link', child.id, 'parent_code', traceId);
+  return child;
 }
 
 async function audit(
@@ -67,8 +181,32 @@ export async function listChildren(db: Database, guardianId: string): Promise<Fa
         ),
       ),
     );
+  const enrolled = await db
+    .select({
+      learnerId: cohortMembers.userId,
+      name: cohorts.name,
+      organization: organizations.name,
+      schoolYear: cohorts.schoolYear,
+    })
+    .from(cohortMembers)
+    .innerJoin(cohorts, eq(cohorts.id, cohortMembers.cohortId))
+    .innerJoin(organizations, eq(organizations.id, cohorts.organizationId))
+    .where(
+      and(
+        eq(cohortMembers.role, 'apprenant'),
+        isNull(cohorts.archivedAt),
+        inArray(
+          cohortMembers.userId,
+          children.map((c) => c.id),
+        ),
+      ),
+    )
+    .orderBy(asc(cohorts.schoolYear));
   return children.map((c) => ({
     ...c,
+    classes: enrolled
+      .filter((e) => e.learnerId === c.id)
+      .map(({ name, organization, schoolYear }) => ({ name, organization, schoolYear })),
     tutors: tutors
       .filter((t) => t.learnerId === c.id)
       .map((t) => ({ linkId: t.linkId, tutorName: t.tutorName })),
@@ -157,7 +295,7 @@ export async function redeemInvitation(
   rawCode: string,
   traceId?: string,
 ): Promise<{ children: number }> {
-  const code = rawCode.replace(/[\s-]/g, '').toUpperCase();
+  const code = cleanCode(rawCode);
   const linked = await db.transaction(async (tx) => {
     const [invitation] = await tx
       .select()

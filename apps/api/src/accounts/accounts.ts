@@ -223,6 +223,7 @@ export async function deleteAccount(
     await db.transaction(async (tx) => {
       await tx.execute(sql`delete from cohort_members where user_id = ${targetId}`);
       await tx.execute(sql`delete from memberships where user_id = ${targetId}`);
+      await tx.execute(sql`delete from parent_codes where learner_user_id = ${targetId}`);
       await tx.execute(sql`delete from users where id = ${targetId}`);
       // Keycloak en dernier : s'il refuse, rien n'est supprimé ici non plus.
       if (keycloak) await identity.deleteUser!(target.oidcSubject);

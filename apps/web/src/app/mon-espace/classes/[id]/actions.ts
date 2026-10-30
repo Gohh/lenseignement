@@ -40,16 +40,26 @@ export async function transferLearnersAction(form: FormData): Promise<void> {
   );
 }
 
-export async function removeLearnerAction(form: FormData): Promise<void> {
+export async function removeLearnerAction(learnerId: string, form: FormData): Promise<void> {
   const id = text(form, 'cohortId');
   const path = `/mon-espace/classes/${id}`;
-  const result = await apiSend(
-    await token(path),
-    'DELETE',
-    `/cohorts/${id}/learners/${text(form, 'removeId')}`,
-  );
+  const result = await apiSend(await token(path), 'DELETE', `/cohorts/${id}/learners/${learnerId}`);
   if (!result.ok) back(path, 'erreur', result.message ?? 'Retrait impossible.');
   back(path, 'message', 'Élève retiré de la classe.');
+}
+
+// Les boutons d'une ligne d'élève lient l'élève à l'action (bind) : le nom et la valeur du bouton
+// cliqué ne sont pas transmis avec le formulaire.
+export async function renewParentCodeAction(learnerId: string, form: FormData): Promise<void> {
+  const id = text(form, 'cohortId');
+  const path = `/mon-espace/classes/${id}`;
+  const result = await apiSend<{ code: string }>(
+    await token(path),
+    'POST',
+    `/cohorts/${id}/learners/${learnerId}/parent-code`,
+  );
+  if (!result.ok) back(path, 'erreur', result.message ?? 'Code parent impossible.');
+  back(path, 'message', `Nouveau code parent : ${result.data.code}. L’ancien ne marche plus.`);
 }
 
 export interface AddLearnersState {

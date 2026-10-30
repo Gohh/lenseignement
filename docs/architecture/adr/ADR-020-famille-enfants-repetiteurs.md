@@ -26,3 +26,13 @@
 - Écrans : « Ma famille » (parent) et « Répétiteur » dans Mon espace.
 - À venir : connexion de l'enfant par code, courriel ou SMS d'invitation à la place du code remis
   de la main à la main.
+
+## Complément du 30/10/2026 : code parent (choix de GOHH)
+
+- Chaque élève inscrit par l'école reçoit un **code parent** (8 caractères, table `parent_codes`),
+  imprimé avec son identifiant et son mot de passe provisoire.
+- Le parent le saisit dans « Ma famille » : un lien vérifié (`guardian_links`) le relie à l'élève
+  réel. Il voit sa classe, ses résultats, écrit à ses enseignants et peut le confier à un répétiteur.
+- Deux parents au plus par élève via le code. La direction donne un nouveau code depuis la page de
+  la classe ; l'ancien cesse de marcher, les parents déjà reliés le restent.
+- « Ajouter un enfant » reste pour un enfant qu'aucune école n'a inscrit.

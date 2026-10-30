@@ -88,6 +88,8 @@ export interface Me {
   /** Profils choisis à l'inscription : apprenant, parent, répétiteur. */
   profiles: string[];
   memberships: Membership[];
+  /** Droits d'équipe réglés dans l'écran « Droits ». */
+  rights?: string[];
 }
 
 export interface CohortSummary {

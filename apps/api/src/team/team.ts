@@ -8,6 +8,7 @@ import {
   type TeamOverview,
 } from '@lenseignement/types';
 import { teamOrganizationIds } from '../access/access.service.js';
+import { rightsForRoles } from './rights.js';
 import type { Database, Executor } from '../db/database.js';
 import { IdentityError, temporaryPassword, type IdentityAdmin } from './identity-admin.js';
 import {
@@ -48,13 +49,16 @@ export async function teamPowers(db: Database, userId: string) {
   const roles = await activeRoles(db, userId);
   const isSuper = roles.has('superadministrateur');
   const isAdmin = roles.has('administrateur');
+  const rights = await rightsForRoles(db, roles);
   return {
     isSuper,
     /** Voit et crée partout : le superadministrateur et son adjoint. */
     everywhere: isSuper || isAdmin,
     /** Crée un établissement, dans sa zone s'il n'a que le rôle de gestionnaire. */
-    canCreateOrganization: isSuper || isAdmin || roles.has('gestionnaire'),
-    grantable: grantableForRoles(roles),
+    canCreateOrganization: rights.has('etablissements'),
+    grantable: rights.has('equipe') ? grantableForRoles(roles) : [],
+    /** Droits réglés dans l'écran « Droits ». */
+    rights,
   };
 }
 

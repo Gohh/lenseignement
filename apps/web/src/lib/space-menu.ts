@@ -86,12 +86,18 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
   const team = admin || has(TEAM_ROLES);
   const author = has(AUTHOR_ROLES);
   const validator = has(VALIDATOR_ROLES);
-  // Le référent pédagogique publie les programmes.
-  const programmes = admin || memberRoles.has('referent-pedagogique');
+  // Droits réglés par le superadministrateur (écran « Droits ») ; sans réponse, les rôles suffisent.
+  const right = (code: string, fallback: boolean) =>
+    me?.rights ? me.rights.includes(code) : fallback;
+  const programmes =
+    right('programmes-importer', admin) ||
+    right('programmes-publier', memberRoles.has('referent-pedagogique'));
   if (!team && !author && !validator) return null;
   const main: SpaceMenuItem[] = [
     { href: '/mon-espace', label: 'Tableau de bord' },
-    ...(team ? [{ href: '/mon-espace/suivi', label: 'Suivi de l’établissement' }] : []),
+    ...(team && right('suivi', true)
+      ? [{ href: '/mon-espace/suivi', label: 'Suivi de l’établissement' }]
+      : []),
     ...(author || validator ? [{ href: '/mon-espace/travail', label: 'Mon travail' }] : []),
     ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
     ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
@@ -107,7 +113,9 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement') || admin
       ? [{ href: '/mon-espace/questions', label: 'Questions des élèves' }]
       : []),
-    ...(validator || team ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }] : []),
+    ...((validator || team) && right('statistiques', true)
+      ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }]
+      : []),
   ];
   const groups: StaffMenuGroup[] = [
     ...(team || programmes
@@ -137,7 +145,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
           },
         ]
       : []),
-    ...(admin
+    ...(right('consulter', admin)
       ? [
           {
             // Lecture seule (superadministrateur, administrateurs) : replié par défaut.
@@ -158,8 +166,13 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
             title: 'Comptes et droits',
             items: [
               { href: '/mon-espace/equipe', label: 'Équipe et invitations' },
-              ...(admin ? [{ href: '/mon-espace/comptes', label: 'Comptes' }] : []),
-              ...(admin ? [{ href: '/mon-espace/journal', label: 'Journal des actions' }] : []),
+              ...(right('comptes', admin)
+                ? [{ href: '/mon-espace/comptes', label: 'Comptes' }]
+                : []),
+              ...(right('journal', admin)
+                ? [{ href: '/mon-espace/journal', label: 'Journal des actions' }]
+                : []),
+              ...(superAdmin ? [{ href: '/mon-espace/droits', label: 'Droits' }] : []),
             ],
           },
         ]

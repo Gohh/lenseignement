@@ -17,7 +17,7 @@ import { TeamError, teamPowers } from '../team/team.js';
  */
 async function assertConsult(db: Database, userId: string): Promise<void> {
   const powers = await teamPowers(db, userId);
-  if (!powers.everywhere) {
+  if (!powers.everywhere || !powers.rights.has('consulter')) {
     throw new TeamError('forbidden', 'Réservé au superadministrateur et aux administrateurs.');
   }
 }

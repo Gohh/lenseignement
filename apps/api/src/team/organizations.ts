@@ -345,12 +345,14 @@ async function powersOn(db: Database, userId: string, org: { id: string; type: s
   const here = await rolesIn(db, userId, org.id);
   const isDirection = org.type === 'authority';
   const manager = powers.everywhere || here.has('gestionnaire');
+  // Sans le droit « établissements » (écran Droits), seule la direction modifie encore sa fiche.
+  const can = powers.rights.has('etablissements');
   return {
     edit:
-      powers.everywhere ||
-      (!isDirection && (here.has('gestionnaire') || here.has('chef-etablissement'))),
-    editStructure: powers.everywhere,
-    archive: powers.everywhere || (!isDirection && manager),
+      (can && powers.everywhere) ||
+      (!isDirection && ((can && here.has('gestionnaire')) || here.has('chef-etablissement'))),
+    editStructure: can && powers.everywhere,
+    archive: can && (powers.everywhere || (!isDirection && manager)),
   };
 }
 

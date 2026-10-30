@@ -45,6 +45,8 @@ const QuerySchema = z.object({
   direction: z.string().uuid().optional(),
   type: z.string().max(40).optional(),
   archived: z.enum(['0', '1']).optional(),
+  /** Onglet : les établissements, ou les directions régionales. */
+  kind: z.enum(['etablissements', 'directions']).optional(),
 });
 
 async function guard<T>(run: () => Promise<T>): Promise<T> {
@@ -89,7 +91,7 @@ export class OrganizationsController {
   async list(@Req() request: Request, @Query() query: unknown) {
     const parsed = QuerySchema.safeParse(query);
     if (!parsed.success) throw new BadRequestException(z.prettifyError(parsed.error));
-    const { search, direction, type, archived } = parsed.data;
+    const { search, direction, type, archived, kind } = parsed.data;
     return {
       items: await guard(async () =>
         listOrganizations(this.db, await this.me(request), {
@@ -97,6 +99,7 @@ export class OrganizationsController {
           directionId: direction,
           type: type || undefined,
           archived: archived === '1',
+          kind,
         }),
       ),
     };

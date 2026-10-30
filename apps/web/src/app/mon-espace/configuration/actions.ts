@@ -38,13 +38,17 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
   });
   // En cas d'erreur, la fenêtre de création se rouvre.
   if (!result.ok) {
-    const reopen = text(form, 'type') === 'authority' ? 'drena' : 'creer';
-    back('erreur', result.message ?? 'Création impossible.', `${PATH}?ouvrir=${reopen}`);
+    const reopen = text(form, 'type') === 'authority' ? 'vue=drena&ouvrir=drena' : 'ouvrir=creer';
+    back('erreur', result.message ?? 'Création impossible.', `${PATH}?${reopen}`);
   }
   // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
   if (result.data.managerCode) back('code', result.data.managerCode);
   if (text(form, 'type') === 'authority') {
-    back('message', 'Direction régionale créée. Vous pouvez maintenant y rattacher des écoles.');
+    back(
+      'message',
+      'Direction régionale créée. Vous pouvez maintenant y rattacher des établissements.',
+      `${PATH}?vue=drena`,
+    );
   }
   back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');
 }
@@ -68,7 +72,10 @@ export async function updateOrganizationAction(form: FormData): Promise<void> {
 
 /** Page de retour après « Retirer » : la liste (bouton de la ligne) ou la fiche. */
 function afterRemoval(form: FormData): string {
-  return text(form, 'retour') === 'liste' ? PATH : `${PATH}/etablissements/${text(form, 'id')}`;
+  const from = text(form, 'retour');
+  if (from === 'liste') return PATH;
+  if (from === 'drena') return `${PATH}?vue=drena`;
+  return `${PATH}/etablissements/${text(form, 'id')}`;
 }
 
 export async function archiveOrganizationAction(form: FormData): Promise<void> {

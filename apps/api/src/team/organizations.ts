@@ -332,6 +332,7 @@ export interface OrganizationFilters {
   directionId?: string;
   type?: string;
   archived?: boolean;
+  kind?: 'etablissements' | 'directions';
 }
 
 /** Structures que la personne gère, filtrées ; les archivées seulement sur demande. */
@@ -346,10 +347,13 @@ export async function listOrganizations(
   }
   const like = filters.search ? `%${filters.search.replace(/[%_\\]/g, '')}%` : null;
   const { rows } = await db.execute(sql`
-    select ${ROW_COLUMNS}
+    select ${ROW_COLUMNS},
+           (select count(*)::int from organizations c
+             where c.parent_id = o.id and c.archived_at is null) as active_children
       from organizations o
       left join organizations p on p.id = o.parent_id
      where o.id in ${teamOrganizationIds(userId)}
+       and (${filters.kind === 'directions' ? sql`o.type = 'authority'` : filters.kind === 'etablissements' ? sql`o.type <> 'authority'` : sql`true`})
        and (${filters.archived ? sql`o.archived_at is not null` : sql`o.archived_at is null`})
        and (${like}::text is null or o.name ilike ${like} or o.locality ilike ${like}
             or o.manager_name ilike ${like} or o.official_code ilike ${like})
@@ -366,14 +370,14 @@ export async function listOrganizations(
   for (const m of mine as unknown as Array<{ organizationId: string; role: string }>) {
     roles.set(m.organizationId, (roles.get(m.organizationId) ?? new Set()).add(m.role));
   }
-  return (rows as unknown as OrgRow[]).map((row) => {
+  return (rows as unknown as Array<OrgRow & { active_children: number }>).map((row) => {
     const item = toItem(row);
     const here = new Set([
       ...(roles.get(row.id) ?? []),
       ...(row.parent_id ? (roles.get(row.parent_id) ?? []) : []),
     ]);
     const { edit, archive } = powersFrom(powers, here, row.type === 'authority');
-    return { ...item, can: { edit, archive } };
+    return { ...item, activeChildren: row.active_children, can: { edit, archive } };
   });
 }
 

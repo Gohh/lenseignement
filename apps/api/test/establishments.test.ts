@@ -257,6 +257,13 @@ test('tableau : chaque ligne dit les actions permises à la personne connectée'
   const all = (await call(SUB.yao, 'get', '/organizations', 200)).body.items;
   const mine = all.find((o: { id: string }) => o.id === made[0]);
   assert.deepEqual(mine.can, { edit: true, archive: true });
+  // Deux onglets : les établissements d'un côté, les directions régionales de l'autre.
+  const schools = (await call(SUB.yao, 'get', '/organizations?kind=etablissements', 200)).body;
+  assert.ok(schools.items.every((o: { type: string }) => o.type !== 'authority'));
+  const drenas = (await call(SUB.yao, 'get', '/organizations?kind=directions', 200)).body;
+  const region = drenas.items.find((o: { id: string }) => o.id === ID.orgRegion);
+  assert.ok(drenas.items.every((o: { type: string }) => o.type === 'authority'));
+  assert.ok(region.activeChildren >= 1);
   // La direction modifie sa propre fiche mais ne la retire pas.
   const own = (await call(SUB.bamba, 'get', '/organizations', 200)).body.items;
   const manguiers = own.find((o: { id: string }) => o.id === ID.orgManguiers);

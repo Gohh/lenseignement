@@ -63,7 +63,7 @@ export default async function NewEstablishmentPage({ searchParams }: Props) {
             encore aucune : créez-la d’abord.
           </p>
           {team.everywhere && (
-            <a href="/mon-espace/configuration?ouvrir=drena" className={buttonClass}>
+            <a href="/mon-espace/configuration?vue=drena&ouvrir=drena" className={buttonClass}>
               + Créer une direction régionale
             </a>
           )}

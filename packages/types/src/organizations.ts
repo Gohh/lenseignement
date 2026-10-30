@@ -42,6 +42,8 @@ export interface OrganizationListItem {
 
 /** Ligne du tableau : les actions permises à la personne connectée. */
 export interface OrganizationListEntry extends OrganizationListItem {
+  /** Établissements actifs rattachés (pour une direction régionale). */
+  activeChildren: number;
   can: { edit: boolean; archive: boolean };
 }
 

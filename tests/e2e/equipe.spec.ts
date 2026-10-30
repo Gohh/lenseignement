@@ -66,16 +66,13 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     );
     await member.goto('/mon-espace/configuration');
     await member.waitForLoadState('networkidle');
-    await member.getByRole('button', { name: '+ Créer un établissement' }).click();
+    await member.getByRole('button', { name: '+ Créer une direction régionale' }).click();
     const stamp = `${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
     const drena = `DRENA Essai ${stamp}`;
     const form = member.getByRole('dialog');
     await form.getByLabel('Nom officiel').fill(drena);
-    await form
-      .getByLabel('Type')
-      .selectOption({ label: 'Autorité (inspection, direction régionale)' });
-    await form.getByRole('button', { name: 'Créer l’établissement' }).click();
-    await expect(member.getByText('Établissement créé.')).toBeVisible();
+    await form.getByRole('button', { name: 'Créer la direction régionale' }).click();
+    await expect(member.getByText('Direction régionale créée.')).toBeVisible();
 
     await member.waitForLoadState('networkidle');
     await member.getByRole('button', { name: '+ Créer un établissement' }).click();

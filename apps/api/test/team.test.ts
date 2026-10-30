@@ -510,3 +510,15 @@ test('configuration : liste filtrée, modification selon les rôles, archivage e
       await ctx.db.delete(organizations).where(eq(organizations.id, id));
   }
 });
+
+test('en-tête : « L’Enseignement à » l’établissement de la personne, avec sa DRENA', async () => {
+  const { establishment } = (await call(SUB.bamba, 'get', '/organizations/mine', 200)).body;
+  assert.deepEqual(establishment, {
+    name: 'École primaire Les Manguiers (fictive)',
+    direction: 'Direction régionale de démonstration (fictive)',
+    locality: null,
+  });
+  // Sans rattachement ni pouvoir sur toutes les structures : pas d'établissement.
+  const none = (await call(`nouveau-${Date.now()}`, 'get', '/organizations/mine', 200)).body;
+  assert.equal(none.establishment, null);
+});

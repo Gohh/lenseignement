@@ -1,4 +1,4 @@
-import type { MyWorkItem } from '@lenseignement/types';
+import type { MyEstablishment, MyWorkItem } from '@lenseignement/types';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
 import { StaffShell, topRoleLabel } from '@/components/StaffShell';
@@ -21,12 +21,16 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
   if (staff) {
     // Les rôles d'équipe viennent des rattachements autant que du jeton.
     const roles = [...session.roles, ...(me.ok ? me.data.memberships.map((m) => m.role) : [])];
-    const work = await apiGet<{ items: MyWorkItem[] }>(session.accessToken, '/authoring/my-work');
+    const [work, mine] = await Promise.all([
+      apiGet<{ items: MyWorkItem[] }>(session.accessToken, '/authoring/my-work'),
+      apiGet<{ establishment: MyEstablishment | null }>(session.accessToken, '/organizations/mine'),
+    ]);
     return (
       <StaffShell
         menu={staff}
         displayName={session.displayName}
         roleLabel={topRoleLabel(roles)}
+        establishment={mine.ok ? mine.data.establishment : null}
         taskCount={work.ok ? work.data.items.filter((i) => i.kind !== 'to_write').length : 0}
       >
         {children}

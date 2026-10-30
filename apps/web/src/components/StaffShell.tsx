@@ -1,3 +1,4 @@
+import type { MyEstablishment } from '@lenseignement/types';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
 import type { StaffMenu } from '@/lib/space-menu';
@@ -35,6 +36,8 @@ interface Props {
   menu: StaffMenu;
   displayName: string;
   roleLabel: string;
+  /** Établissement de la personne : « L'Enseignement à … », sa DRENA et sa localité. */
+  establishment: MyEstablishment | null;
   /** Nombre de tâches qui attendent la personne (cloche). */
   taskCount: number;
   children: ReactNode;
@@ -42,9 +45,16 @@ interface Props {
 
 /**
  * Espace d'administration : menu foncé à gauche (entrées, groupes repliables, carte de la personne),
- * barre du haut (date, recherche, cloche) puis la page. Tout fonctionne sans JavaScript.
+ * barre du haut (établissement et date, recherche, cloche) puis la page. Tout fonctionne sans JavaScript.
  */
-export function StaffShell({ menu, displayName, roleLabel, taskCount, children }: Props) {
+export function StaffShell({
+  menu,
+  displayName,
+  roleLabel,
+  establishment,
+  taskCount,
+  children,
+}: Props) {
   const today = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full' }).format(new Date());
 
   return (
@@ -107,7 +117,19 @@ export function StaffShell({ menu, displayName, roleLabel, taskCount, children }
 
       <div className="mt-6 min-w-0 flex-1 space-y-6 lg:mt-0">
         <div className="flex flex-wrap items-center gap-3 rounded-big border border-line bg-surface px-4 py-2">
-          <p className="flex-1 basis-48 text-sm capitalize text-ink-muted">{today}</p>
+          <div className="min-w-0 flex-1 basis-56" data-testid="establishment">
+            <p className="font-display text-lg font-extrabold leading-tight text-primary">
+              L’Enseignement{establishment ? ` à ${establishment.name}` : ''}
+            </p>
+            <p className="text-sm text-ink-muted">
+              {establishment &&
+                [establishment.direction, establishment.locality]
+                  .filter(Boolean)
+                  .map((part) => `${part} · `)
+                  .join('')}
+              <span className="capitalize">{today}</span>
+            </p>
+          </div>
           <form
             action="/mon-espace/configuration"
             method="get"

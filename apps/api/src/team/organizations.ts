@@ -3,12 +3,13 @@ import {
   ORGANIZATION_TYPE_LABELS,
   parseCsv,
   type CreatedOrganization,
+  type MyEstablishment,
   type OrganizationDetail,
   type OrganizationListItem,
   type OrganizationImportLine,
   type OrganizationImportResult,
 } from '@lenseignement/types';
-import { teamOrganizationIds } from '../access/access.service.js';
+import { everywhereOrganizationIds, teamOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
 import { organizations, type ORGANIZATION_TYPES } from '../db/schema.js';
 import { assertManages, audit, createTeamInvitation, TeamError, teamPowers } from './team.js';
@@ -362,6 +363,36 @@ async function loadRow(db: Database, id: string): Promise<OrgRow> {
   const row = rows[0] as unknown as OrgRow | undefined;
   if (!row) throw new TeamError('not_found', 'Établissement introuvable.');
   return row;
+}
+
+/**
+ * L'établissement de la personne, pour l'en-tête de son espace : sa structure de rattachement
+ * (un établissement plutôt qu'une direction régionale). Pour le superadministrateur et
+ * l'administrateur, l'établissement de la plateforme quand il n'y en a qu'un.
+ */
+export async function myEstablishment(
+  db: Database,
+  userId: string,
+): Promise<MyEstablishment | null> {
+  const columns = sql`o.name, p.name as direction, o.locality`;
+  const { rows } = await db.execute(sql`
+    select ${columns}
+      from memberships m
+      join organizations o on o.id = m.organization_id
+      left join organizations p on p.id = o.parent_id
+     where m.user_id = ${userId} and (m.valid_until is null or m.valid_until > now())
+       and not o.internal and o.archived_at is null
+     order by (o.type = 'authority'), o.name
+     limit 1`);
+  if (rows.length > 0) return rows[0] as unknown as MyEstablishment;
+  const { rows: only } = await db.execute(sql`
+    select ${columns}
+      from organizations o
+      left join organizations p on p.id = o.parent_id
+     where o.id in ${everywhereOrganizationIds(userId)}
+       and o.type <> 'authority' and o.archived_at is null
+     limit 2`);
+  return only.length === 1 ? (only[0] as unknown as MyEstablishment) : null;
 }
 
 export async function getOrganization(

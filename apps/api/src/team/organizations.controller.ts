@@ -21,6 +21,7 @@ import { UsersService } from '../users/users.service.js';
 import {
   getOrganization,
   listOrganizations,
+  myEstablishment,
   setOrganizationArchived,
   updateOrganization,
 } from './organizations.js';
@@ -80,6 +81,12 @@ export class OrganizationsController {
         }),
       ),
     };
+  }
+
+  /** Établissement de la personne, pour l'en-tête « L'Enseignement à … ». */
+  @Get('mine')
+  async mine(@Req() request: Request) {
+    return { establishment: await myEstablishment(this.db, await this.me(request)) };
   }
 
   @Get(':id')

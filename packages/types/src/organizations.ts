@@ -27,6 +27,14 @@ export interface OrganizationListItem {
   direction: { id: string; name: string } | null;
 }
 
+/** Établissement affiché en haut de l'espace : « L'Enseignement à … ». */
+export interface MyEstablishment {
+  name: string;
+  /** Direction régionale (DRENA) de l'établissement. */
+  direction: string | null;
+  locality: string | null;
+}
+
 export interface OrganizationDetail extends OrganizationListItem {
   /** Établissements actifs qui en dépendent (pour une direction régionale). */
   activeChildren: number;

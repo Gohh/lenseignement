@@ -101,3 +101,17 @@ test('la référente régionale voit toutes les structures de sa région', async
   ]);
   assert.equal(res.body.workshop.tried, 8);
 });
+
+test('le superadministrateur voit les chiffres de toutes les structures', async () => {
+  const [row] = (
+    await ctx.db.execute<{ id: string }>(sql`
+      insert into memberships (user_id, organization_id, role)
+      values (${ID.userYao}, ${ID.orgRegion}, 'superadministrateur') returning id`)
+  ).rows;
+  try {
+    const res = await overview(SUB.yao, 200);
+    assert.ok(res.body.organizations.includes('École primaire Les Manguiers (fictive)'));
+  } finally {
+    await ctx.db.execute(sql`delete from memberships where id = ${row!.id}`);
+  }
+});

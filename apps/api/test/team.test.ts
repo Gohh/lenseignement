@@ -50,6 +50,9 @@ test('ADR-021 : la direction invite un gestionnaire, règle ses cycles, puis ret
   const base = { organizationId: ID.orgManguiers, role: 'gestionnaire', branches: ['primaire'] };
   await call(SUB.koffi, 'post', '/team/invitations', 403, base);
   await call(SUB.bamba, 'post', '/team/invitations', 403, { ...base, role: 'chef-etablissement' });
+  // Une direction ne nomme jamais d'administrateur (rôle national).
+  assert.ok(!team.grantable.includes('administrateur'));
+  await call(SUB.bamba, 'post', '/team/invitations', 403, { ...base, role: 'administrateur' });
   await call(SUB.bamba, 'post', '/team/invitations', 403, {
     ...base,
     organizationId: ID.orgBaobabs,
@@ -205,6 +208,8 @@ test('création : la DRENA est une structure ; superadmin et administrateur part
       assert.equal(team.everywhere, true);
       assert.deepEqual(ids(team.directions), [ID.orgRegion]);
       assert.ok(!team.grantable.includes('chef-etablissement'));
+      // Seul le superadministrateur nomme un administrateur.
+      assert.ok(!team.grantable.includes('administrateur'));
       const drena = (
         await call(SUB.awa, 'post', '/team/organizations', 201, {
           name: unique(),
@@ -521,4 +526,38 @@ test('en-tête : « L’Enseignement à » l’établissement de la personne, av
   // Sans rattachement ni pouvoir sur toutes les structures : pas d'établissement.
   const none = (await call(`nouveau-${Date.now()}`, 'get', '/organizations/mine', 200)).body;
   assert.equal(none.establishment, null);
+});
+
+test('trois administrateurs au plus ; seul le superadministrateur les nomme', async () => {
+  await createSuperadmin(ctx.db, SUB.yao);
+  const added: string[] = [];
+  try {
+    const base = { organizationId: ID.orgManguiers, role: 'administrateur', branches: null };
+    // Deux administrateurs existent déjà : le troisième est accepté, le quatrième refusé.
+    for (const userId of [ID.userAwa, ID.userKoffi]) {
+      const [row] = await ctx.db
+        .insert(memberships)
+        .values({ userId, organizationId: ID.orgManguiers, role: 'administrateur' })
+        .returning({ id: memberships.id });
+      added.push(row!.id);
+    }
+    const { code } = (await call(SUB.yao, 'post', '/team/invitations', 201, base)).body;
+    const redeemed = await call(SUB.mariam, 'post', '/team/invitations/redeem', 201, { code });
+    assert.equal(redeemed.body.role, 'administrateur');
+    const refused = (await call(SUB.yao, 'post', '/team/invitations', 400, base)).body;
+    assert.match(refused.message, /déjà 3 administrateurs/);
+  } finally {
+    await ctx.db
+      .delete(memberships)
+      .where(
+        and(
+          eq(memberships.role, 'administrateur'),
+          inArray(memberships.userId, [ID.userAwa, ID.userKoffi, ID.userMariam]),
+        ),
+      );
+    await ctx.db
+      .delete(memberships)
+      .where(and(eq(memberships.userId, ID.userYao), eq(memberships.role, 'superadministrateur')));
+    await ctx.db.delete(organizations).where(eq(organizations.internal, true));
+  }
 });

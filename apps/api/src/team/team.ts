@@ -2,12 +2,13 @@ import { randomInt } from 'node:crypto';
 import { and, asc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
 import {
   GRANTABLE_ROLES,
+  MAX_ADMINISTRATORS,
   type CreatedAccount,
   type TeamMember,
   type TeamOverview,
 } from '@lenseignement/types';
 import { teamOrganizationIds } from '../access/access.service.js';
-import type { Database } from '../db/database.js';
+import type { Database, Executor } from '../db/database.js';
 import { IdentityError, temporaryPassword, type IdentityAdmin } from './identity-admin.js';
 import {
   auditLogs,
@@ -58,13 +59,14 @@ export async function teamPowers(db: Database, userId: string) {
 }
 
 /**
- * Rôles accordables : le superadministrateur donne tout ; son adjoint et la direction, tout sauf
- * une direction ; le gestionnaire seul, enseignant, alphabétiseur et référent dans sa zone.
+ * Rôles accordables : le superadministrateur donne tout (administrateur compris) ; son adjoint et
+ * la direction, tout sauf une direction ou un administrateur ; le gestionnaire seul, enseignant,
+ * alphabétiseur et référent dans sa zone.
  */
 function grantableForRoles(roles: Set<string>): string[] {
   if (roles.has('superadministrateur')) return [...GRANTABLE_ROLES];
   if (roles.has('administrateur') || roles.has('chef-etablissement')) {
-    return GRANTABLE_ROLES.filter((r) => r !== 'chef-etablissement');
+    return GRANTABLE_ROLES.filter((r) => r !== 'chef-etablissement' && r !== 'administrateur');
   }
   if (roles.has('gestionnaire')) {
     return ['enseignant', 'alphabetiseur', 'referent-pedagogique'];
@@ -179,6 +181,23 @@ async function assertActive(db: Database, organizationId: string) {
   if (rows.length === 0) throw new TeamError('invalid', 'Cet établissement est archivé.');
 }
 
+/** Trois administrateurs au plus : refuse d'en ajouter un quatrième (la personne déjà admin passe). */
+async function assertAdminSeat(db: Executor, role: string, userId?: string) {
+  if (role !== 'administrateur') return;
+  const { rows } = await db.execute<{ n: number; already: boolean }>(sql`
+    select count(distinct m.user_id)::int as n,
+           coalesce(bool_or(m.user_id = ${userId ?? null}), false) as already
+      from memberships m
+     where m.role = 'administrateur' and (m.valid_until is null or m.valid_until > now())`);
+  const { n, already } = rows[0]!;
+  if (!already && n >= MAX_ADMINISTRATORS) {
+    throw new TeamError(
+      'invalid',
+      `Il y a déjà ${MAX_ADMINISTRATORS} administrateurs : retirez d’abord ce rôle à l’un d’eux.`,
+    );
+  }
+}
+
 export async function createTeamInvitation(
   db: Database,
   userId: string,
@@ -190,6 +209,7 @@ export async function createTeamInvitation(
   if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }
+  await assertAdminSeat(db, input.role);
   const expiresAt = new Date(Date.now() + INVITATION_DAYS * 24 * 3600 * 1000);
   const code = newCode();
   await db.insert(membershipInvitations).values({
@@ -225,6 +245,7 @@ export async function redeemTeamInvitation(
       )
       .for('update');
     if (!invitation) throw new TeamError('not_found', 'Code invalide ou expiré.');
+    await assertAdminSeat(tx, invitation.role, userId);
     await tx
       .insert(memberships)
       .values({
@@ -334,6 +355,7 @@ export async function createAccount(
   if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }
+  await assertAdminSeat(db, input.role);
   const [firstName, ...rest] = input.displayName.split(/\s+/);
   const password = temporaryPassword();
   const created = await identity

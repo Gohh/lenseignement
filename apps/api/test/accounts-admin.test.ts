@@ -36,7 +36,7 @@ test('comptes : liste, recherche, rôles ; réservée à l’administration', as
   await call(SUB.bamba, 'get', '/admin/accounts', 403);
   const all = (await call(SUB.mariam, 'get', '/admin/accounts', 200)).body;
   assert.ok(all.total >= 7);
-  assert.equal(all.canSeeJournal, false);
+  assert.equal(all.canSeeJournal, true);
   const found = (await call(SUB.mariam, 'get', '/admin/accounts?search=bamba', 200)).body;
   assert.equal(found.items.length, 1);
   assert.ok(found.items[0].roles.some((r: { role: string }) => r.role === 'chef-etablissement'));
@@ -70,8 +70,9 @@ test('suspendre bloque l’accès ; réactiver le rend ; garde-fous', async () =
   });
 });
 
-test('journal : superadministrateur seulement, filtré par domaine', async () => {
-  await call(SUB.mariam, 'get', '/admin/audit', 403);
+test('journal : superadministrateur et administrateurs, filtré par domaine', async () => {
+  await call(SUB.bamba, 'get', '/admin/audit', 403);
+  await call(SUB.mariam, 'get', '/admin/audit', 200);
   const page = (await call(SUB.yao, 'get', '/admin/audit?domain=account', 200)).body;
   assert.deepEqual(
     page.items.map((i: { action: string }) => i.action),

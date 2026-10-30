@@ -142,9 +142,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
             items: [
               { href: '/mon-espace/equipe', label: 'Équipe et invitations' },
               ...(admin ? [{ href: '/mon-espace/comptes', label: 'Comptes' }] : []),
-              ...(superAdmin
-                ? [{ href: '/mon-espace/journal', label: 'Journal des actions' }]
-                : []),
+              ...(admin ? [{ href: '/mon-espace/journal', label: 'Journal des actions' }] : []),
             ],
           },
         ]

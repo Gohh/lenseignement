@@ -69,6 +69,17 @@ export class MeController {
     return { profiles };
   }
 
+  /** Nom affiché, demandé à la première connexion quand le compte n'en a pas encore. */
+  @Put('name')
+  async setName(@Req() request: Request, @Body() body: unknown) {
+    const parsed = z.object({ displayName: z.string().trim().min(2).max(120) }).safeParse(body);
+    if (!parsed.success) throw new BadRequestException('Écrivez votre prénom et votre nom.');
+    const user = await this.users.resolve(request.principal as Principal);
+    const { displayName } = parsed.data;
+    await this.db.update(users).set({ displayName }).where(eq(users.id, user.id));
+    return { displayName };
+  }
+
   /** Cycle et niveau choisis par la personne pour elle-même (null = pas encore choisi). */
   @Put('level')
   async setLevel(@Req() request: Request, @Body() body: unknown) {

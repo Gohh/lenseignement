@@ -5,6 +5,7 @@ import { AccountMenu } from '@/components/AccountMenu';
 import { NavLink } from '@/components/NavLink';
 import { OfflineBadge } from '@/components/OfflineBadge';
 import { ServiceWorker } from '@/components/ServiceWorker';
+import { SiteFooter } from '@/components/SiteFooter';
 import { SyncStatus } from '@/components/SyncStatus';
 import './globals.css';
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           on ignore ces seuls écarts d'attributs, sans masquer ceux du contenu. */}
       <body suppressHydrationWarning>
         <AppShell
+          footer={<SiteFooter />}
           headerActions={
             <nav
               aria-label="Menu principal"

@@ -6,6 +6,17 @@ const loginAs = (page: Page, username: string, returnTo: string) =>
 const menu = (page: Page) => page.getByRole('navigation', { name: 'Menu de mon espace' });
 
 test.describe('Navigation', () => {
+  test('le pied de page est présent partout, public comme connecté', async ({ page }) => {
+    for (const path of ['/', '/catalogue']) {
+      await page.goto(path);
+      await expect(page.getByTestId('site-footer')).toContainText('Projet indépendant');
+    }
+    await loginAs(page, 'directeur.demo', '/mon-espace/configuration');
+    const footer = page.getByTestId('site-footer');
+    await expect(footer).toBeVisible();
+    await expect(footer.getByRole('link', { name: 'Catalogue des leçons' })).toBeVisible();
+  });
+
   test('le menu de mon espace suit le profil et montre la page en cours', async ({ page }) => {
     await loginAs(page, 'directeur.demo', '/mon-espace');
     await expect(menu(page).getByRole('link')).toHaveText([

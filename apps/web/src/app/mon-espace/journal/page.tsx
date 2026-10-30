@@ -140,7 +140,10 @@ export default async function JournalPage({ searchParams }: Props) {
                     <td className={`${cell} whitespace-nowrap`}>{formatTime(i.occurredAt)}</td>
                     <td className={cell}>{i.actorName ?? 'Système'}</td>
                     <td className={cell}>
-                      {AUDIT_ACTION_LABELS[i.action] ?? i.action}
+                      {AUDIT_ACTION_LABELS[i.action] ??
+                        (i.action.startsWith('organization.import:')
+                          ? `Établissements importés (${i.action.split(':')[1]})`
+                          : i.action)}
                       <span className="block text-sm text-ink-muted">
                         {i.resourceType} {i.resourceId}
                       </span>

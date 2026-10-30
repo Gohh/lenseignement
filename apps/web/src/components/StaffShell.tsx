@@ -79,7 +79,7 @@ export function StaffShell({
             ))}
           </ul>
           {menu.groups.map((group) => (
-            <details key={group.title} open className="group">
+            <details key={group.title} open={!group.closed} className="group">
               <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between px-3 text-sm font-bold uppercase tracking-widest text-surface/90 marker:hidden [&::-webkit-details-marker]:hidden">
                 {group.title}
                 <span aria-hidden="true" className="transition-transform group-open:rotate-90">

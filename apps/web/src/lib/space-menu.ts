@@ -62,6 +62,8 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
 export interface StaffMenuGroup {
   title: string;
   items: SpaceMenuItem[];
+  /** Replié à l'ouverture de la page. */
+  closed?: boolean;
 }
 
 export interface StaffMenu {
@@ -131,6 +133,21 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
                     },
                   ]
                 : []),
+            ],
+          },
+        ]
+      : []),
+    ...(admin
+      ? [
+          {
+            // Lecture seule (superadministrateur, administrateurs) : replié par défaut.
+            title: 'Consulter',
+            closed: true,
+            items: [
+              { href: '/mon-espace/consulter/cours', label: 'Cours' },
+              { href: '/mon-espace/consulter/classes', label: 'Classes' },
+              { href: '/mon-espace/consulter/devoirs', label: 'Devoirs' },
+              { href: '/mon-espace/consulter/evaluations', label: 'Évaluations' },
             ],
           },
         ]

@@ -16,7 +16,7 @@ before(async () => {
     .insert(memberships)
     .values([
       { userId: ID.userYao, organizationId: ID.orgRegion, role: 'superadministrateur' },
-      { userId: ID.userMariam, organizationId: ID.orgRegion, role: 'administrateur' },
+      { userId: ID.userFatou, organizationId: ID.orgRegion, role: 'administrateur' },
     ])
     .returning({ id: memberships.id });
   granted.push(...rows.map((r) => r.id));
@@ -65,13 +65,13 @@ test('programmes : la direction et l’enseignant n’ont pas accès', async () 
 
 test('l’administrateur importe un brouillon, le relit, mais ne le publie pas', async () => {
   const res = (
-    await call(SUB.mariam, 'post', '/admin/curricula', 201, {
+    await call(SUB.fatou, 'post', '/admin/curricula', 201, {
       json: `\uFEFF${JSON.stringify(file('2027'))}`,
     })
   ).body;
   assert.deepEqual(res, { code, label: '2027' });
 
-  const overview = (await call(SUB.mariam, 'get', '/admin/curricula', 200)).body;
+  const overview = (await call(SUB.fatou, 'get', '/admin/curricula', 200)).body;
   assert.equal(overview.canPublish, false);
   const programme = overview.items.find((c: { code: string }) => c.code === code);
   assert.equal(programme.versions[0].status, 'draft');
@@ -79,8 +79,7 @@ test('l’administrateur importe un brouillon, le relit, mais ne le publie pas',
   // Les programmes de démonstration publiés sont aussi listés.
   assert.ok(overview.items.some((c: { code: string }) => c.code === 'DEMO-ALPHA'));
 
-  const detail = (await call(SUB.mariam, 'get', `/admin/curricula/${code}/versions/2027`, 200))
-    .body;
+  const detail = (await call(SUB.fatou, 'get', `/admin/curricula/${code}/versions/2027`, 200)).body;
   assert.equal(detail.version.effectiveFrom, null);
   assert.deepEqual(detail.competencies[1].prerequisites, ['M1']);
 
@@ -91,7 +90,7 @@ test('l’administrateur importe un brouillon, le relit, mais ne le publie pas',
     .expect(200);
   assert.ok(!list.body.items.some((c: { code: string }) => c.code === code));
 
-  await call(SUB.mariam, 'post', `/admin/curricula/${code}/versions/2027/publish`, 403, {
+  await call(SUB.fatou, 'post', `/admin/curricula/${code}/versions/2027/publish`, 403, {
     effectiveFrom: '2027-09-01',
   });
 });
@@ -112,20 +111,25 @@ test('fichiers refusés : JSON illisible, champ manquant, version en double', as
   assert.match(dup.message, /existe déjà/);
 });
 
-test('le superadministrateur publie à une date ; le brouillon devient public et figé', async () => {
-  await call(SUB.yao, 'post', `/admin/curricula/${code}/versions/2027/publish`, 400, {
+test('seul le référent pédagogique publie, à une date ; le brouillon devient public et figé', async () => {
+  await call(SUB.yao, 'post', `/admin/curricula/${code}/versions/2027/publish`, 403, {
+    effectiveFrom: '2026-09-01',
+  });
+  const overview = (await call(SUB.mariam, 'get', '/admin/curricula', 200)).body;
+  assert.equal(overview.canPublish, true);
+  await call(SUB.mariam, 'post', `/admin/curricula/${code}/versions/2027/publish`, 400, {
     effectiveFrom: '01/09/2027',
   });
-  await call(SUB.yao, 'post', `/admin/curricula/${code}/versions/2027/publish`, 204, {
+  await call(SUB.mariam, 'post', `/admin/curricula/${code}/versions/2027/publish`, 204, {
     effectiveFrom: '2026-09-01',
   });
   const pub = (await request(ctx.app.getHttpServer()).get(`/api/v1/catalog/curricula/${code}`))
     .body;
   assert.equal(pub.version.label, '2027');
-  await call(SUB.yao, 'post', `/admin/curricula/${code}/versions/2027/publish`, 409, {
+  await call(SUB.mariam, 'post', `/admin/curricula/${code}/versions/2027/publish`, 409, {
     effectiveFrom: '2027-09-01',
   });
-  await call(SUB.yao, 'delete', `/admin/curricula/${code}/versions/2027`, 409);
+  await call(SUB.mariam, 'delete', `/admin/curricula/${code}/versions/2027`, 409);
 
   const logs = await ctx.db
     .select({ action: auditLogs.action })
@@ -135,9 +139,9 @@ test('le superadministrateur publie à une date ; le brouillon devient public et
 });
 
 test('un brouillon importé par erreur se supprime', async () => {
-  await call(SUB.mariam, 'post', '/admin/curricula', 201, { json: JSON.stringify(file('2029')) });
-  await call(SUB.mariam, 'delete', `/admin/curricula/${code}/versions/2029`, 204);
-  await call(SUB.mariam, 'get', `/admin/curricula/${code}/versions/2029`, 404);
+  await call(SUB.fatou, 'post', '/admin/curricula', 201, { json: JSON.stringify(file('2029')) });
+  await call(SUB.fatou, 'delete', `/admin/curricula/${code}/versions/2029`, 204);
+  await call(SUB.fatou, 'get', `/admin/curricula/${code}/versions/2029`, 404);
   // Le libellé est de nouveau libre.
-  await call(SUB.mariam, 'post', '/admin/curricula', 201, { json: JSON.stringify(file('2029')) });
+  await call(SUB.fatou, 'post', '/admin/curricula', 201, { json: JSON.stringify(file('2029')) });
 });

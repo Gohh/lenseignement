@@ -33,7 +33,7 @@ export default async function CurriculumVersionPage({ params, searchParams }: Pr
         <p>
           {result.status === 404
             ? 'Cette version n’existe pas (ou plus).'
-            : 'Cette page est réservée au superadministrateur et à l’administrateur.'}
+            : 'Cette page est réservée au superadministrateur, à l’administrateur et au référent pédagogique.'}
         </p>
         <a href="/mon-espace/configuration/programmes">Retour aux programmes</a>
       </section>
@@ -110,7 +110,7 @@ export default async function CurriculumVersionPage({ params, searchParams }: Pr
               </button>
             </form>
           ) : (
-            <p>Relisez le contenu ci-dessous ; le superadministrateur le publiera.</p>
+            <p>Relisez le contenu ci-dessous ; le référent pédagogique le publiera.</p>
           )}
           <p className="text-ink-muted">
             Une fois publiée, la version ne se modifie plus. La version en vigueur jusque-là

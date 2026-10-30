@@ -27,16 +27,25 @@ import {
 } from './curricula.js';
 
 /**
- * Écran « Programmes » : le superadministrateur et l'administrateur voient tout, brouillons
- * compris, et importent ; seul le superadministrateur publie (une publication change ce que
- * voient toutes les écoles à partir d'une date).
+ * Écran « Programmes » : le superadministrateur, l'administrateur et le référent pédagogique
+ * voient tout, brouillons compris, et importent ; seul le référent pédagogique publie (une
+ * publication change ce que voient toutes les écoles à partir d'une date).
  */
 async function powers(db: Database, userId: string) {
   const p = await teamPowers(db, userId);
-  if (!p.everywhere) {
-    throw new TeamError('forbidden', 'Réservé au superadministrateur et à l’administrateur.');
+  const { rows } = await db.execute<{ referent: boolean }>(sql`
+    select exists(
+      select 1 from memberships m
+       where m.user_id = ${userId} and m.role = 'referent-pedagogique'
+         and (m.valid_until is null or m.valid_until > now())) as referent`);
+  const canPublish = rows[0]?.referent ?? false;
+  if (!p.everywhere && !canPublish) {
+    throw new TeamError(
+      'forbidden',
+      'Réservé au superadministrateur, à l’administrateur et au référent pédagogique.',
+    );
   }
-  return p;
+  return { canPublish };
 }
 
 async function auditCurriculum(
@@ -183,7 +192,7 @@ export async function curriculaOverview(
         }),
       ),
   }));
-  return { items, canPublish: p.isSuper };
+  return { items, canPublish: p.canPublish };
 }
 
 async function findVersion(db: Database, code: string, label: string) {
@@ -224,7 +233,7 @@ export async function curriculumVersionDetail(
       competencies: content.competencies.length,
     }),
     ...content,
-    canPublish: p.isSuper,
+    canPublish: p.canPublish,
   };
 }
 
@@ -264,8 +273,8 @@ export async function publishCurriculum(
   traceId?: string,
 ): Promise<void> {
   const p = await powers(db, userId);
-  if (!p.isSuper) {
-    throw new TeamError('forbidden', 'Seul le superadministrateur publie un programme.');
+  if (!p.canPublish) {
+    throw new TeamError('forbidden', 'Seul le référent pédagogique publie un programme.');
   }
   await publishCurriculumVersion(db, code, label, effectiveFrom);
   await auditCurriculum(db, userId, 'curriculum.publish', `${code} ${label}`, traceId);

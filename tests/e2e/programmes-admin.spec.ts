@@ -11,7 +11,7 @@ test.describe('Écran des programmes', () => {
     await expect(page.getByText('réservée au superadministrateur')).toBeVisible();
   });
 
-  test('le superadministrateur importe un brouillon, le relit puis le publie', async ({
+  test('le référent pédagogique importe un brouillon, le relit puis le publie', async ({
     page,
   }, testInfo: TestInfo) => {
     const stamp = `${Date.now() % 1000000}-${testInfo.project.name}-${testInfo.retry}`;
@@ -20,7 +20,7 @@ test.describe('Écran des programmes', () => {
     await page.waitForLoadState('networkidle');
     await sql(
       `insert into memberships (user_id, organization_id, role)
-       select u.id, o.id, 'superadministrateur' from users u, organizations o
+       select u.id, o.id, 'referent-pedagogique' from users u, organizations o
         where u.oidc_subject = $1 and o.type = 'authority' and o.name like 'Direction régionale de démonstration%'`,
       [subjectOf(username)],
     );

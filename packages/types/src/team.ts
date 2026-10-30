@@ -55,14 +55,13 @@ export interface CreatedAccount {
 }
 
 export const ORGANIZATION_TYPE_LABELS = {
-  primary_public: 'Primaire public',
-  primary_private: 'Primaire privé',
+  preschool: 'Établissement préscolaire',
+  primary: 'École primaire',
   college: 'Collège',
-  lycee: 'Lycée (secondaire public)',
-  secondary_private: 'Secondaire privé',
-  technical_center: 'Centre de formation technique',
+  lycee: 'Lycée',
   literacy_center: 'Centre d’alphabétisation',
-  authority: 'Autorité (inspection, direction régionale)',
+  technical_center: 'Établissement d’enseignement technique',
+  authority: 'Direction régionale (DRENA)',
   partner: 'Partenaire',
 } as const;
 

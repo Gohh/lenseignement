@@ -55,9 +55,9 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     // Configuration : il voit son école, sans formulaire de création (aucune DRENA dans sa zone).
     await member.goto('/mon-espace/configuration');
     await expect(member.getByRole('heading', { level: 1, name: 'Configuration' })).toBeVisible();
-    await expect(member.getByRole('heading', { name: 'Créer un établissement' })).toHaveCount(0);
+    await expect(member.getByRole('link', { name: '+ Ajouter un établissement' })).toHaveCount(0);
 
-    // Devenu administrateur : il crée une direction régionale, puis une école dessous, puis importe.
+    // Devenu administrateur : il crée une direction régionale, puis des établissements dessous.
     await sql(
       `insert into memberships (user_id, organization_id, role)
        select u.id, o.id, 'administrateur' from users u, organizations o
@@ -74,44 +74,85 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await form.getByRole('button', { name: 'Créer la direction régionale' }).click();
     await expect(member.getByText('Direction régionale créée.')).toBeVisible();
 
+    // Ajout guidé : le type d'abord, puis formulaire ou import ; le type fixe les champs.
+    await member.goto('/mon-espace/configuration');
+    await member.getByRole('link', { name: '+ Ajouter un établissement' }).click();
+    await member.getByRole('link', { name: /École primaire/ }).click();
+    await expect(member.getByTestId('required-fields')).toContainText('IEPP');
+    await member.getByRole('link', { name: /Remplir un formulaire/ }).click();
+    const school = member.getByTestId('establishment-form');
     await member.waitForLoadState('networkidle');
-    await member.getByRole('button', { name: '+ Créer un établissement' }).click();
-    const school = member.getByRole('dialog');
+    await school.getByRole('button', { name: 'Enregistrer l’établissement' }).click();
+    await expect(school.getByText(/informations sont à corriger/)).toBeVisible();
     await school.getByLabel('Nom officiel').fill(`École ${stamp}`);
-    await school.locator('select[name="parentId"]').selectOption({ label: drena });
+    await school.getByLabel('Statut').selectOption({ label: 'Public' });
+    await school.getByLabel('DRENA').selectOption({ label: drena });
     await school.getByLabel('Localité').fill('Bouaké');
-    await school.getByLabel('Responsable (nom)').fill('M. Essai');
-    await school.getByRole('button', { name: 'Créer l’établissement' }).click();
-    await expect(member.getByText('Établissement créé.')).toBeVisible();
+    await school.getByLabel('Responsable', { exact: false }).first().fill('M. Essai');
+    await school.getByLabel('Téléphone').fill('07 08 09 10 11');
+    await school.getByLabel('IEPP').fill('IEPP Bouaké 1');
+    await school.getByRole('button', { name: 'Enregistrer l’établissement' }).click();
+    await expect(member.getByText('Établissement enregistré.')).toBeVisible();
+    await expect(member.getByTestId('fiche')).toContainText('0708091011');
 
-    // Import : aperçu d'abord, rien n'est créé avant la confirmation (page dynamique : on attend).
+    // Import d'un collège : canevas du type, anomalies précises, puis enregistrement confirmé.
+    await member.goto(
+      '/mon-espace/configuration/etablissements/nouveau?categorie=college&mode=import',
+    );
+    const template = await member.request.get(
+      '/mon-espace/configuration/etablissements/modele/college',
+    );
+    expect(await template.text()).toContain('Nom officiel*;Code officiel;Statut*;DRENA*');
+    const header = 'Nom officiel*;Statut*;DRENA*;Localité*;Responsable*;Téléphone*';
     await member.waitForLoadState('networkidle');
-    await member.getByRole('button', { name: 'Importer (CSV)' }).click();
-    await member.getByLabel('Fichier CSV').setInputFiles({
-      name: 'etablissements.csv',
+    await member.getByLabel('Fichier rempli (CSV)').setInputFiles({
+      name: 'colleges.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(`${header}\nCollège ${stamp};Public;${drena};Bouaké;M. Essai;123\n`),
+    });
+    await member.getByRole('button', { name: 'Contrôler le fichier' }).click();
+    const anomalies = member.getByTestId('import-anomalies');
+    await expect(anomalies).toContainText('Ligne 2');
+    await expect(anomalies).toContainText('10 chiffres attendus');
+    await member.getByLabel('Fichier rempli (CSV)').setInputFiles({
+      name: 'colleges.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(
-        `nom officiel;type;direction régionale;localité;responsable;contact\nCollège ${stamp};collège;${drena};Bouaké;M. Essai;\n`,
+        `${header}\nCollège ${stamp};Public;${drena};Bouaké;M. Essai;0102030405\n`,
       ),
     });
-    await member.getByRole('button', { name: 'Voir l’aperçu' }).click();
-    await expect(member.getByTestId('import-preview')).toContainText('Sera créé');
-    await member.getByRole('button', { name: /Confirmer l’import/ }).click();
-    await expect(member.getByTestId('import-done')).toContainText('1 établissement créé');
+    await member.getByRole('button', { name: 'Contrôler le fichier' }).click();
+    await expect(member.getByText('Le fichier est conforme')).toBeVisible();
+    await member.getByRole('button', { name: 'Enregistrer 1 établissement' }).click();
+    await expect(member.getByTestId('import-done')).toContainText('1 établissement enregistré');
 
-    // Liste, fiche, modification et archivage.
-    await member.goto(`/mon-espace/configuration?q=${encodeURIComponent(`École ${stamp}`)}`);
+    // Tableau allégé : Modifier corrige, Mettre à jour date et historise, Retirer confirme.
+    const listUrl = `/mon-espace/configuration?q=${encodeURIComponent(`École ${stamp}`)}`;
+    await member.goto(listUrl);
     const list = member.getByTestId('organization-list');
     await expect(list).toContainText(`École ${stamp}`);
-    await list.getByRole('link', { name: `École ${stamp}` }).click();
+    await list.getByRole('link', { name: `Modifier École ${stamp}` }).click();
     await member.waitForLoadState('networkidle');
     await member.getByLabel('Localité').fill('Korhogo');
-    await member.getByRole('button', { name: 'Enregistrer' }).click();
-    await expect(member.getByText('Fiche enregistrée.')).toBeVisible();
-    await expect(member.getByLabel('Localité')).toHaveValue('Korhogo');
-    await member.getByRole('button', { name: 'Archiver' }).click();
-    await expect(member.getByText('Cet établissement est archivé.')).toBeVisible();
-    await member.goto(`/mon-espace/configuration?q=${encodeURIComponent(`École ${stamp}`)}`);
+    await member.getByRole('button', { name: 'Enregistrer les corrections' }).click();
+    await expect(member.getByText('Fiche corrigée.')).toBeVisible();
+    await expect(member.getByTestId('fiche')).toContainText('Korhogo');
+
+    await member.waitForLoadState('networkidle');
+    await member.getByRole('button', { name: 'Mettre à jour' }).click();
+    const change = member.getByTestId('change-form');
+    await change.getByLabel('Ce qui change').selectOption({ label: 'Responsable' });
+    await change.getByLabel('Nouvelle valeur').fill('Mme Nouvelle');
+    await change.getByRole('button', { name: 'Enregistrer la mise à jour' }).click();
+    await expect(member.getByText('Mise à jour enregistrée dans l’historique.')).toBeVisible();
+    await expect(member.getByTestId('change-history')).toContainText('Mme Nouvelle');
+
+    await member.goto(listUrl);
+    await member.waitForLoadState('networkidle');
+    await member.getByRole('button', { name: `Retirer École ${stamp}` }).click();
+    await member.getByRole('dialog').getByRole('button', { name: 'Oui, retirer' }).click();
+    await expect(member.getByText(/est retiré de la liste active/)).toBeVisible();
+    await member.goto(listUrl);
     await expect(member.getByText('Aucun établissement ne correspond.')).toBeVisible();
     await other.close();
   });

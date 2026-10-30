@@ -37,11 +37,10 @@ export function levelsForOrganizationType(
   type: string,
 ): ReadonlyArray<{ code: LevelCode; title: string }> {
   const groups: Record<string, string[]> = {
-    primary_public: ['maternelle', 'primaire'],
-    primary_private: ['maternelle', 'primaire'],
+    preschool: ['maternelle'],
+    primary: ['maternelle', 'primaire'],
     college: ['college'],
     lycee: ['lycee'],
-    secondary_private: ['college', 'lycee'],
     literacy_center: ['alphabetisation'],
   };
   const wanted = groups[type];

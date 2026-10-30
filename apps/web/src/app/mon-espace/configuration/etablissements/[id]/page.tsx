@@ -1,6 +1,11 @@
 import {
+  COMMON_ESTABLISHMENT_FIELDS,
+  establishmentFields,
+  establishmentValue,
+  formatEstablishmentValue,
   schoolYearChoices,
   schoolYearOf,
+  ESTABLISHMENT_CATEGORY_LABELS,
   ORGANIZATION_TYPE_LABELS,
   TEAM_ROLE_LABELS,
   type OrganizationCohorts,
@@ -13,6 +18,9 @@ import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../../Dialog';
+import { ChangeForm } from '../ChangeForm';
+import { asCategory, defaultsOf } from '../fiche';
+import { RemoveButton } from '../RowActions';
 import {
   addCohortTeacherAction,
   archiveCohortAction,
@@ -33,6 +41,14 @@ interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+const COMMON_KEYS = new Set(COMMON_ESTABLISHMENT_FIELDS.map((f) => f.key));
+const frenchDate = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
 const cardClass = 'rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]';
 
 export default async function OrganizationPage({ params, searchParams }: Props) {
@@ -49,6 +65,40 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
   const o = result.data;
   const directions = overview.ok ? overview.data.directions : [];
   const isDirection = o.type === 'authority';
+  const category = asCategory(o.type);
+  const path = `/mon-espace/configuration/etablissements/${o.id}`;
+  const code = param(query.code);
+  const today = new Date().toISOString().slice(0, 10);
+  const fields = category ? establishmentFields(category) : [];
+  const shown = (key: string) => {
+    const field = fields.find((f) => f.key === key);
+    return field ? formatEstablishmentValue(field, establishmentValue(o, key)) : '';
+  };
+  const label = (key: string) => fields.find((f) => f.key === key)?.label ?? key;
+  const rows = (keys: string[]): Array<[string, string]> => keys.map((k) => [label(k), shown(k)]);
+  const groups: Array<{ title: string; rows: Array<[string, string]> }> = category
+    ? [
+        {
+          title: 'Identité',
+          rows: [
+            ['Type', ESTABLISHMENT_CATEGORY_LABELS[category]],
+            ...rows(['name', 'officialCode', 'status', 'openedYear']),
+          ],
+        },
+        { title: 'Rattachement et lieu', rows: rows(['direction', 'locality', 'municipality']) },
+        { title: 'Responsable et contact', rows: rows(['managerName', 'phone', 'email']) },
+        {
+          title: `Propre à : ${ESTABLISHMENT_CATEGORY_LABELS[category]}`,
+          rows: fields
+            .filter((f) => !COMMON_KEYS.has(f.key))
+            .map((f): [string, string] => [f.label, shown(f.key)]),
+        },
+      ]
+    : [];
+  const defaults = category ? defaultsOf(o, category) : {};
+  const changeFields = fields
+    .filter((f) => f.evolves)
+    .map((f) => ({ field: f, current: shown(f.key), raw: defaults[f.key] ?? '' }));
   const now = new Date();
   const defaultYear = schoolYearOf(now);
   // Les classes se rangent par année scolaire : l'année en cours d'abord, les autres d'un clic.
@@ -83,105 +133,230 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
           className="rounded-card border-2 border-primary bg-primary-soft p-4 font-bold"
           role="status"
         >
-          Cet établissement est archivé.
+          {category
+            ? 'Cet établissement est retiré de la liste active (archivé).'
+            : 'Cet établissement est archivé.'}
         </p>
       )}
       <Notice message={param(query.message)} error={param(query.erreur)} />
+      {code && (
+        <div className="rounded-big border-2 border-primary bg-primary-soft p-5" role="status">
+          <h2 className="text-xl font-bold">Code d’invitation du responsable</h2>
+          <p className="mt-2 text-4xl font-bold tracking-widest" data-testid="invitation-code">
+            {code}
+          </p>
+          <p className="mt-2">
+            À donner au responsable de l’établissement : il le saisit dans « Mon compte », puis «
+            Rejoindre une équipe ». Il est valable 7 jours et sert une seule fois.
+          </p>
+        </div>
+      )}
 
-      <form action={updateOrganizationAction} className={`${cardClass} space-y-4`}>
-        <h2 className="text-xl font-bold">Informations</h2>
-        <input type="hidden" name="id" value={o.id} />
-        <label className="block font-bold">
-          Nom officiel
-          <input
-            name="name"
-            defaultValue={o.name}
-            className={inputClass}
-            disabled={!o.can.edit}
-            required
-            minLength={3}
-            maxLength={160}
-          />
-        </label>
-        {o.can.editStructure && !isDirection ? (
-          <>
-            <label className="block font-bold">
-              Type
-              <select name="type" defaultValue={o.type} className={inputClass}>
-                {Object.entries(ORGANIZATION_TYPE_LABELS)
-                  .filter(([value]) => value !== 'authority')
-                  .map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
+      {category ? (
+        <>
+          {(o.can.edit || o.can.archive) && (
+            <div className={`${cardClass} space-y-3`}>
+              <div className="flex flex-wrap gap-3">
+                {o.can.edit && !o.archivedAt && (
+                  <>
+                    <a href={`${path}/modifier`} className={secondaryButtonClass}>
+                      Modifier
+                    </a>
+                    {changeFields.length > 0 && (
+                      <Dialog
+                        label="Mettre à jour"
+                        title="Mettre à jour la fiche"
+                        openAtStart={param(query.ouvrir) === 'maj'}
+                      >
+                        <ChangeForm id={o.id} fields={changeFields} today={today} />
+                      </Dialog>
+                    )}
+                  </>
+                )}
+                {o.can.archive && (
+                  <RemoveButton
+                    id={o.id}
+                    name={o.name}
+                    archived={Boolean(o.archivedAt)}
+                    from="fiche"
+                    variant="text"
+                  />
+                )}
+              </div>
+              {o.can.edit && !o.archivedAt && (
+                <ul className="list-disc pl-6 text-ink-muted" data-testid="actions-help">
+                  <li>
+                    <strong className="text-ink">Modifier</strong> : corriger une erreur de saisie.
+                    La fiche est remplacée, sans historique.
+                  </li>
+                  <li>
+                    <strong className="text-ink">Mettre à jour</strong> : enregistrer un vrai
+                    changement (nouveau responsable, nouvelle filière…) à sa date. L’ancienne valeur
+                    reste dans l’historique.
+                  </li>
+                </ul>
+              )}
+            </div>
+          )}
+
+          {o.missing.length > 0 && (
+            <p
+              className="rounded-card border-2 border-error bg-surface p-4"
+              role="status"
+              data-testid="fiche-incomplete"
+            >
+              <strong>Fiche incomplète.</strong> À compléter avec « Modifier » :{' '}
+              {o.missing.join(', ')}.
+            </p>
+          )}
+
+          <div className={`${cardClass} space-y-5`} data-testid="fiche">
+            <h2 className="text-xl font-bold">Fiche d’identification</h2>
+            {groups.map((g) => (
+              <div key={g.title}>
+                <h3 className="font-extrabold text-primary">{g.title}</h3>
+                <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-[15rem_1fr]">
+                  {g.rows.map(([label, value]) => (
+                    <div key={label} className="contents">
+                      <dt className="font-bold">{label}</dt>
+                      <dd>{value || <span className="text-ink-muted">Non renseigné</span>}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
+
+          <div className={cardClass}>
+            <h2 className="text-xl font-bold">Historique des mises à jour</h2>
+            {o.changes.length === 0 ? (
+              <p className="mt-2">Aucune mise à jour enregistrée.</p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[36rem] text-left" data-testid="change-history">
+                  <thead className="bg-primary-soft text-sm uppercase tracking-wide text-ink-muted">
+                    <tr>
+                      {['Depuis le', 'Information', 'Avant', 'Après', 'Motif', 'Par'].map((h) => (
+                        <th key={h} scope="col" className="px-3 py-2">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {o.changes.map((c) => (
+                      <tr key={c.id}>
+                        <td className="px-3 py-2">{frenchDate(c.effectiveOn)}</td>
+                        <td className="px-3 py-2 font-bold">{c.label}</td>
+                        <td className="px-3 py-2">{c.oldValue || '–'}</td>
+                        <td className="px-3 py-2">{c.newValue}</td>
+                        <td className="px-3 py-2">{c.note ?? '–'}</td>
+                        <td className="px-3 py-2">{c.author ?? '–'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <form action={updateOrganizationAction} className={`${cardClass} space-y-4`}>
+          <h2 className="text-xl font-bold">Informations</h2>
+          <input type="hidden" name="id" value={o.id} />
+          <label className="block font-bold">
+            Nom officiel
+            <input
+              name="name"
+              defaultValue={o.name}
+              className={inputClass}
+              disabled={!o.can.edit}
+              required
+              minLength={3}
+              maxLength={160}
+            />
+          </label>
+          {o.can.editStructure && !isDirection ? (
+            <>
+              <label className="block font-bold">
+                Type
+                <select name="type" defaultValue={o.type} className={inputClass}>
+                  {Object.entries(ORGANIZATION_TYPE_LABELS)
+                    .filter(([value]) => value !== 'authority')
+                    .map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="block font-bold">
+                Direction régionale
+                <select name="parentId" defaultValue={o.direction?.id ?? ''} className={inputClass}>
+                  {directions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
                     </option>
                   ))}
-              </select>
-            </label>
-            <label className="block font-bold">
-              Direction régionale
-              <select name="parentId" defaultValue={o.direction?.id ?? ''} className={inputClass}>
-                {directions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </>
-        ) : (
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-            <dt className="font-bold">Type</dt>
-            <dd>
-              {ORGANIZATION_TYPE_LABELS[o.type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? o.type}
-            </dd>
-            {o.direction && (
-              <>
-                <dt className="font-bold">Direction régionale</dt>
-                <dd>{o.direction.name}</dd>
-              </>
-            )}
-          </dl>
-        )}
-        {!isDirection && (
-          <>
-            <label className="block font-bold">
-              Localité
-              <input
-                name="locality"
-                defaultValue={o.locality ?? ''}
-                className={inputClass}
-                disabled={!o.can.edit}
-                maxLength={160}
-              />
-            </label>
-            <label className="block font-bold">
-              Responsable (nom)
-              <input
-                name="managerName"
-                defaultValue={o.managerName ?? ''}
-                className={inputClass}
-                disabled={!o.can.edit}
-                maxLength={160}
-              />
-            </label>
-            <label className="block font-bold">
-              Contact du responsable
-              <input
-                name="managerContact"
-                defaultValue={o.managerContact ?? ''}
-                className={inputClass}
-                disabled={!o.can.edit}
-                maxLength={160}
-              />
-            </label>
-          </>
-        )}
-        {o.can.edit && (
-          <button type="submit" className={buttonClass}>
-            Enregistrer
-          </button>
-        )}
-      </form>
+                </select>
+              </label>
+            </>
+          ) : (
+            <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+              <dt className="font-bold">Type</dt>
+              <dd>
+                {ORGANIZATION_TYPE_LABELS[o.type as keyof typeof ORGANIZATION_TYPE_LABELS] ??
+                  o.type}
+              </dd>
+              {o.direction && (
+                <>
+                  <dt className="font-bold">Direction régionale</dt>
+                  <dd>{o.direction.name}</dd>
+                </>
+              )}
+            </dl>
+          )}
+          {!isDirection && (
+            <>
+              <label className="block font-bold">
+                Localité
+                <input
+                  name="locality"
+                  defaultValue={o.locality ?? ''}
+                  className={inputClass}
+                  disabled={!o.can.edit}
+                  maxLength={160}
+                />
+              </label>
+              <label className="block font-bold">
+                Responsable (nom)
+                <input
+                  name="managerName"
+                  defaultValue={o.managerName ?? ''}
+                  className={inputClass}
+                  disabled={!o.can.edit}
+                  maxLength={160}
+                />
+              </label>
+              <label className="block font-bold">
+                Contact du responsable
+                <input
+                  name="managerContact"
+                  defaultValue={o.managerContact ?? ''}
+                  className={inputClass}
+                  disabled={!o.can.edit}
+                  maxLength={160}
+                />
+              </label>
+            </>
+          )}
+          {o.can.edit && (
+            <button type="submit" className={buttonClass}>
+              Enregistrer
+            </button>
+          )}
+        </form>
+      )}
 
       <div className={cardClass}>
         <h2 className="text-xl font-bold">Dans cet établissement</h2>
@@ -376,7 +551,7 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
         </div>
       )}
 
-      {o.can.archive && (
+      {!category && o.can.archive && (
         <div className={cardClass}>
           <h2 className="text-xl font-bold">Archivage</h2>
           <p className="mt-2">
@@ -388,6 +563,7 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
             className="mt-3"
           >
             <input type="hidden" name="id" value={o.id} />
+            <input type="hidden" name="name" value={o.name} />
             <button type="submit" className={secondaryButtonClass}>
               {o.archivedAt ? 'Rétablir' : 'Archiver'}
             </button>

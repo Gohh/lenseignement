@@ -260,6 +260,13 @@
       "when": 1793358153810,
       "tag": "0036_droits",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793360012045,
+      "tag": "0037_etablissements_categories",
+      "breakpoints": true
     }
   ]
 }

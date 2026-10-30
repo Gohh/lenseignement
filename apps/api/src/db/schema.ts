@@ -287,6 +287,19 @@ export const tutorInvitations = pgTable(
   (t) => [index('tutor_invitations_guardian_idx').on(t.guardianUserId)],
 );
 
+/** Droit retiré à un profil d'équipe par le superadministrateur (écran « Droits »). */
+export const withdrawnRights = pgTable(
+  'withdrawn_rights',
+  {
+    role: text('role').notNull(),
+    right: text('right').notNull(),
+    withdrawnBy: uuid('withdrawn_by')
+      .notNull()
+      .references(() => users.id),
+    withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.role, t.right] })],
+);
 /** Journal des décisions d'accès aux données d'apprenants (cahier §8.2.6). Sans contenu personnel. */
 export const auditLogs = pgTable(
   'audit_logs',

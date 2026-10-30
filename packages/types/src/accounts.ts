@@ -90,6 +90,7 @@ export const AuditQuerySchema = z.object({
 
 /** Domaines du journal, en clair. */
 export const AUDIT_DOMAIN_LABELS: Record<string, string> = {
+  rights: 'Droits',
   team: 'Équipe',
   organization: 'Établissements',
   cohort: 'Classes',
@@ -109,6 +110,8 @@ export const AUDIT_DOMAIN_LABELS: Record<string, string> = {
 
 /** Actions du journal, en clair ; une action inconnue s'affiche telle quelle. */
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  'rights.withdraw': 'Droit retiré',
+  'rights.grant': 'Droit rendu',
   'account.suspend': 'Compte suspendu',
   'account.reactivate': 'Compte réactivé',
   'account.update': 'Compte modifié',

@@ -11,7 +11,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { teamOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
 import { cohortMembers, cohorts, users } from '../db/schema.js';
-import { TeamError } from '../team/team.js';
+import { TeamError, teamPowers } from '../team/team.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -85,7 +85,7 @@ export async function directionOverview(
     classes: [],
     toFollow: [],
   };
-  if (orgRows.length === 0) {
+  if (orgRows.length === 0 || !(await teamPowers(db, userId)).rights.has('suivi')) {
     throw new TeamError(
       'forbidden',
       'Réservé à la direction et à ceux qui gèrent un établissement.',

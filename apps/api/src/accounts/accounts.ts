@@ -25,7 +25,7 @@ const activeRole = sql`(m.valid_until is null or m.valid_until > now())`;
 
 async function assertEverywhere(db: Database, userId: string) {
   const powers = await teamPowers(db, userId);
-  if (!powers.everywhere) {
+  if (!powers.everywhere || !powers.rights.has('comptes')) {
     throw new TeamError('forbidden', 'Réservé au superadministrateur et à l’administrateur.');
   }
   return powers;
@@ -109,7 +109,13 @@ export async function listAccounts(
       .filter((m) => m.user_id === r.id && m.role !== 'apprenant')
       .map(({ role, organization }) => ({ role, organization })),
   }));
-  return { items, total, page: query.page, pageSize: PAGE_SIZE, canSeeJournal: powers.everywhere };
+  return {
+    items,
+    total,
+    page: query.page,
+    pageSize: PAGE_SIZE,
+    canSeeJournal: powers.rights.has('journal'),
+  };
 }
 
 /**
@@ -363,7 +369,7 @@ export async function auditJournal(
   },
 ): Promise<AuditLogPage> {
   const powers = await teamPowers(db, userId);
-  if (!powers.everywhere) {
+  if (!powers.rights.has('journal')) {
     throw new TeamError(
       'forbidden',
       'Le journal est réservé au superadministrateur et aux administrateurs.',

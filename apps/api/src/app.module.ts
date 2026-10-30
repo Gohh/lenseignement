@@ -13,6 +13,7 @@ import { CohortsController } from './cohorts/cohorts.controller.js';
 import { AuthoringController } from './courses/authoring.controller.js';
 import { AccountsController } from './accounts/accounts.controller.js';
 import { ConsultController } from './consult/consult.controller.js';
+import { RightsController } from './team/rights.controller.js';
 import { CurriculaController } from './curricula/curricula.controller.js';
 import { CurriculaAdminController } from './curricula/curricula-admin.controller.js';
 import { DirectionController } from './direction/direction.controller.js';
@@ -62,6 +63,7 @@ import { StatsController } from './stats/stats.controller.js';
     OrganizationsController,
     AccountsController,
     ConsultController,
+    RightsController,
     HelpController,
   ],
   providers: [

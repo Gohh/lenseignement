@@ -15,6 +15,7 @@ import type { Request } from 'express';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { guardianLinks, memberships, organizations, SELF_PROFILES, users } from '../db/schema.js';
+import { teamPowers } from '../team/team.js';
 import { UsersService } from '../users/users.service.js';
 
 /** Identité et rattachements de la personne connectée. */
@@ -53,6 +54,8 @@ export class MeController {
       level: user.level,
       profiles: user.profiles,
       memberships: rows,
+      /** Droits d'équipe réglés dans l'écran « Droits » (pour le menu). */
+      rights: [...(await teamPowers(this.db, user.id)).rights],
     };
   }
 

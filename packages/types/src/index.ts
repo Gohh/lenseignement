@@ -27,3 +27,4 @@ export * from './direction.js';
 export * from './csv.js';
 export * from './curriculum-table.js';
 export * from './consult.js';
+export * from './rights.js';

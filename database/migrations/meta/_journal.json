@@ -253,6 +253,13 @@
       "when": 1793317240690,
       "tag": "0035_masquer_plateforme",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793358153810,
+      "tag": "0036_droits",
+      "breakpoints": true
     }
   ]
 }

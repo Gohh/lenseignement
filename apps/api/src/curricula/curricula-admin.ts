@@ -32,20 +32,16 @@ import {
  * publication change ce que voient toutes les écoles à partir d'une date).
  */
 async function powers(db: Database, userId: string) {
-  const p = await teamPowers(db, userId);
-  const { rows } = await db.execute<{ referent: boolean }>(sql`
-    select exists(
-      select 1 from memberships m
-       where m.user_id = ${userId} and m.role = 'referent-pedagogique'
-         and (m.valid_until is null or m.valid_until > now())) as referent`);
-  const canPublish = rows[0]?.referent ?? false;
-  if (!p.everywhere && !canPublish) {
+  const { rights } = await teamPowers(db, userId);
+  const canImport = rights.has('programmes-importer');
+  const canPublish = rights.has('programmes-publier');
+  if (!canImport && !canPublish) {
     throw new TeamError(
       'forbidden',
       'Réservé au superadministrateur, à l’administrateur et au référent pédagogique.',
     );
   }
-  return { canPublish };
+  return { canImport, canPublish };
 }
 
 async function auditCurriculum(
@@ -246,7 +242,9 @@ export async function importCurriculumJson(
   json: string,
   traceId?: string,
 ): Promise<{ code: string; label: string }> {
-  await powers(db, userId);
+  if (!(await powers(db, userId)).canImport) {
+    throw new TeamError('forbidden', 'Vous ne pouvez pas importer de programme.');
+  }
   let data: unknown;
   try {
     data = JSON.parse(json.replace(/^\uFEFF/, ''));
@@ -288,7 +286,9 @@ export async function deleteCurriculumDraft(
   label: string,
   traceId?: string,
 ): Promise<void> {
-  await powers(db, userId);
+  if (!(await powers(db, userId)).canImport) {
+    throw new TeamError('forbidden', 'Vous ne pouvez pas importer de programme.');
+  }
   const { version } = await findVersion(db, code, label);
   if (version.status !== 'draft') {
     throw new CurriculumError('conflict', 'Une version publiée ne peut pas être supprimée.');

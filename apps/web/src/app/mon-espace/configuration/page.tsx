@@ -62,7 +62,6 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         directions: [],
       };
   const items = list.data.items;
-  const canCreate = team.canCreateOrganization && (team.everywhere || team.directions.length > 0);
   const open = param(query.ouvrir);
   const typeLabel = (value: string) =>
     ORGANIZATION_TYPE_LABELS[value as keyof typeof ORGANIZATION_TYPE_LABELS] ?? value;
@@ -155,80 +154,150 @@ export default async function ConfigurationPage({ searchParams }: Props) {
                 <ImportOrganizations />
               </Dialog>
             )}
-            {canCreate && (
+            {team.canCreateOrganization && team.everywhere && (
+              <Dialog
+                label="+ Créer une direction régionale"
+                title="Créer une direction régionale (DRENA)"
+                openAtStart={open === 'drena'}
+              >
+                <form action={createOrganizationAction} className="space-y-6">
+                  <input type="hidden" name="type" value="authority" />
+                  <p className="text-ink-muted">
+                    La direction régionale regroupe les établissements d’une région. Créez-la
+                    d’abord : chaque école s’y rattache ensuite.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block font-bold sm:col-span-2">
+                      Nom officiel
+                      <input
+                        name="name"
+                        className={inputClass}
+                        required
+                        minLength={3}
+                        maxLength={160}
+                        placeholder="Exemple : DRENA d’Abidjan 1"
+                      />
+                    </label>
+                    <label className="block font-bold">
+                      Localité (siège)
+                      <input name="locality" className={inputClass} maxLength={160} />
+                    </label>
+                    <label className="block font-bold">
+                      Responsable (facultatif)
+                      <input name="managerName" className={inputClass} maxLength={160} />
+                    </label>
+                  </div>
+                  <button type="submit" className={buttonClass}>
+                    Créer la direction régionale
+                  </button>
+                </form>
+              </Dialog>
+            )}
+            {team.canCreateOrganization && (team.everywhere || team.directions.length > 0) && (
               <Dialog
                 primary
                 label="+ Créer un établissement"
                 title="Créer un établissement"
                 openAtStart={open === 'creer'}
               >
-                <form action={createOrganizationAction} className="space-y-6">
-                  <fieldset className="space-y-4">
-                    <legend className="font-extrabold text-primary">Identité</legend>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="block font-bold sm:col-span-2">
-                        Nom officiel
-                        <input
-                          name="name"
+                {team.directions.length === 0 ? (
+                  <div className="space-y-4" data-testid="needs-direction">
+                    <p>
+                      Un établissement se rattache toujours à une direction régionale (DRENA). Il
+                      n’en existe encore aucune : créez-la d’abord.
+                    </p>
+                    {team.everywhere && (
+                      <a href="/mon-espace/configuration?ouvrir=drena" className={buttonClass}>
+                        + Créer une direction régionale
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <form action={createOrganizationAction} className="space-y-6">
+                    <fieldset className="space-y-4">
+                      <legend className="font-extrabold text-primary">Identité</legend>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="block font-bold sm:col-span-2">
+                          Nom officiel
+                          <input
+                            name="name"
+                            className={inputClass}
+                            required
+                            minLength={3}
+                            maxLength={160}
+                          />
+                        </label>
+                        <label className="block font-bold">
+                          Type
+                          <select name="type" className={inputClass} defaultValue="primary_public">
+                            {Object.entries(ORGANIZATION_TYPE_LABELS)
+                              .filter(([value]) => value !== 'authority')
+                              .map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <label className="block font-bold">
+                          Localité
+                          <input
+                            name="locality"
+                            className={inputClass}
+                            required
+                            minLength={2}
+                            maxLength={160}
+                          />
+                        </label>
+                      </div>
+                    </fieldset>
+                    <fieldset className="space-y-4">
+                      <legend className="font-extrabold text-primary">Rattachement</legend>
+                      <label className="block font-bold">
+                        Direction régionale (DRENA)
+                        <select
+                          name="parentId"
                           className={inputClass}
                           required
-                          minLength={3}
-                          maxLength={160}
-                        />
-                      </label>
-                      <label className="block font-bold">
-                        Type
-                        <select name="type" className={inputClass} defaultValue="primary_public">
-                          {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
+                          defaultValue={team.directions.length === 1 ? team.directions[0]!.id : ''}
+                        >
+                          <option value="" disabled>
+                            Choisir…
+                          </option>
+                          {team.directions.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
                             </option>
                           ))}
                         </select>
                       </label>
-                      <label className="block font-bold">
-                        Localité
-                        <input name="locality" className={inputClass} maxLength={160} />
-                      </label>
+                    </fieldset>
+                    <fieldset className="space-y-4">
+                      <legend className="font-extrabold text-primary">Responsable</legend>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="block font-bold">
+                          Responsable (nom)
+                          <input
+                            name="managerName"
+                            className={inputClass}
+                            required
+                            minLength={2}
+                            maxLength={160}
+                          />
+                        </label>
+                        <label className="block font-bold">
+                          Contact du responsable (facultatif)
+                          <input name="managerContact" className={inputClass} maxLength={160} />
+                        </label>
+                      </div>
+                    </fieldset>
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" className={buttonClass}>
+                        Créer l’établissement
+                      </button>
                     </div>
-                  </fieldset>
-                  <fieldset className="space-y-4">
-                    <legend className="font-extrabold text-primary">Rattachement</legend>
-                    <label className="block font-bold">
-                      Direction régionale
-                      <select name="parentId" className={inputClass} defaultValue="">
-                        <option value="">
-                          {team.everywhere
-                            ? 'Aucune (si vous créez une direction régionale)'
-                            : 'Choisir…'}
-                        </option>
-                        {team.directions.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </fieldset>
-                  <fieldset className="space-y-4">
-                    <legend className="font-extrabold text-primary">Responsable</legend>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="block font-bold">
-                        Responsable (nom)
-                        <input name="managerName" className={inputClass} maxLength={160} />
-                      </label>
-                      <label className="block font-bold">
-                        Contact du responsable (facultatif)
-                        <input name="managerContact" className={inputClass} maxLength={160} />
-                      </label>
-                    </div>
-                  </fieldset>
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" className={buttonClass}>
-                      Créer l’établissement
-                    </button>
-                  </div>
-                </form>
+                  </form>
+                )}
               </Dialog>
             )}
           </div>

@@ -35,9 +35,15 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
     managerContact: text(form, 'managerContact'),
   });
   // En cas d'erreur, la fenêtre de création se rouvre.
-  if (!result.ok) back('erreur', result.message ?? 'Création impossible.', `${PATH}?ouvrir=creer`);
+  if (!result.ok) {
+    const reopen = text(form, 'type') === 'authority' ? 'drena' : 'creer';
+    back('erreur', result.message ?? 'Création impossible.', `${PATH}?ouvrir=${reopen}`);
+  }
   // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
   if (result.data.managerCode) back('code', result.data.managerCode);
+  if (text(form, 'type') === 'authority') {
+    back('message', 'Direction régionale créée. Vous pouvez maintenant y rattacher des écoles.');
+  }
   back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');
 }
 

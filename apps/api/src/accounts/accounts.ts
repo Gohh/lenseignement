@@ -109,7 +109,7 @@ export async function listAccounts(
       .filter((m) => m.user_id === r.id && m.role !== 'apprenant')
       .map(({ role, organization }) => ({ role, organization })),
   }));
-  return { items, total, page: query.page, pageSize: PAGE_SIZE, canSeeJournal: powers.isSuper };
+  return { items, total, page: query.page, pageSize: PAGE_SIZE, canSeeJournal: powers.everywhere };
 }
 
 /**
@@ -363,8 +363,11 @@ export async function auditJournal(
   },
 ): Promise<AuditLogPage> {
   const powers = await teamPowers(db, userId);
-  if (!powers.isSuper) {
-    throw new TeamError('forbidden', 'Le journal est réservé au superadministrateur.');
+  if (!powers.everywhere) {
+    throw new TeamError(
+      'forbidden',
+      'Le journal est réservé au superadministrateur et aux administrateurs.',
+    );
   }
   const filters: SQL[] = [];
   if (query.domain) filters.push(sql`split_part(${auditLogs.action}, '.', 1) = ${query.domain}`);

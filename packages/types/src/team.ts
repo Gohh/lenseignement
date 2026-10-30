@@ -11,6 +11,9 @@ export const GRANTABLE_ROLES = [
   'chef-etablissement',
 ] as const;
 
+/** Administrateurs (secours du superadministrateur) : trois au plus sur la plateforme. */
+export const MAX_ADMINISTRATORS = 3;
+
 export const TEAM_ROLE_LABELS: Record<string, string> = {
   gestionnaire: 'Gestionnaire',
   enseignant: 'Enseignant ou formateur',

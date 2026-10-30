@@ -28,9 +28,10 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
     return (
       <StaffShell
         menu={staff}
-        displayName={session.displayName}
+        displayName={(me.ok && me.data.displayName) || session.displayName}
         roleLabel={topRoleLabel(roles)}
         establishment={mine.ok ? mine.data.establishment : null}
+        askName={me.ok && !me.data.displayName}
         taskCount={work.ok ? work.data.items.filter((i) => i.kind !== 'to_write').length : 0}
       >
         {children}

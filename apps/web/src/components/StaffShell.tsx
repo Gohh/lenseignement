@@ -1,6 +1,8 @@
 import type { MyEstablishment } from '@lenseignement/types';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/NavLink';
+import { setMyNameAction } from '@/app/mon-espace/nom-actions';
+import { buttonClass, inputClass } from '@/components/Notice';
 import type { StaffMenu } from '@/lib/space-menu';
 
 const linkClass =
@@ -38,6 +40,8 @@ interface Props {
   roleLabel: string;
   /** Établissement de la personne : « L'Enseignement à … », sa DRENA et sa localité. */
   establishment: MyEstablishment | null;
+  /** Compte sans nom enregistré : on le demande en haut de chaque page. */
+  askName: boolean;
   /** Nombre de tâches qui attendent la personne (cloche). */
   taskCount: number;
   children: ReactNode;
@@ -52,6 +56,7 @@ export function StaffShell({
   displayName,
   roleLabel,
   establishment,
+  askName,
   taskCount,
   children,
 }: Props) {
@@ -165,6 +170,29 @@ export function StaffShell({
             )}
           </a>
         </div>
+        {askName && (
+          <form
+            action={setMyNameAction}
+            data-testid="ask-name"
+            className="flex flex-wrap items-end gap-3 rounded-big border-2 border-primary bg-primary-soft p-4"
+          >
+            <label className="block min-w-0 flex-1 basis-64 font-bold">
+              Comment vous appelez-vous ? Votre nom s’affiche dans les listes et le journal.
+              <input
+                name="displayName"
+                required
+                minLength={2}
+                maxLength={120}
+                autoComplete="name"
+                placeholder="Prénom et nom"
+                className={inputClass}
+              />
+            </label>
+            <button type="submit" className={buttonClass}>
+              Valider mon nom
+            </button>
+          </form>
+        )}
         {children}
       </div>
     </div>

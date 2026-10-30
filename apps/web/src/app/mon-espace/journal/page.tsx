@@ -48,7 +48,7 @@ export default async function JournalPage({ searchParams }: Props) {
         <p>
           {result.status === 400
             ? 'Un filtre est mal rempli (les dates s’écrivent AAAA-MM-JJ).'
-            : 'Le journal est réservé au superadministrateur.'}
+            : 'Le journal est réservé au superadministrateur et aux administrateurs.'}
         </p>
         <a href="/mon-espace/journal">Effacer les filtres</a>
       </section>

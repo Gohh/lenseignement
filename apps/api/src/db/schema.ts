@@ -323,6 +323,21 @@ export const tutorInvitations = pgTable(
   (t) => [index('tutor_invitations_guardian_idx').on(t.guardianUserId)],
 );
 
+/**
+ * Code parent d'un élève inscrit par l'école : remis avec ses identifiants, il permet à un parent
+ * (deux au plus) de se relier à l'élève réel. Un seul code par élève ; le renouveler remplace l'ancien.
+ */
+export const parentCodes = pgTable('parent_codes', {
+  learnerUserId: uuid('learner_user_id')
+    .primaryKey()
+    .references(() => users.id),
+  code: text('code').notNull().unique(),
+  createdByUserId: uuid('created_by_user_id')
+    .notNull()
+    .references(() => users.id),
+  createdAt: createdAt(),
+});
+
 /** Droit retiré à un profil d'équipe par le superadministrateur (écran « Droits »). */
 export const withdrawnRights = pgTable(
   'withdrawn_rights',

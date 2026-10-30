@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
-import { addChildAction, inviteTutorAction, revokeTutorAction } from './actions';
+import { addChildAction, inviteTutorAction, linkChildAction, revokeTutorAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ma famille' };
@@ -31,8 +31,8 @@ export default async function FamilyPage({ searchParams }: Props) {
     <section className="space-y-6">
       <h1 className="text-3xl font-bold">Ma famille</h1>
       <p>
-        Vous créez le profil de vos enfants et vous gardez la main : votre enfant n’a pas de mot de
-        passe, vous suivez ses progrès d’ici.
+        Votre enfant est inscrit dans une école ? Saisissez le code parent que l’école vous a remis
+        : vous suivez alors ses progrès, sa classe, et vous pouvez écrire à ses enseignants.
       </p>
       <Notice message={param(query.message)} error={param(query.erreur)} />
 
@@ -58,9 +58,17 @@ export default async function FamilyPage({ searchParams }: Props) {
             {items.map((child) => (
               <li key={child.id} className="rounded-card border border-line p-4">
                 <p className="text-lg font-bold">{child.displayName}</p>
-                <p className="text-ink-muted">
-                  {child.level ? (levelLabel(child.level) ?? child.level) : 'Niveau non précisé'}
-                </p>
+                {child.classes.length > 0 ? (
+                  child.classes.map((c) => (
+                    <p key={`${c.name}-${c.schoolYear}`} className="text-ink-muted">
+                      {c.name} · {c.organization} · {c.schoolYear}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-ink-muted">
+                    {child.level ? (levelLabel(child.level) ?? child.level) : 'Niveau non précisé'}
+                  </p>
+                )}
                 <p className="mt-2">
                   <Link href={`/mon-espace/eleves/${child.id}`} className="font-bold underline">
                     Voir ses progrès
@@ -91,8 +99,34 @@ export default async function FamilyPage({ searchParams }: Props) {
         )}
       </div>
 
+      <form action={linkChildAction} className={`${cardClass} space-y-4`}>
+        <h2 className="text-xl font-bold">Mon enfant est inscrit dans une école</h2>
+        <p>
+          L’école remet un code parent avec les identifiants de chaque élève. Deux parents peuvent
+          utiliser le même code. S’il ne marche plus, demandez-en un nouveau à l’école.
+        </p>
+        <label className="block font-bold">
+          Code parent
+          <input
+            name="code"
+            className={`${inputClass} uppercase tracking-widest`}
+            required
+            minLength={4}
+            maxLength={20}
+            autoComplete="off"
+          />
+        </label>
+        <button type="submit" className={buttonClass}>
+          Relier mon enfant
+        </button>
+      </form>
+
       <form action={addChildAction} className={`${cardClass} space-y-4`}>
-        <h2 className="text-xl font-bold">Ajouter un enfant</h2>
+        <h2 className="text-xl font-bold">Mon enfant n’est inscrit dans aucune école</h2>
+        <p>
+          Créez son profil : il n’a pas de mot de passe, vous gardez la main et suivez ses progrès
+          d’ici.
+        </p>
         <label className="block font-bold">
           Prénom de l’enfant
           <input name="displayName" className={inputClass} required minLength={2} maxLength={60} />
@@ -112,7 +146,7 @@ export default async function FamilyPage({ searchParams }: Props) {
             ))}
           </select>
         </label>
-        <button type="submit" className={buttonClass}>
+        <button type="submit" className={secondaryButtonClass}>
           Ajouter mon enfant
         </button>
       </form>

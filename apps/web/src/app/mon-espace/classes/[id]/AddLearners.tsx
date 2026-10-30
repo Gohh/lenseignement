@@ -26,8 +26,10 @@ export function AddLearners({ cohortId, configured }: { cohortId: string; config
   if (state.result) {
     const { created, failed } = state.result;
     const csv = [
-      'Nom complet;Identifiant;Mot de passe provisoire',
-      ...created.map((c) => `${c.displayName};${c.username};${c.temporaryPassword}`),
+      'Nom complet;Identifiant;Mot de passe provisoire;Code parent',
+      ...created.map(
+        (c) => `${c.displayName};${c.username};${c.temporaryPassword};${c.parentCode}`,
+      ),
     ].join('\r\n');
     return (
       <div className="space-y-4" role="status">
@@ -41,7 +43,8 @@ export function AddLearners({ cohortId, configured }: { cohortId: string; config
                 <tr>
                   <th className="py-1 pr-3">Élève</th>
                   <th className="py-1 pr-3">Identifiant</th>
-                  <th className="py-1">Mot de passe provisoire</th>
+                  <th className="py-1 pr-3">Mot de passe provisoire</th>
+                  <th className="py-1">Code parent</th>
                 </tr>
               </thead>
               <tbody>
@@ -49,7 +52,8 @@ export function AddLearners({ cohortId, configured }: { cohortId: string; config
                   <tr key={c.username} className="border-t border-line">
                     <td className="py-1 pr-3">{c.displayName}</td>
                     <td className="py-1 pr-3 font-bold">{c.username}</td>
-                    <td className="py-1 font-bold tracking-wider">{c.temporaryPassword}</td>
+                    <td className="py-1 pr-3 font-bold tracking-wider">{c.temporaryPassword}</td>
+                    <td className="py-1 font-bold tracking-wider">{c.parentCode}</td>
                   </tr>
                 ))}
               </tbody>
@@ -57,7 +61,8 @@ export function AddLearners({ cohortId, configured }: { cohortId: string; config
             <p>
               Imprime ou télécharge cette liste maintenant : les mots de passe ne seront plus
               affichés. Chaque élève se connecte avec son identifiant et ce mot de passe, puis en
-              choisit un nouveau.
+              choisit un nouveau. Le code parent se remet aux parents : ils le saisissent dans « Ma
+              famille » pour suivre leur enfant et écrire à ses enseignants.
             </p>
             <div className="flex flex-wrap gap-3">
               <button type="button" className={buttonClass} onClick={() => window.print()}>

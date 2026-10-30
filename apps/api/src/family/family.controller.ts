@@ -13,6 +13,7 @@ import {
 import {
   CreateChildSchema,
   CreateInvitationSchema,
+  LinkParentCodeSchema,
   RedeemInvitationSchema,
 } from '@lenseignement/types';
 import type { Request } from 'express';
@@ -24,6 +25,7 @@ import {
   createChild,
   createInvitation,
   FamilyError,
+  linkWithParentCode,
   listChildren,
   listTutored,
   redeemInvitation,
@@ -73,6 +75,14 @@ export class FamilyController {
   async addChild(@Req() request: Request, @Body() body: unknown) {
     const input = parse(CreateChildSchema, body);
     return guard(async () => createChild(this.db, await this.me(request), input, request.traceId));
+  }
+
+  @Post('children/link')
+  async link(@Req() request: Request, @Body() body: unknown) {
+    const { code } = parse(LinkParentCodeSchema, body);
+    return guard(async () =>
+      linkWithParentCode(this.db, await this.me(request), code, request.traceId),
+    );
   }
 
   @Post('invitations')

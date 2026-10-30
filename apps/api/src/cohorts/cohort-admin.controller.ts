@@ -37,6 +37,7 @@ import {
   renewJoinCode,
   setCohortArchived,
   removeLearner,
+  renewParentCode,
   rosterTools,
   transferLearners,
 } from './cohort-admin.js';
@@ -165,6 +166,17 @@ export class CohortAdminController {
     const { learners } = parse(AddLearnersSchema, body);
     return guard(async () =>
       addLearners(this.db, this.identity, await this.me(request), id, learners, request.traceId),
+    );
+  }
+
+  @Post('cohorts/:id/learners/:learnerId/parent-code')
+  async parentCode(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('learnerId', ParseUUIDPipe) learnerId: string,
+  ) {
+    return guard(async () =>
+      renewParentCode(this.db, await this.me(request), id, learnerId, request.traceId),
     );
   }
 

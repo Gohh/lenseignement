@@ -30,6 +30,20 @@ export async function addChildAction(form: FormData): Promise<void> {
   back('message', 'Enfant ajouté.');
 }
 
+export async function linkChildAction(form: FormData): Promise<void> {
+  const result = await apiSend<{ displayName: string | null }>(
+    await token(),
+    'POST',
+    '/family/children/link',
+    { code: text(form, 'code') },
+  );
+  if (!result.ok) back('erreur', result.message ?? 'Code parent refusé.');
+  back(
+    'message',
+    `C’est fait : vous suivez maintenant ${result.data.displayName ?? 'votre enfant'}.`,
+  );
+}
+
 export async function inviteTutorAction(form: FormData): Promise<void> {
   const learnerIds = form.getAll('learnerId').map(String);
   const result = await apiSend<{ code: string }>(await token(), 'POST', '/family/invitations', {

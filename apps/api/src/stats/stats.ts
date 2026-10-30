@@ -1,6 +1,10 @@
 import { STATS_THRESHOLD, type MaskedCount, type StatsOverview } from '@lenseignement/types';
 import { sql } from 'drizzle-orm';
-import { organizationIdsWithRoles, STATS_ROLES } from '../access/access.service.js';
+import {
+  everywhereOrganizationIds,
+  organizationIdsWithRoles,
+  STATS_ROLES,
+} from '../access/access.service.js';
 import type { Executor } from '../db/database.js';
 
 /**
@@ -35,7 +39,10 @@ interface CourseRow extends Record<string, unknown> {
 }
 
 export async function statsOverview(db: Executor, userId: string): Promise<StatsOverview> {
-  const scope = organizationIdsWithRoles(userId, STATS_ROLES);
+  const scope = sql`(
+    select r.id from ${organizationIdsWithRoles(userId, STATS_ROLES)} r
+    union
+    select e.id from ${everywhereOrganizationIds(userId)} e)`;
 
   const orgs = await db.execute<{ name: string }>(
     sql`select name from organizations where id in ${scope} order by name`,

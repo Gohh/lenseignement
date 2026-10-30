@@ -136,6 +136,28 @@ test("la commande superadmin rend le rôle à un compte qui l'avait perdu", asyn
     assert.ok(!listed.includes('Plateforme'));
     const team = (await call(SUB.yao, 'get', '/team', 200)).body;
     assert.ok(!team.organizations.map(names).includes('Plateforme'));
+    // Plateforme vide (seulement la structure technique) : on peut créer le premier établissement.
+    const visible = await ctx.db
+      .update(organizations)
+      .set({ internal: true })
+      .where(eq(organizations.internal, false))
+      .returning({ id: organizations.id });
+    try {
+      const empty = (await call(SUB.yao, 'get', '/team', 200)).body;
+      assert.deepEqual(empty.organizations, []);
+      assert.equal(empty.canCreateOrganization, true);
+      assert.equal(empty.everywhere, true);
+    } finally {
+      await ctx.db
+        .update(organizations)
+        .set({ internal: false })
+        .where(
+          inArray(
+            organizations.id,
+            visible.map((v) => v.id),
+          ),
+        );
+    }
   } finally {
     await ctx.db.delete(memberships).where(eq(memberships.id, row!.id));
     // La commande crée la structure « Plateforme » : on la retire pour ne pas fausser les autres tests.
@@ -487,4 +509,16 @@ test('configuration : liste filtrée, modification selon les rôles, archivage e
     for (const id of made.reverse())
       await ctx.db.delete(organizations).where(eq(organizations.id, id));
   }
+});
+
+test('en-tête : « L’Enseignement à » l’établissement de la personne, avec sa DRENA', async () => {
+  const { establishment } = (await call(SUB.bamba, 'get', '/organizations/mine', 200)).body;
+  assert.deepEqual(establishment, {
+    name: 'École primaire Les Manguiers (fictive)',
+    direction: 'Direction régionale de démonstration (fictive)',
+    locality: null,
+  });
+  // Sans rattachement ni pouvoir sur toutes les structures : pas d'établissement.
+  const none = (await call(`nouveau-${Date.now()}`, 'get', '/organizations/mine', 200)).body;
+  assert.equal(none.establishment, null);
 });

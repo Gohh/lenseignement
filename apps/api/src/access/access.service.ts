@@ -59,18 +59,34 @@ export const TEAM_ROLES = [
  */
 export function teamOrganizationIds(userId: string): SQL {
   return sql`(
+    select e.id from ${everywhereOrganizationIds(userId)} e
+    union
+    select t.id from ${organizationIdsWithRoles(userId, ['chef-etablissement', 'gestionnaire'])} t)`;
+}
+
+/**
+ * Toutes les structures (sauf la structure technique « Plateforme ») pour le superadministrateur
+ * et l'administrateur ; aucune pour les autres. Renvoie une sous-requête entre parenthèses.
+ */
+export function everywhereOrganizationIds(userId: string): SQL {
+  return sql`(
     select o.id from organizations o
      where not o.internal and exists (
        select 1 from memberships m
         where m.user_id = ${userId}
           and m.role in ('superadministrateur', 'administrateur')
-          and (m.valid_until is null or m.valid_until > now()))
-    union
-    select t.id from ${organizationIdsWithRoles(userId, ['chef-etablissement', 'gestionnaire'])} t)`;
+          and (m.valid_until is null or m.valid_until > now())))`;
 }
 
 /** Tableau de chiffres anonymes (ADR-016) : direction d'établissement et référents. */
 export const STATS_ROLES = ['chef-etablissement', 'referent-pedagogique'] as const;
+
+/** Qui peut ouvrir ce tableau : en plus, le superadministrateur et l'administrateur (tout le pays). */
+export const STATS_READER_ROLES = [
+  ...STATS_ROLES,
+  'superadministrateur',
+  'administrateur',
+] as const;
 
 /**
  * Structures où une personne a l'un des rôles donnés, sous-structures comprises (un référent

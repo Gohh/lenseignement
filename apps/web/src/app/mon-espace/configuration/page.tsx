@@ -175,8 +175,8 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-xl font-extrabold">
             {drenaView ? 'Directions régionales' : 'Établissements'}{' '}
-            {archived ? 'archivé' : 'actif'}
-            {drenaView ? 'es' : 's'} ({items.length})
+            {drenaView ? (archived ? 'archivées' : 'actives') : archived ? 'archivés' : 'actifs'} (
+            {items.length})
           </h2>
           <div className="flex flex-wrap gap-2">
             {drenaView && team.canCreateOrganization && team.everywhere && (

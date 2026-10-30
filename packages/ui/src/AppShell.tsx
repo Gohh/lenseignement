@@ -5,10 +5,12 @@ export interface AppShellProps {
   children: ReactNode;
   /** Zone droite de l'en-tête (état hors ligne, connexion…). */
   headerActions?: ReactNode;
+  /** Pied de page propre au site ; à défaut, la mention d'indépendance seule. */
+  footer?: ReactNode;
 }
 
 /** Structure de page commune : lien d'évitement, en-tête, contenu principal et pied de page. */
-export function AppShell({ children, headerActions }: AppShellProps) {
+export function AppShell({ children, headerActions, footer }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <a
@@ -32,12 +34,14 @@ export function AppShell({ children, headerActions }: AppShellProps) {
       <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         {children}
       </main>
-      <footer className="border-t border-line bg-surface">
-        <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-ink-muted">
-          Projet indépendant. Aucune affiliation institutionnelle ; les attestations délivrées ne
-          sont pas des diplômes d’État.
-        </p>
-      </footer>
+      {footer ?? (
+        <footer className="border-t border-line bg-surface">
+          <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-ink-muted">
+            Projet indépendant. Aucune affiliation institutionnelle ; les attestations délivrées ne
+            sont pas des diplômes d’État.
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
 
-// Actions serveur de l'écran « Programmes » : l'API décide des droits (publication : superadministrateur).
+// Actions serveur de l'écran « Programmes » : l'API décide des droits (publication : référent pédagogique).
 
 const PATH = '/mon-espace/configuration/programmes';
 

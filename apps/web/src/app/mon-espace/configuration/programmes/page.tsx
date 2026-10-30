@@ -27,7 +27,10 @@ export default async function ProgrammesPage({ searchParams }: Props) {
     return (
       <section className="space-y-4">
         <h1 className="text-3xl font-bold">Programmes</h1>
-        <p>Cette page est réservée au superadministrateur et à l’administrateur.</p>
+        <p>
+          Cette page est réservée au superadministrateur, à l’administrateur et au référent
+          pédagogique.
+        </p>
       </section>
     );
   }
@@ -44,7 +47,7 @@ export default async function ProgrammesPage({ searchParams }: Props) {
             Les programmes officiels et leurs versions. Une nouvelle version arrive en brouillon ;
             {canPublish
               ? ' vous la publiez avec sa date d’entrée en vigueur.'
-              : ' le superadministrateur la publie avec sa date d’entrée en vigueur.'}{' '}
+              : ' le référent pédagogique la publie avec sa date d’entrée en vigueur.'}{' '}
             L’ancienne version reste consultable.
           </p>
         </div>

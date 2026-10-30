@@ -84,6 +84,8 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
   const team = admin || has(TEAM_ROLES);
   const author = has(AUTHOR_ROLES);
   const validator = has(VALIDATOR_ROLES);
+  // Le référent pédagogique publie les programmes.
+  const programmes = admin || memberRoles.has('referent-pedagogique');
   if (!team && !author && !validator) return null;
   const main: SpaceMenuItem[] = [
     { href: '/mon-espace', label: 'Tableau de bord' },
@@ -106,17 +108,21 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     ...(validator || team ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }] : []),
   ];
   const groups: StaffMenuGroup[] = [
-    ...(team
+    ...(team || programmes
       ? [
           {
             title: 'Référentiels',
             items: [
-              {
-                href: '/mon-espace/configuration',
-                label: 'Établissements',
-                section: '/mon-espace/configuration/etablissements',
-              },
-              ...(admin
+              ...(team
+                ? [
+                    {
+                      href: '/mon-espace/configuration',
+                      label: 'Établissements',
+                      section: '/mon-espace/configuration/etablissements',
+                    },
+                  ]
+                : []),
+              ...(programmes
                 ? [
                     {
                       href: '/mon-espace/configuration/programmes',
@@ -127,6 +133,10 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
                 : []),
             ],
           },
+        ]
+      : []),
+    ...(team
+      ? [
           {
             title: 'Comptes et droits',
             items: [

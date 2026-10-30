@@ -122,10 +122,10 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
   return (
     <section className="space-y-6">
       <Link
-        href="/mon-espace/configuration"
+        href={isDirection ? '/mon-espace/configuration?vue=drena' : '/mon-espace/configuration'}
         className="inline-flex min-h-[44px] items-center font-bold"
       >
-        ← Configuration
+        {isDirection ? '← Directions régionales' : '← Établissements'}
       </Link>
       <h1 className="text-3xl font-bold">{o.name}</h1>
       {o.archivedAt && (

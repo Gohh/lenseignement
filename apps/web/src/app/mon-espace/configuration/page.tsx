@@ -30,17 +30,17 @@ export default async function ConfigurationPage({ searchParams }: Props) {
   const direction = param(query.direction) ?? '';
   const type = param(query.type) ?? '';
   const archived = param(query.archives) === '1';
+  // Deux onglets : les établissements (par défaut) et les directions régionales.
+  const drenaView = param(query.vue) === 'drena';
 
   const filter = new URLSearchParams();
   if (q) filter.set('search', q);
-  if (direction) filter.set('direction', direction);
-  if (type) filter.set('type', type);
+  if (direction && !drenaView) filter.set('direction', direction);
+  if (type && !drenaView) filter.set('type', type);
   if (archived) filter.set('archived', '1');
+  filter.set('kind', drenaView ? 'directions' : 'etablissements');
   const [list, overview] = await Promise.all([
-    apiGet<{ items: OrganizationListEntry[] }>(
-      session.accessToken,
-      `/organizations${filter.size ? `?${filter}` : ''}`,
-    ),
+    apiGet<{ items: OrganizationListEntry[] }>(session.accessToken, `/organizations?${filter}`),
     apiGet<TeamOverview>(session.accessToken, '/team'),
   ]);
   if (!list.ok) {
@@ -66,6 +66,7 @@ export default async function ConfigurationPage({ searchParams }: Props) {
   const typeLabel = (value: string) =>
     ORGANIZATION_TYPE_LABELS[value as keyof typeof ORGANIZATION_TYPE_LABELS] ?? value;
   const cell = 'px-4 py-3 align-top';
+  const showDrenaTab = team.everywhere || team.directions.length > 0;
 
   return (
     <section className="space-y-6">
@@ -73,8 +74,8 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         <p className="font-bold text-ink-muted">Référentiels / Établissements</p>
         <h1 className="text-4xl font-extrabold">Configuration</h1>
         <p className="text-ink-muted">
-          Les établissements et les directions régionales que vous gérez. Le tableau montre
-          l’essentiel ; l’icône en forme d’œil ouvre la fiche complète.
+          Les établissements et les directions régionales que vous gérez, chacun dans son onglet. Le
+          tableau montre l’essentiel ; l’icône en forme d’œil ouvre la fiche complète.
         </p>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />
@@ -92,38 +93,69 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         </div>
       )}
 
+      {showDrenaTab && (
+        <nav aria-label="Référentiels" className="flex flex-wrap gap-2 border-b border-line">
+          {[
+            { href: '/mon-espace/configuration', label: 'Établissements', current: !drenaView },
+            {
+              href: '/mon-espace/configuration?vue=drena',
+              label: 'Directions régionales (DRENA)',
+              current: drenaView,
+            },
+          ].map((tab) => (
+            <a
+              key={tab.href}
+              href={tab.href}
+              aria-current={tab.current ? 'page' : undefined}
+              className="-mb-px inline-flex min-h-[44px] items-center rounded-t-card border border-transparent px-5 font-bold text-ink-muted no-underline hover:text-primary aria-[current=page]:border-line aria-[current=page]:border-b-surface aria-[current=page]:bg-surface aria-[current=page]:text-primary"
+            >
+              {tab.label}
+            </a>
+          ))}
+        </nav>
+      )}
+
       <form method="get" className={`${cardClass} flex flex-wrap items-end gap-4`}>
+        {drenaView && <input type="hidden" name="vue" value="drena" />}
         <label className="block flex-1 basis-44 font-bold">
           Rechercher
           <input
             name="q"
             defaultValue={q}
-            placeholder="Nom, code, localité ou responsable"
+            placeholder={
+              drenaView ? 'Nom, localité ou responsable' : 'Nom, code, localité ou responsable'
+            }
             className={inputClass}
           />
         </label>
-        <label className="block flex-1 basis-36 font-bold">
-          Direction régionale
-          <select name="direction" defaultValue={direction} className={inputClass}>
-            <option value="">Toutes</option>
-            {team.directions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block flex-1 basis-36 font-bold">
-          Type
-          <select name="type" defaultValue={type} className={inputClass}>
-            <option value="">Tous</option>
-            {Object.entries(ORGANIZATION_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!drenaView && (
+          <>
+            <label className="block flex-1 basis-36 font-bold">
+              DRENA
+              <select name="direction" defaultValue={direction} className={inputClass}>
+                <option value="">Toutes</option>
+                {team.directions.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block flex-1 basis-36 font-bold">
+              Type
+              <select name="type" defaultValue={type} className={inputClass}>
+                <option value="">Tous</option>
+                {Object.entries(ORGANIZATION_TYPE_LABELS)
+                  .filter(([value]) => value !== 'authority')
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </>
+        )}
         <label className="flex min-h-[44px] items-center gap-3">
           <input
             type="checkbox"
@@ -142,11 +174,14 @@ export default async function ConfigurationPage({ searchParams }: Props) {
       <div className="overflow-hidden rounded-big border border-line bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-xl font-extrabold">
-            {archived ? 'Archivés' : 'Actifs'} ({items.length})
+            {drenaView ? 'Directions régionales' : 'Établissements'}{' '}
+            {drenaView ? (archived ? 'archivées' : 'actives') : archived ? 'archivés' : 'actifs'} (
+            {items.length})
           </h2>
           <div className="flex flex-wrap gap-2">
-            {team.canCreateOrganization && team.everywhere && (
+            {drenaView && team.canCreateOrganization && team.everywhere && (
               <Dialog
+                primary
                 label="+ Créer une direction régionale"
                 title="Créer une direction régionale (DRENA)"
                 openAtStart={open === 'drena'}
@@ -155,7 +190,7 @@ export default async function ConfigurationPage({ searchParams }: Props) {
                   <input type="hidden" name="type" value="authority" />
                   <p className="text-ink-muted">
                     La direction régionale regroupe les établissements d’une région. Créez-la
-                    d’abord : chaque école s’y rattache ensuite.
+                    d’abord : chaque établissement s’y rattache ensuite.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block font-bold sm:col-span-2">
@@ -184,15 +219,93 @@ export default async function ConfigurationPage({ searchParams }: Props) {
                 </form>
               </Dialog>
             )}
-            {team.canCreateOrganization && (team.everywhere || team.directions.length > 0) && (
-              <a href="/mon-espace/configuration/etablissements/nouveau" className={buttonClass}>
-                + Ajouter un établissement
-              </a>
-            )}
+            {!drenaView &&
+              team.canCreateOrganization &&
+              (team.everywhere || team.directions.length > 0) && (
+                <a href="/mon-espace/configuration/etablissements/nouveau" className={buttonClass}>
+                  + Ajouter un établissement
+                </a>
+              )}
           </div>
         </div>
         {items.length === 0 ? (
-          <p className="p-4">Aucun établissement ne correspond.</p>
+          <p className="p-4">
+            {drenaView
+              ? 'Aucune direction régionale ne correspond.'
+              : 'Aucun établissement ne correspond.'}
+          </p>
+        ) : drenaView ? (
+          <div className="overflow-x-auto" data-testid="direction-list">
+            <table className="w-full min-w-[40rem] text-left">
+              <thead className="bg-primary-soft text-sm uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th scope="col" className={cell}>
+                    Direction régionale
+                  </th>
+                  <th scope="col" className={cell}>
+                    Siège
+                  </th>
+                  <th scope="col" className={cell}>
+                    Responsable
+                  </th>
+                  <th scope="col" className={cell}>
+                    Établissements
+                  </th>
+                  <th scope="col" className={`${cell} text-right`}>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {items.map((o) => {
+                  const fiche = `/mon-espace/configuration/etablissements/${o.id}`;
+                  return (
+                    <tr key={o.id} className="hover:bg-primary-soft">
+                      <th scope="row" className={`${cell} font-bold`}>
+                        <a href={fiche} className="underline">
+                          {o.name}
+                        </a>
+                      </th>
+                      <td className={cell}>{o.locality ?? '–'}</td>
+                      <td className={cell}>{o.managerName ?? '–'}</td>
+                      <td className={cell}>
+                        <a href={`/mon-espace/configuration?direction=${o.id}`}>
+                          {o.activeChildren} actif{o.activeChildren > 1 ? 's' : ''}
+                          <span className="sr-only"> : voir les établissements de {o.name}</span>
+                        </a>
+                      </td>
+                      <td className={`${cell} py-2`}>
+                        <div className="flex justify-end gap-2">
+                          <IconLink
+                            href={fiche}
+                            icon="voir"
+                            label={`Voir la fiche de ${o.name}`}
+                            tip="Voir : la fiche de la DRENA"
+                          />
+                          {o.can.edit && !o.archivedAt && (
+                            <IconLink
+                              href={fiche}
+                              icon="modifier"
+                              label={`Modifier ${o.name}`}
+                              tip="Modifier : corriger le nom, le siège ou le responsable"
+                            />
+                          )}
+                          {o.can.archive && (
+                            <RemoveButton
+                              id={o.id}
+                              name={o.name}
+                              archived={Boolean(o.archivedAt)}
+                              from="drena"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="overflow-x-auto" data-testid="organization-list">
             <table className="w-full min-w-[40rem] text-left">

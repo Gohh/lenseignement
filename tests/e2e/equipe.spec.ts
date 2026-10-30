@@ -65,6 +65,10 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
       [subjectOf(username)],
     );
     await member.goto('/mon-espace/configuration');
+    // Les DRENA ont leur propre onglet : elles ne sont pas mêlées aux établissements.
+    await expect(member.getByTestId('organization-list')).toBeVisible();
+    await expect(member.getByTestId('direction-list')).toHaveCount(0);
+    await member.getByRole('link', { name: 'Directions régionales (DRENA)' }).click();
     await member.waitForLoadState('networkidle');
     await member.getByRole('button', { name: '+ Créer une direction régionale' }).click();
     const stamp = `${Date.now()}-${testInfo.project.name}-${testInfo.retry}`;
@@ -73,6 +77,7 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await form.getByLabel('Nom officiel').fill(drena);
     await form.getByRole('button', { name: 'Créer la direction régionale' }).click();
     await expect(member.getByText('Direction régionale créée.')).toBeVisible();
+    await expect(member.getByTestId('direction-list')).toContainText(drena);
 
     // Ajout guidé : le type d'abord, puis formulaire ou import ; le type fixe les champs.
     await member.goto('/mon-espace/configuration');

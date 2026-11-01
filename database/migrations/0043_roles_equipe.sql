@@ -1,0 +1,2 @@
+ALTER TABLE "memberships" DROP CONSTRAINT "memberships_role_check";--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_role_check" CHECK ("memberships"."role" in ('chef-etablissement','enseignant','apprenant','alphabetiseur','referent-pedagogique','gestionnaire','administrateur','superadministrateur','cabinet','direction-centrale','partenaire','technopedagogue','apfc','iepp','conseiller-pedagogique','conseiller-alpha','censeur','correspondant-fichier','educateur','conseiller-orientation'));

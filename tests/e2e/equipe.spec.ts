@@ -9,7 +9,7 @@ const freshLearner = (testInfo: TestInfo) =>
   `nouveau.equipe-${Date.now()}-${testInfo.project.name}-${testInfo.retry}`.toLowerCase();
 
 test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
-  test('la direction invite un gestionnaire pour un cycle ; il rejoint avec le code', async ({
+  test('la direction invite un correspondant fichier pour un cycle ; il rejoint avec le code', async ({
     browser,
     page,
   }, testInfo) => {
@@ -23,7 +23,11 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations).toEqual([]);
 
-    await page.getByLabel('Rôle').selectOption('gestionnaire');
+    // Une direction ne nomme plus de gestionnaire (DRENA).
+    await expect(
+      page.getByLabel('Rôle').getByRole('option', { name: 'DRENA', exact: true }),
+    ).toHaveCount(0);
+    await page.getByLabel('Rôle').selectOption('correspondant-fichier');
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Créer le code d’invitation' }).dispatchEvent('click');
     const code = (await page.getByTestId('invitation-code').textContent())!.trim();
@@ -64,20 +68,10 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await member.getByRole('button', { name: 'Rejoindre l’équipe' }).click();
     await expect(member.getByText(/Bienvenue dans l’équipe de/)).toBeVisible();
 
-    // Le nouveau gestionnaire rédige ; il n'est pas de l'équipe de direction.
-    await member.goto('/mon-espace');
-    await expect(
-      member.getByRole('navigation', { name: 'Menu de mon espace' }).getByRole('link', {
-        name: 'Cours',
-      }),
-    ).toBeVisible();
-
-    // Rattaché à une école seulement : pas de rôle de direction à donner, pas de création possible.
+    // Le correspondant fichier ne gère pas l'équipe : pas de rôle à donner.
     await member.goto('/mon-espace/equipe');
     await expect(member.getByRole('heading', { level: 1, name: 'Équipe' })).toBeVisible();
-    await expect(
-      member.getByLabel('Rôle').getByRole('option', { name: 'Direction de l’établissement' }),
-    ).toHaveCount(0);
+    await expect(member.getByLabel('Rôle')).toHaveCount(0);
     // Configuration : il voit son école, sans formulaire de création (aucune DRENA dans sa zone).
     await member.goto('/mon-espace/configuration');
     await expect(member.getByRole('heading', { level: 1, name: 'Configuration' })).toBeVisible();
@@ -123,7 +117,8 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await school.getByLabel('Téléphone').fill('07 08 09 10 11');
     await school.getByLabel('IEPP').fill('IEPP Bouaké 1');
     await school.getByRole('button', { name: 'Enregistrer l’établissement' }).click();
-    await expect(member.getByText('Établissement enregistré.')).toBeVisible();
+    // L'administrateur nomme aussi les chefs d'établissement : il reçoit le code du responsable.
+    await expect(member.getByTestId('invitation-code')).toHaveText(/^[A-Z2-9]{8}$/);
     await expect(member.getByTestId('fiche')).toContainText('0708091011');
 
     // Import d'un collège : canevas du type, anomalies précises, puis enregistrement confirmé.

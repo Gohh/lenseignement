@@ -1,3 +1,5 @@
 ﻿Nom;Prénom;E-mail;Rôle;Établissement
-KOUASSI;Marie;marie.kouassi@exemple.ci;Enseignant ou formateur;Nom exact de l’établissement
-TRAORÉ;Ali;ali.traore@exemple.ci;Gestionnaire;Nom exact de la direction régionale
+KOUASSI;Marie;marie.kouassi@exemple.ci;Enseignant;Nom exact de l’établissement
+TRAORÉ;Ali;ali.traore@exemple.ci;DRENA;Nom exact de la direction régionale
+YAO;Awa;awa.yao@exemple.ci;Directeur;Nom exact de l’école
+KONÉ;Issa;issa.kone@exemple.ci;IEPP;Nom exact de l’IEPP

@@ -9,6 +9,8 @@ export const RIGHT_PROFILES = [
   'gestionnaire',
   'chef-etablissement',
   'referent-pedagogique',
+  'iepp',
+  'conseiller-alpha',
 ] as const;
 export type RightProfile = (typeof RIGHT_PROFILES)[number];
 
@@ -43,8 +45,8 @@ export const RIGHT_DEFINITIONS: readonly RightDefinition[] = [
   {
     code: 'equipe',
     label: 'Inviter l’équipe',
-    description: 'Inviter des personnes et leur donner un rôle.',
-    profiles: ['administrateur', 'gestionnaire', 'chef-etablissement'],
+    description: 'Inviter ou créer des comptes et leur donner un rôle.',
+    profiles: ['administrateur', 'gestionnaire', 'chef-etablissement', 'iepp', 'conseiller-alpha'],
   },
   {
     code: 'comptes',

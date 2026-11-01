@@ -47,6 +47,8 @@ export const PUBLISHER_ROLES = ['referent-pedagogique', 'chef-etablissement'] as
 export const TEAM_ROLES = [
   'chef-etablissement',
   'gestionnaire',
+  'iepp',
+  'conseiller-alpha',
   'administrateur',
   'superadministrateur',
 ] as const;
@@ -61,7 +63,32 @@ export function teamOrganizationIds(userId: string): SQL {
   return sql`(
     select e.id from ${everywhereOrganizationIds(userId)} e
     union
-    select t.id from ${organizationIdsWithRoles(userId, ['chef-etablissement', 'gestionnaire'])} t)`;
+    select t.id from ${organizationIdsWithRoles(userId, ['chef-etablissement', 'gestionnaire'])} t
+    union
+    select x.id from ${inspectionOrganizationIds(userId)} x)`;
+}
+
+/**
+ * Ce que suivent l'IEPP et le conseiller Alpha : l'IEPP, sa structure et les écoles maternelles et
+ * primaires de sa DRENA qui la citent dans leur fiche (champ « IEPP ») ; le conseiller Alpha, sa
+ * DRENA et ses centres d'alphabétisation. Renvoie une sous-requête entre parenthèses.
+ */
+export function inspectionOrganizationIds(userId: string): SQL {
+  return sql`(
+    with mine as (
+      select m.organization_id as id, m.role from memberships m
+       where m.user_id = ${userId} and m.role in ('iepp', 'conseiller-alpha')
+         and (m.valid_until is null or m.valid_until > now()))
+    select mine.id from mine
+    union
+    select s.id from mine
+      join organizations i on i.id = mine.id and mine.role = 'iepp' and i.type = 'iepp'
+      join organizations s on s.parent_id = i.parent_id and s.type in ('preschool', 'primary')
+     where lower(trim(s.details->>'iepp')) = lower(trim(i.name))
+    union
+    select c.id from mine
+      join organizations c on c.parent_id = mine.id and c.type = 'literacy_center'
+     where mine.role = 'conseiller-alpha')`;
 }
 
 /**

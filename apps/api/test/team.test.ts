@@ -30,12 +30,7 @@ async function call(
   return (body ? req.send(body) : req).expect(status);
 }
 
-const authoringBranches = async (subject: string) =>
-  (await call(subject, 'get', '/authoring/organizations', 200)).body.items.map(
-    (o: { branches: string[] }) => o.branches,
-  );
-
-test('ADR-021 : la direction invite un gestionnaire, règle ses cycles, puis retire son rôle', async () => {
+test('ADR-021 : la direction invite un correspondant fichier, règle ses cycles, puis retire son rôle', async () => {
   // Seule la direction (ou l’administrateur) gère une équipe.
   assert.deepEqual((await call(SUB.koffi, 'get', '/team', 200)).body.organizations, []);
   const team = (await call(SUB.bamba, 'get', '/team', 200)).body;
@@ -47,7 +42,14 @@ test('ADR-021 : la direction invite un gestionnaire, règle ses cycles, puis ret
   assert.ok(team.members.some((m: { userName: string }) => m.userName?.includes('Koffi')));
 
   // Refus : rôle réservé, structure d’un autre, rôle inconnu.
-  const base = { organizationId: ID.orgManguiers, role: 'gestionnaire', branches: ['primaire'] };
+  const base = {
+    organizationId: ID.orgManguiers,
+    role: 'correspondant-fichier',
+    branches: ['primaire'],
+  };
+  // Une direction ne nomme plus de gestionnaire (DRENA), rôle qui ne va pas dans une école.
+  assert.ok(!team.grantable.includes('gestionnaire'));
+  await call(SUB.bamba, 'post', '/team/invitations', 400, { ...base, role: 'gestionnaire' });
   await call(SUB.koffi, 'post', '/team/invitations', 403, base);
   await call(SUB.bamba, 'post', '/team/invitations', 403, { ...base, role: 'chef-etablissement' });
   // Une direction ne nomme jamais d'administrateur (rôle national).
@@ -66,7 +68,7 @@ test('ADR-021 : la direction invite un gestionnaire, règle ses cycles, puis ret
   await call(SUB.yao, 'post', '/team/invitations/redeem', 404, { code: 'AAAAAAAA' });
   assert.equal(
     (await call(SUB.yao, 'post', '/team/invitations/redeem', 201, { code })).body.role,
-    'gestionnaire',
+    'correspondant-fichier',
   );
   await call(SUB.awa, 'post', '/team/invitations/redeem', 404, { code });
 
@@ -92,21 +94,22 @@ test('ADR-021 : la direction invite un gestionnaire, règle ses cycles, puis ret
   assert.equal(after.state, 'revoked');
   await call(SUB.bamba, 'post', '/team/invitations', 400, { ...base, days: 99 });
 
-  // Le gestionnaire rédige dans son cycle seulement.
-  assert.deepEqual(await authoringBranches(SUB.yao), [['primaire']]);
-  const member = (await call(SUB.bamba, 'get', '/team', 200)).body.members.find(
-    (m: { role: string }) => m.role === 'gestionnaire',
-  );
+  // Le rôle est accordé pour son cycle seulement.
+  const memberOf = async () =>
+    (await call(SUB.bamba, 'get', '/team', 200)).body.members.find(
+      (m: { role: string }) => m.role === 'correspondant-fichier',
+    );
+  const member = await memberOf();
   assert.deepEqual(member.branches, ['primaire']);
 
   // Cycles modifiés, puis rôle retiré.
   await call(SUB.bamba, 'patch', `/team/members/${member.id}`, 200, {
     branches: ['alphabetisation'],
   });
-  assert.deepEqual(await authoringBranches(SUB.yao), [['alphabetisation']]);
+  assert.deepEqual((await memberOf()).branches, ['alphabetisation']);
   await call(SUB.koffi, 'patch', `/team/members/${member.id}`, 404, { branches: null });
   await call(SUB.bamba, 'delete', `/team/members/${member.id}`, 200);
-  assert.deepEqual(await authoringBranches(SUB.yao), []);
+  assert.equal(await memberOf(), undefined);
 });
 
 test('ADR-021 : le superadministrateur gère toutes les structures et les directions', async () => {
@@ -229,7 +232,8 @@ test('création : la DRENA est une structure ; superadmin et administrateur part
       assert.equal(team.organizations.length, 3);
       assert.equal(team.everywhere, true);
       assert.deepEqual(ids(team.directions), [ID.orgRegion]);
-      assert.ok(!team.grantable.includes('chef-etablissement'));
+      // L'administrateur nomme désormais les chefs d'établissement (décision du 1er novembre).
+      assert.ok(team.grantable.includes('chef-etablissement'));
       // Seul le superadministrateur nomme un administrateur.
       assert.ok(!team.grantable.includes('administrateur'));
       const drena = (
@@ -272,7 +276,7 @@ test('création : la DRENA est une structure ; superadmin et administrateur part
         })
       ).body;
       made.push(child.id);
-      assert.equal(child.managerCode, null);
+      assert.match(child.managerCode, /^[A-Z2-9]{8}$/);
       await call(SUB.awa, 'post', '/team/organizations', 400, {
         name: name.toUpperCase(),
         ...school,
@@ -298,7 +302,16 @@ test('création : la DRENA est une structure ; superadmin et administrateur part
       const team = (await call(SUB.yao, 'get', '/team', 200)).body;
       assert.equal(team.everywhere, false);
       assert.deepEqual(ids(team.directions), [ID.orgRegion]);
-      assert.deepEqual(team.grantable, ['enseignant', 'alphabetiseur', 'referent-pedagogique']);
+      assert.deepEqual(team.grantable, [
+        'referent-pedagogique',
+        'apfc',
+        'iepp',
+        'conseiller-alpha',
+        'chef-etablissement',
+        'conseiller-orientation',
+        'enseignant',
+        'alphabetiseur',
+      ]);
       await call(SUB.yao, 'post', '/team/organizations', 403, {
         name: unique(),
         type: 'authority',
@@ -317,18 +330,20 @@ test('création : la DRENA est une structure ; superadmin et administrateur part
         await call(SUB.yao, 'post', '/team/organizations', 201, { name: unique(), ...school })
       ).body;
       made.push(annex.id);
-      assert.equal(annex.managerCode, null);
+      // La DRENA nomme le chef de ses établissements : elle reçoit le code.
+      assert.match(annex.managerCode, /^[A-Z2-9]{8}$/);
       const after = (await call(SUB.yao, 'get', '/team', 200)).body;
       assert.ok(ids(after.organizations).includes(annex.id));
 
-      // Il invite un référent dans sa zone, mais ni une direction ni un administrateur, ni hors zone.
+      // Il invite un référent dans sa zone, mais ni un administrateur, ni hors zone ; une direction
+      // se donne dans une école, pas dans la DRENA.
       const referent = {
         organizationId: ID.orgRegion,
         role: 'referent-pedagogique',
         branches: null,
       };
       await call(SUB.yao, 'post', '/team/invitations', 201, referent);
-      await call(SUB.yao, 'post', '/team/invitations', 403, {
+      await call(SUB.yao, 'post', '/team/invitations', 400, {
         ...referent,
         role: 'chef-etablissement',
       });

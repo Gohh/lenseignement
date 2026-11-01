@@ -52,7 +52,7 @@ async function call(
 const csv = [
   'Nom;Prénom;E-mail;Rôle;Établissement',
   'Kouassi;Marie;marie.k@exemple.test;Enseignant ou formateur;École primaire Les Manguiers (fictive)',
-  'Traoré;Ali;ali.t@exemple.test;gestionnaire;ecole primaire les manguiers (fictive)',
+  'Traoré;Ali;ali.t@exemple.test;DRENA;direction regionale de demonstration (fictive)',
   'Koné;Awa;pas-un-mail;enseignant;École primaire Les Manguiers (fictive)',
   'Bamba;Yves;yves@exemple.test;Cuisinier;École primaire Les Manguiers (fictive)',
   'Diallo;Fanta;fanta@exemple.test;enseignant;École inconnue',
@@ -60,7 +60,8 @@ const csv = [
 ].join('\n');
 
 test('import : les lignes valides sont créées, les autres expliquées', async () => {
-  await call(SUB.bamba, 'post', '/admin/accounts/import', 403, { csv });
+  // Sans rôle qui nomme : refus. (La direction, elle, importe désormais aussi son équipe.)
+  await call(SUB.koffi, 'post', '/admin/accounts/import', 403, { csv });
   const res = (await call(SUB.yao, 'post', '/admin/accounts/import', 201, { csv })).body;
   assert.deepEqual(
     res.created.map((c: { displayName: string; role: string }) => [c.displayName, c.role]),

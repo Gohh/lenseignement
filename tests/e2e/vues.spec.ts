@@ -35,8 +35,8 @@ test.describe('Ce que voit chaque rôle', () => {
     await expect(menu.getByRole('link', { name: 'Statistiques' })).toBeVisible();
     await expect(menu.getByRole('link', { name: 'Équipe' })).toHaveCount(0);
     await page.getByRole('link', { name: 'Voir les statistiques' }).click();
-    await expect(page.getByRole('heading', { name: 'Statistiques anonymes' })).toBeVisible();
-    await expect(page.getByText('Aucun nom ici')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tableau de pilotage' })).toBeVisible();
+    await expect(page.getByText('sans aucun nom d’élève')).toBeVisible();
   });
 
   test('l’éducateur voit le suivi de son établissement, sans statistiques', async ({

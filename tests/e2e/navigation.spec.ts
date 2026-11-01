@@ -44,7 +44,7 @@ test.describe('Navigation', () => {
 
     // D'un outil à l'autre sans repasser par la vue d'ensemble.
     await menu(page).getByRole('link', { name: 'Statistiques' }).click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Statistiques anonymes');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tableau de pilotage');
     await expect(menu(page).getByRole('link', { name: 'Statistiques' })).toHaveAttribute(
       'aria-current',
       'page',

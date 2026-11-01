@@ -21,10 +21,12 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
       .getByRole('navigation', { name: 'Menu de mon espace' })
       .getByRole('link', { name: 'Statistiques' })
       .click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Statistiques anonymes');
-    await expect(page.getByTestId('stats-scope')).toContainText(
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tableau de pilotage');
+    await expect(page.getByTestId('stats-zone')).toContainText(
       'École primaire Les Manguiers (fictive)',
     );
+    await expect(page.getByTestId('pilot-kpis')).toContainText('Apprenants actifs');
+    await expect(page.getByTestId('pilot-funnel')).toBeVisible();
 
     const additions = page
       .getByTestId('stats-course')
@@ -43,6 +45,20 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
     for (const name of ['Élève fictif', 'Awa', 'Koffi', 'Kouamé']) {
       expect(text).not.toContain(name);
     }
+  });
+
+  test('le référent régional compare ses écoles et ouvre une zone', async ({ page }) => {
+    await loginAs(page, 'referent.demo', PAGE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tableau de pilotage');
+    const rows = page.getByTestId('pilot-rows');
+    await expect(rows).toContainText('Les Manguiers');
+    await expect(page.getByTestId('pilot-alerts')).toBeVisible();
+    await page.getByRole('link', { name: '7 jours' }).click();
+    await expect(page).toHaveURL(/periode=7/);
+    await expect(page.getByRole('link', { name: '7 jours' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
   });
 
   test('un enseignant n’a pas accès au tableau', async ({ page }) => {

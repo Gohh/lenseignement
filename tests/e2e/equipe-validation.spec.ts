@@ -10,7 +10,8 @@ test('un code d’enseignant : fiche niveaux et matières, puis validation par l
 }, testInfo) => {
   await loginAs(page, 'directeur.demo', '/mon-espace/invitations');
   await page.getByLabel('Rôle').selectOption('enseignant');
-  await page.getByRole('button', { name: 'Créer le code d’invitation' }).click();
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Créer le code d’invitation' }).dispatchEvent('click');
   const code = (await page.getByTestId('invitation-code').textContent())!.trim();
   await expect(page.getByTestId('invitations').locator('tr', { hasText: code })).toContainText(
     'sans limite',

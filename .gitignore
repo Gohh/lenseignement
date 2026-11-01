@@ -12,3 +12,6 @@ test-results/
 next-env.d.ts
 *.tsbuildinfo
 .test-dist/
+
+# Fichiers envoyés dans la bibliothèque (développement local)
+storage/

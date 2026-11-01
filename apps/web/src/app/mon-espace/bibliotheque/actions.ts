@@ -1,5 +1,7 @@
 'use server';
 
+import type { AddResourceInput } from '@lenseignement/types';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -14,29 +16,41 @@ async function token(): Promise<string> {
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? '').trim();
 
-function back(kind: 'message' | 'erreur', value: string, suffix = ''): never {
-  redirect(`${PATH}?${kind}=${encodeURIComponent(value)}${suffix}`);
+function back(kind: 'message' | 'erreur', value: string): never {
+  redirect(`${PATH}?${kind}=${encodeURIComponent(value)}`);
 }
 
-export async function addResourceAction(form: FormData): Promise<void> {
-  const result = await apiSend(
+/**
+ * Crée la fiche du livre (titre, étagère, couverture…). Pour un fichier, la fenêtre envoie
+ * ensuite le fichier ; le livre n'apparaît aux élèves qu'une fois le fichier reçu.
+ */
+export async function createBookAction(
+  cohortId: string,
+  input: Partial<AddResourceInput>,
+): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+  const result = await apiSend<{ id: string }>(
     await token(),
     'POST',
-    `/cohorts/${text(form, 'cohortId')}/resources`,
-    {
-      title: text(form, 'title'),
-      description: text(form, 'description'),
-      url: text(form, 'url'),
-      kind: text(form, 'kind') || 'lien',
-    },
+    `/cohorts/${encodeURIComponent(cohortId)}/resources`,
+    input,
   );
-  // En cas d'erreur, la fenêtre d'ajout se rouvre.
-  if (!result.ok) back('erreur', result.message ?? 'Ajout impossible.', '&ouvrir=ressource');
-  back('message', 'Ressource ajoutée. Les élèves de la classe la voient dans la bibliothèque.');
+  return result.ok
+    ? { ok: true, id: result.data.id }
+    : { ok: false, message: result.message ?? 'Ajout impossible.' };
+}
+
+/** Retire un livre resté incomplet (envoi du fichier interrompu). */
+export async function cancelBookAction(id: string): Promise<void> {
+  await apiSend(await token(), 'DELETE', `/resources/${encodeURIComponent(id)}`);
+}
+
+export async function bookAddedAction(): Promise<void> {
+  revalidatePath(PATH);
+  back('message', 'Livre ajouté. Les élèves de la classe le voient sur l’étagère.');
 }
 
 export async function removeResourceAction(form: FormData): Promise<void> {
   const result = await apiSend(await token(), 'DELETE', `/resources/${text(form, 'id')}`);
   if (!result.ok) back('erreur', result.message ?? 'Retrait impossible.');
-  back('message', 'Ressource retirée.');
+  back('message', 'Livre retiré de la bibliothèque.');
 }

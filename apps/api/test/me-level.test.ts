@@ -32,7 +32,7 @@ test('la personne choisit son propre niveau ; un code inconnu est refusé', asyn
 });
 
 test('les profils choisis à l’inscription sont gardés ; l’élève de primaire est refusé', async () => {
-  const token = await ctx.sign({ sub: SUB.awa });
+  const token = await ctx.sign({ sub: 'eleve-sans-classe' });
   const api = () => request(ctx.app.getHttpServer());
   const put = (path: string, body: object) =>
     api().put(`/api/v1/me/${path}`).set('authorization', `Bearer ${token}`).send(body);
@@ -48,4 +48,18 @@ test('les profils choisis à l’inscription sont gardés ; l’élève de prima
   await put('level', { level: '6e' }).expect(200);
   await put('profiles', { profiles: ['parent'] }).expect(200);
   await put('level', { level: null }).expect(200);
+});
+
+test('entré dans sa classe avec le code, l’élève ne change plus seul son niveau', async () => {
+  const token = await ctx.sign({ sub: SUB.awa });
+  const api = () => request(ctx.app.getHttpServer());
+  const me = await api().get('/api/v1/me').set('authorization', `Bearer ${token}`).expect(200);
+  assert.ok(me.body.activeClass);
+  assert.equal(me.body.teamCodeUsed, false);
+  const res = await api()
+    .put('/api/v1/me/level')
+    .set('authorization', `Bearer ${token}`)
+    .send({ level: '6e' })
+    .expect(403);
+  assert.match(res.body.message, /fixé par ton établissement/);
 });

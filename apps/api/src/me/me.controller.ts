@@ -15,6 +15,7 @@ import type { Request } from 'express';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { guardianLinks, memberships, organizations, SELF_PROFILES, users } from '../db/schema.js';
+import { activeClassOf, usedTeamCode } from '../cohorts/locks.js';
 import { teamPowers } from '../team/team.js';
 import { UsersService } from '../users/users.service.js';
 
@@ -61,6 +62,10 @@ export class MeController {
       memberships: rows,
       /** Dans une équipe : le profil est fixé par la direction, la personne ne le change plus. */
       profileLocked: rows.some((r) => TEAM_ROLES.includes(r.role)),
+      /** Classe où l'élève est entré avec le code : son niveau et sa classe sont verrouillés. */
+      activeClass: await activeClassOf(this.db, user.id),
+      /** Code d'équipe déjà utilisé (rôle actif ou demande en attente) : plus d'autre code. */
+      teamCodeUsed: await usedTeamCode(this.db, user.id),
       /** Droits d'équipe réglés dans l'écran « Droits » (pour le menu). */
       rights: [...(await teamPowers(this.db, user.id)).rights],
     };
@@ -108,6 +113,12 @@ export class MeController {
     const parsed = z.object({ level: LevelCodeSchema.nullable() }).safeParse(body);
     if (!parsed.success) throw new BadRequestException('Niveau inconnu.');
     const user = await this.users.resolve(request.principal as Principal);
+    // Entré dans sa classe avec le code : seul l'établissement change son niveau.
+    if (await activeClassOf(this.db, user.id)) {
+      throw new ForbiddenException(
+        'Ton niveau est fixé par ton établissement. Tu peux demander le niveau supérieur.',
+      );
+    }
     // L'élève de maternelle ou de primaire n'ouvre pas son compte seul : son parent crée son profil.
     const level = parsed.data.level;
     const youngGroup = LEVEL_GROUPS.find(

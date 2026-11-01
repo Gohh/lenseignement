@@ -95,6 +95,10 @@ export interface Me {
   profileLocked?: boolean;
   /** Droits d'équipe réglés dans l'écran « Droits ». */
   rights?: string[];
+  /** Classe où l'élève est entré avec le code : niveau et classe verrouillés. */
+  activeClass?: { id: string; name: string; organization: string } | null;
+  /** Code d'équipe déjà utilisé (rôle actif ou demande en attente). */
+  teamCodeUsed?: boolean;
 }
 
 export interface CohortSummary {

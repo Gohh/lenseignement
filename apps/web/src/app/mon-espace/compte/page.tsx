@@ -29,6 +29,10 @@ export default async function AccountPage({ searchParams }: Props) {
     ? await apiGet<LevelPromotion>(session.accessToken, '/me/promotion')
     : null;
   const promo = promotion?.ok ? promotion.data : null;
+  const activeClass = me.ok ? (me.data.activeClass ?? null) : null;
+  const isLearner = me.ok && me.data.profiles.includes('apprenant');
+  // La zone de code disparaît une fois un code utilisé (classe ou équipe), et pour un élève.
+  const canUseCode = me.ok && !activeClass && !me.data.teamCodeUsed && !me.data.profileLocked;
 
   return (
     <section className="space-y-6">
@@ -83,6 +87,18 @@ export default async function AccountPage({ searchParams }: Props) {
             Pour changer vos niveaux ou vos matières, adressez-vous à la direction.
           </p>
         </div>
+      ) : activeClass ? (
+        <div className="rounded-big border border-line bg-surface p-5" data-testid="level-locked">
+          <h2 className="text-xl font-extrabold">Ma classe et mon niveau</h2>
+          <p className="mt-2 text-lg">
+            <strong>{activeClass.name}</strong> · {activeClass.organization}
+            {level ? ` · ${levelLabel(level) ?? level}` : ''}
+          </p>
+          <p className="mt-2 text-ink-muted">
+            Ta classe et ton niveau sont fixés par ton établissement. Pour en changer, adresse-toi à
+            ton établissement, ou demande le niveau supérieur ci-dessous.
+          </p>
+        </div>
       ) : (
         <form
           action={setLevelAction}
@@ -107,7 +123,9 @@ export default async function AccountPage({ searchParams }: Props) {
           <h2 className="text-2xl font-extrabold">Niveau supérieur</h2>
           {promo.pending ? (
             <p data-testid="promotion-pending">
-              Ta demande est envoyée. Ton parent ou ton enseignant doit la valider.
+              {activeClass
+                ? 'Ta demande est envoyée. Ton établissement ou ton enseignant doit la valider.'
+                : 'Ta demande est envoyée. Ton parent ou ton enseignant doit la valider.'}
             </p>
           ) : (
             <>
@@ -125,16 +143,24 @@ export default async function AccountPage({ searchParams }: Props) {
         </div>
       )}
 
-      <div className="rounded-big border border-line bg-surface p-5">
-        <h2 className="text-xl font-extrabold">Rejoindre une équipe</h2>
-        <p className="mt-2 text-ink-muted">Tu as reçu un code d’invitation d’un établissement ?</p>
-        <a
-          href="/mon-espace/rejoindre"
-          className="inline-flex min-h-[44px] items-center font-bold underline"
-        >
-          Saisir mon code
-        </a>
-      </div>
+      {canUseCode && (
+        <div className="rounded-big border border-line bg-surface p-5" data-testid="code-entry">
+          <h2 className="text-xl font-extrabold">
+            {isLearner ? 'Rejoindre ma classe' : 'Rejoindre une classe ou une équipe'}
+          </h2>
+          <p className="mt-2 text-ink-muted">
+            {isLearner
+              ? 'Tu as reçu le code de ta classe ?'
+              : 'Vous avez reçu un code d’un établissement ?'}
+          </p>
+          <a
+            href="/mon-espace/rejoindre"
+            className="inline-flex min-h-[44px] items-center font-bold underline"
+          >
+            Saisir mon code
+          </a>
+        </div>
+      )}
 
       <div className="rounded-big border border-line bg-surface p-5">
         <h2 className="text-xl font-extrabold">Cet appareil</h2>

@@ -37,11 +37,19 @@ test.describe('Passage de classe', () => {
     // Un élève rejoint la classe source avec le code.
     const learnerContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
     const learner = await learnerContext.newPage();
-    await loginAs(learner, `passage.${suffix}`.toLowerCase(), '/mon-espace/rejoindre');
+    await loginAs(learner, `nouveau.passage-${suffix}`.toLowerCase(), '/mon-espace/rejoindre');
     await learner.waitForLoadState('networkidle');
     await learner.getByLabel('Code de classe').fill(code);
     await learner.getByRole('button', { name: 'Rejoindre la classe' }).click();
     await expect(learner.getByText(`Tu es dans la classe ${source}`)).toBeVisible();
+    // Le code utilisé, les zones de code disparaissent et le niveau est verrouillé.
+    await learner.goto('/mon-espace/rejoindre');
+    await expect(learner.getByTestId('class-locked')).toContainText(source);
+    await expect(learner.getByLabel('Code de classe')).toHaveCount(0);
+    await expect(learner.getByLabel('Code d’invitation')).toHaveCount(0);
+    await learner.goto('/mon-espace/compte');
+    await expect(learner.getByTestId('level-locked')).toContainText(source);
+    await expect(learner.getByTestId('code-entry')).toHaveCount(0);
     await learnerContext.close();
 
     // La direction ouvre la classe source et fait passer toute la classe.
@@ -56,7 +64,7 @@ test.describe('Passage de classe', () => {
     await page.keyboard.press('Escape');
 
     await page.getByLabel('Nouvelle classe').selectOption({ index: 0 });
-    await page.getByRole('button', { name: 'Faire passer' }).click();
+    await page.getByRole('button', { name: 'Changer de classe' }).click();
     await expect(page.getByText('1 élève est passé dans la nouvelle classe.')).toBeVisible();
     await expect(page.getByTestId('roster').getByRole('listitem')).toHaveCount(0);
   });

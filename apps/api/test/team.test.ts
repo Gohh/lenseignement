@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { createSuperadmin } from '../src/db/superadmin.js';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
@@ -604,7 +604,9 @@ test('trois administrateurs au plus ; seul le superadministrateur les nomme', as
       added.push(row!.id);
     }
     const { code } = (await call(SUB.yao, 'post', '/team/invitations', 201, base)).body;
-    const redeemed = await call(SUB.mariam, 'post', '/team/invitations/redeem', 201, { code });
+    // Mariam fait déjà partie d'une équipe : un seul code d'invitation par personne.
+    await call(SUB.mariam, 'post', '/team/invitations/redeem', 400, { code });
+    const redeemed = await call('futur-admin', 'post', '/team/invitations/redeem', 201, { code });
     assert.equal(redeemed.body.role, 'administrateur');
     const refused = (await call(SUB.yao, 'post', '/team/invitations', 400, base)).body;
     assert.match(refused.message, /déjà 3 administrateurs/);
@@ -614,7 +616,10 @@ test('trois administrateurs au plus ; seul le superadministrateur les nomme', as
       .where(
         and(
           eq(memberships.role, 'administrateur'),
-          inArray(memberships.userId, [ID.userAwa, ID.userKoffi, ID.userMariam]),
+          or(
+            inArray(memberships.userId, [ID.userAwa, ID.userKoffi, ID.userMariam]),
+            sql`${memberships.userId} in (select id from users where oidc_subject = 'futur-admin')`,
+          ),
         ),
       );
     await ctx.db

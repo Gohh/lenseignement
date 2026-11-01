@@ -183,42 +183,73 @@ export default async function TeamPage({ searchParams }: Props) {
 
       <div className={cardClass}>
         <h2 className="text-xl font-bold">Membres</h2>
-        <ul className="mt-3 space-y-4" role="list">
-          {team.members.map((m) => (
-            <li key={m.id} className="rounded-card border border-line p-4">
-              <p className="text-lg font-bold">
-                {m.userName ?? 'Sans nom'} : {roleTitle(m.role, m.organization.type)}
-              </p>
-              <p className="text-ink-muted">{m.organization.name}</p>
-              {m.levels && (
-                <p data-testid="member-levels">
-                  Niveaux : {m.levels.map((l) => levelLabel(l) ?? l).join(', ')}
-                  {m.subjects && m.subjects.length > 0 && ` · Matières : ${m.subjects.join(', ')}`}
-                </p>
-              )}
-              <form action={updateBranchesAction} className="mt-2 space-y-2">
-                <input type="hidden" name="memberId" value={m.id} />
-                <Cycles checked={m.branches} />
-                <button type="submit" className={secondaryButtonClass}>
-                  Enregistrer les cycles
-                </button>
-              </form>
-              {m.isSelf || m.role === 'superadministrateur' ? (
-                <p className="mt-2 text-ink-muted">
-                  {m.role === 'superadministrateur'
-                    ? 'Ce rôle ne se retire pas ici.'
-                    : 'Vous ne pouvez pas retirer votre propre rôle.'}
-                </p>
-              ) : (
-                <form action={removeMemberAction} className="mt-2">
-                  <input type="hidden" name="memberId" value={m.id} />
-                  <button type="submit" className={secondaryButtonClass}>
-                    Retirer ce rôle
-                  </button>
-                </form>
-              )}
-            </li>
-          ))}
+        <ul className="mt-3 divide-y divide-line" role="list" data-testid="team-members">
+          {team.members.map((m) => {
+            const name = m.userName ?? 'Sans nom';
+            const cycles =
+              m.branches && m.branches.length > 0
+                ? m.branches.map((c) => BRANCHES.find((b) => b.code === c)?.title ?? c).join(', ')
+                : 'Tous les cycles';
+            return (
+              <li key={m.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                <div className="min-w-0 flex-1 basis-64">
+                  <p className="font-bold">
+                    {name}
+                    <span className="font-normal text-ink-muted">
+                      {' '}
+                      · {roleTitle(m.role, m.organization.type)}
+                    </span>
+                  </p>
+                  <p className="text-sm text-ink-muted">
+                    {m.organization.name} · {cycles}
+                  </p>
+                  {m.levels && (
+                    <p className="text-sm" data-testid="member-levels">
+                      Niveaux : {m.levels.map((l) => levelLabel(l) ?? l).join(', ')}
+                      {m.subjects &&
+                        m.subjects.length > 0 &&
+                        ` · Matières : ${m.subjects.join(', ')}`}
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Dialog
+                    label={`Cycles de ${name}`}
+                    icon="cycles"
+                    tip="Cycles accordés"
+                    title={`Cycles accordés : ${name}`}
+                  >
+                    <form action={updateBranchesAction} className="space-y-4">
+                      <input type="hidden" name="memberId" value={m.id} />
+                      <Cycles checked={m.branches} />
+                      <button type="submit" className={buttonClass}>
+                        Enregistrer les cycles
+                      </button>
+                    </form>
+                  </Dialog>
+                  {!m.isSelf && m.role !== 'superadministrateur' && (
+                    <Dialog
+                      label={`Retirer le rôle de ${name}`}
+                      icon="retirerRole"
+                      tip="Retirer ce rôle (avec confirmation)"
+                      title={`Retirer le rôle de ${name} ?`}
+                    >
+                      <form action={removeMemberAction} className="space-y-4">
+                        <input type="hidden" name="memberId" value={m.id} />
+                        <p>
+                          {name} ne sera plus « {roleTitle(m.role, m.organization.type)} » à{' '}
+                          {m.organization.name}. Son compte reste actif.
+                        </p>
+                        <button type="submit" className={buttonClass}>
+                          Oui, retirer ce rôle
+                        </button>
+                      </form>
+                    </Dialog>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>

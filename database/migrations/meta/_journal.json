@@ -309,6 +309,13 @@
       "when": 1793510122020,
       "tag": "0043_roles_equipe",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793550986497,
+      "tag": "0044_auteur_supprime",
+      "breakpoints": true
     }
   ]
 }

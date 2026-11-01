@@ -8,9 +8,9 @@ import {
   Put,
   Req,
 } from '@nestjs/common';
-import { LEVEL_GROUPS, LevelCodeSchema } from '@lenseignement/types';
+import { GRANTABLE_ROLES, LEVEL_GROUPS, LevelCodeSchema } from '@lenseignement/types';
 import { z } from 'zod';
-import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import type { Request } from 'express';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
@@ -19,6 +19,9 @@ import { teamPowers } from '../team/team.js';
 import { UsersService } from '../users/users.service.js';
 
 /** Identité et rattachements de la personne connectée. */
+/** Rôles d'équipe : une fois l'un d'eux reçu, la personne ne choisit plus son profil. */
+const TEAM_ROLES: string[] = [...GRANTABLE_ROLES, 'superadministrateur'];
+
 @Controller('me')
 export class MeController {
   constructor(
@@ -36,6 +39,8 @@ export class MeController {
         organizationId: organizations.id,
         organizationName: organizations.name,
         role: memberships.role,
+        levels: memberships.levels,
+        subjects: memberships.subjects,
       })
       .from(memberships)
       .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
@@ -54,6 +59,8 @@ export class MeController {
       level: user.level,
       profiles: user.profiles,
       memberships: rows,
+      /** Dans une équipe : le profil est fixé par la direction, la personne ne le change plus. */
+      profileLocked: rows.some((r) => TEAM_ROLES.includes(r.role)),
       /** Droits d'équipe réglés dans l'écran « Droits » (pour le menu). */
       rights: [...(await teamPowers(this.db, user.id)).rights],
     };
@@ -67,6 +74,18 @@ export class MeController {
       .safeParse(body);
     if (!parsed.success) throw new BadRequestException('Choisissez au moins un profil.');
     const user = await this.users.resolve(request.principal as Principal);
+    const { rows: team } = await this.db.execute(sql`
+      select 1 from memberships where user_id = ${user.id}
+         and role in (${sql.join(
+           TEAM_ROLES.map((r) => sql`${r}`),
+           sql`, `,
+         )})
+         and (valid_until is null or valid_until > now())`);
+    if (team.length > 0) {
+      throw new ForbiddenException(
+        'Vous faites partie d’une équipe : votre profil est fixé par la direction.',
+      );
+    }
     const profiles = [...new Set(parsed.data.profiles)];
     await this.db.update(users).set({ profiles }).where(eq(users.id, user.id));
     return { profiles };

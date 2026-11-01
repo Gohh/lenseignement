@@ -77,6 +77,9 @@ export interface Membership {
   organizationId: string;
   organizationName: string;
   role: string;
+  /** Niveaux et matières validés par la direction (null : pas encore précisés). */
+  levels?: string[] | null;
+  subjects?: string[] | null;
 }
 
 export interface Me {
@@ -88,6 +91,8 @@ export interface Me {
   /** Profils choisis à l'inscription : apprenant, parent, répétiteur. */
   profiles: string[];
   memberships: Membership[];
+  /** Dans une équipe : le profil est fixé par la direction. */
+  profileLocked?: boolean;
   /** Droits d'équipe réglés dans l'écran « Droits ». */
   rights?: string[];
 }

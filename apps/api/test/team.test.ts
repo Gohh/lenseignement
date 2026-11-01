@@ -19,7 +19,7 @@ after(async () => {
 
 async function call(
   subject: string,
-  method: 'get' | 'post' | 'patch' | 'delete',
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
   path: string,
   status: number,
   body?: object,
@@ -656,4 +656,15 @@ test('code d’enseignant : plusieurs personnes, fiche niveaux et matières, val
     levels: ['cp1'],
     subjects: ['Français'],
   });
+});
+
+test('membre d’une équipe : le profil est fixé, il ne le change plus lui-même', async () => {
+  const koffi = (await call(SUB.koffi, 'get', '/me', 200)).body;
+  assert.equal(koffi.profileLocked, true);
+  const refused = await call(SUB.koffi, 'put', '/me/profiles', 403, { profiles: ['parent'] });
+  assert.match(refused.body.message, /fixé par la direction/);
+  // Une personne sans équipe choisit toujours ses profils.
+  const fresh = 'profil-libre-1';
+  assert.equal((await call(fresh, 'get', '/me', 200)).body.profileLocked, false);
+  await call(fresh, 'put', '/me/profiles', 200, { profiles: ['parent'] });
 });

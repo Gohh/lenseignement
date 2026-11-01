@@ -129,9 +129,9 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
       <Link
         href={
           isDirection
-            ? '/mon-espace/configuration?vue=drena'
+            ? '/mon-espace/configuration/drena'
             : isService
-              ? '/mon-espace/configuration?vue=services'
+              ? '/mon-espace/configuration/services'
               : '/mon-espace/configuration'
         }
         className="inline-flex min-h-[44px] items-center font-bold"

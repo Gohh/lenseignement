@@ -74,7 +74,7 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await expect(member.getByLabel('Rôle')).toHaveCount(0);
     // Configuration : il voit son école, sans formulaire de création (aucune DRENA dans sa zone).
     await member.goto('/mon-espace/configuration');
-    await expect(member.getByRole('heading', { level: 1, name: 'Configuration' })).toBeVisible();
+    await expect(member.getByRole('heading', { level: 1, name: 'Établissements' })).toBeVisible();
     await expect(member.getByRole('link', { name: '+ Ajouter un établissement' })).toHaveCount(0);
 
     // Devenu administrateur : il crée une direction régionale, puis des établissements dessous.

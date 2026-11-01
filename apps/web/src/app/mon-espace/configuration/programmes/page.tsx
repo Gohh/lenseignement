@@ -41,7 +41,7 @@ export default async function ProgrammesPage({ searchParams }: Props) {
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <p className="font-bold text-ink-muted">Référentiels / Programmes</p>
+          <p className="font-bold text-ink-muted">Contenus / Programmes</p>
           <h1 className="text-4xl font-extrabold">Programmes</h1>
           <p className="text-ink-muted">
             Les programmes officiels et leurs versions. Une nouvelle version arrive en brouillon ;

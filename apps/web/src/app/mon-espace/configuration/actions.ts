@@ -43,11 +43,11 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
   if (!result.ok) {
     const reopen =
       type === 'authority'
-        ? 'vue=drena&ouvrir=drena'
+        ? '/drena?ouvrir=drena'
         : isServiceType(type)
-          ? 'vue=services&ouvrir=service'
-          : 'ouvrir=creer';
-    back('erreur', result.message ?? 'Création impossible.', `${PATH}?${reopen}`);
+          ? '/services?ouvrir=service'
+          : '?ouvrir=creer';
+    back('erreur', result.message ?? 'Création impossible.', `${PATH}${reopen}`);
   }
   // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
   if (result.data.managerCode) back('code', result.data.managerCode);
@@ -55,14 +55,14 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
     back(
       'message',
       `Structure créée (${SERVICE_SHORT_LABELS[type]}) : « ${result.data.name} ».`,
-      `${PATH}?vue=services`,
+      `${PATH}/services`,
     );
   }
   if (type === 'authority') {
     back(
       'message',
       'Direction régionale créée. Vous pouvez maintenant y rattacher des établissements.',
-      `${PATH}?vue=drena`,
+      `${PATH}/drena`,
     );
   }
   back('message', 'Établissement créé. Le superadministrateur donnera son code au responsable.');
@@ -94,8 +94,8 @@ export async function updateOrganizationAction(form: FormData): Promise<void> {
 function afterRemoval(form: FormData): string {
   const from = text(form, 'retour');
   if (from === 'liste') return PATH;
-  if (from === 'drena') return `${PATH}?vue=drena`;
-  if (from === 'services') return `${PATH}?vue=services`;
+  if (from === 'drena') return `${PATH}/drena`;
+  if (from === 'services') return `${PATH}/services`;
   return `${PATH}/etablissements/${text(form, 'id')}`;
 }
 

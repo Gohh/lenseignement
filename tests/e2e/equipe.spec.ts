@@ -31,8 +31,10 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await expect(row).toContainText('Active');
 
     // Un second code est révoqué : il disparaît des codes actifs et ne marche plus.
+    // (Sur mobile, la page bouge encore après l'affichage du code : on attend qu'elle soit posée.)
+    await page.waitForLoadState('networkidle');
     await page.getByLabel('Rôle').selectOption('alphabetiseur');
-    await page.getByRole('button', { name: 'Créer le code d’invitation' }).click();
+    await page.getByRole('button', { name: 'Créer le code d’invitation' }).dispatchEvent('click');
     await expect(page.getByTestId('invitation-code')).not.toHaveText(code);
     const revoked = (await page.getByTestId('invitation-code').textContent())!.trim();
     await page

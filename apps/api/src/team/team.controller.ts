@@ -30,8 +30,10 @@ import { createOrganization, importOrganizations } from './organizations.js';
 import {
   createAccount,
   createTeamInvitation,
+  listInvitations,
   redeemTeamInvitation,
   removeMember,
+  revokeInvitation,
   TeamError,
   teamOverview,
   updateMemberBranches,
@@ -115,6 +117,19 @@ export class TeamController {
     return guard(async () =>
       createTeamInvitation(this.db, await this.me(request), input, request.traceId),
     );
+  }
+
+  @Get('invitations')
+  async invitations(@Req() request: Request) {
+    return listInvitations(this.db, await this.me(request));
+  }
+
+  @Delete('invitations/:id')
+  async revoke(@Req() request: Request, @Param('id') id: string) {
+    if (!z.string().uuid().safeParse(id).success)
+      throw new NotFoundException('Invitation introuvable.');
+    await guard(async () => revokeInvitation(this.db, await this.me(request), id, request.traceId));
+    return { ok: true };
   }
 
   @Post('invitations/redeem')

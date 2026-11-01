@@ -17,7 +17,7 @@ async function token(): Promise<string> {
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? '').trim();
 
-function back(kind: 'message' | 'erreur' | 'code', value: string): never {
+function back(kind: 'message' | 'erreur', value: string): never {
   redirect(`${PATH}?${kind}=${encodeURIComponent(value)}`);
 }
 
@@ -25,16 +25,6 @@ function back(kind: 'message' | 'erreur' | 'code', value: string): never {
 function branchesOf(form: FormData): string[] | null {
   const chosen = form.getAll('branch').map(String);
   return chosen.length === 0 || chosen.length === BRANCH_CODES.length ? null : chosen;
-}
-
-export async function inviteMemberAction(form: FormData): Promise<void> {
-  const result = await apiSend<{ code: string }>(await token(), 'POST', '/team/invitations', {
-    organizationId: text(form, 'organizationId'),
-    role: text(form, 'role'),
-    branches: branchesOf(form),
-  });
-  if (!result.ok) back('erreur', result.message ?? 'Invitation impossible.');
-  back('code', result.data.code);
 }
 
 export async function updateBranchesAction(form: FormData): Promise<void> {

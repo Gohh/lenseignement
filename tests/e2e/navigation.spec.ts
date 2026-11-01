@@ -33,7 +33,8 @@ test.describe('Navigation', () => {
       'Questions des élèves',
       'Statistiques',
       'Établissements',
-      'Équipe et invitations',
+      'Équipe',
+      'Invitations',
     ]);
     await expect(page.getByTestId('circuit-published')).toBeVisible();
     await expect(menu(page).getByRole('link', { name: 'Tableau de bord' })).toHaveAttribute(

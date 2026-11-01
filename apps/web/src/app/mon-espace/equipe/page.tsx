@@ -5,7 +5,7 @@ import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../configuration/Dialog';
 import { CreateAccount } from './CreateAccount';
-import { inviteMemberAction, removeMemberAction, updateBranchesAction } from './actions';
+import { removeMemberAction, updateBranchesAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Équipe' };
@@ -55,7 +55,6 @@ export default async function TeamPage({ searchParams }: Props) {
         everywhere: false,
         directions: [] as Array<{ id: string; name: string }>,
       };
-  const code = param(query.code);
   const accountStatus = await apiGet<{ configured: boolean }>(
     session.accessToken,
     '/team/accounts/status',
@@ -90,23 +89,11 @@ export default async function TeamPage({ searchParams }: Props) {
         </Dialog>
       </div>
       <p>
-        Créez le compte d’un collègue, ou invitez-le avec un code. Choisissez leur rôle et les
-        cycles où ils travaillent. Chacun ne voit que les cycles qui lui sont accordés.
+        Voici les membres de l’équipe. Pour inviter quelqu’un avec un code, ouvrez la page{' '}
+        <a href="/mon-espace/invitations">Invitations</a>. Vous pouvez aussi créer son compte
+        directement. Chacun ne voit que les cycles qui lui sont accordés.
       </p>
       <Notice message={param(query.message)} error={param(query.erreur)} />
-
-      {code && (
-        <div className="rounded-big border-2 border-primary bg-primary-soft p-5" role="status">
-          <h2 className="text-xl font-bold">Code d’invitation</h2>
-          <p className="mt-2 text-4xl font-bold tracking-widest" data-testid="invitation-code">
-            {code}
-          </p>
-          <p className="mt-2">
-            Donnez ce code à la personne. Il est valable 7 jours et ne marche qu’une fois. Elle le
-            saisit dans « Rejoindre une équipe », depuis Mon espace.
-          </p>
-        </div>
-      )}
 
       <div className={cardClass}>
         <h2 className="text-xl font-bold">Membres</h2>
@@ -142,34 +129,6 @@ export default async function TeamPage({ searchParams }: Props) {
           ))}
         </ul>
       </div>
-
-      <form action={inviteMemberAction} className={`${cardClass} space-y-4`}>
-        <h2 className="text-xl font-bold">Inviter quelqu’un</h2>
-        <label className="block font-bold">
-          Établissement
-          <select name="organizationId" className={inputClass} required>
-            {team.organizations.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block font-bold">
-          Rôle
-          <select name="role" className={inputClass} required>
-            {team.grantable.map((role) => (
-              <option key={role} value={role}>
-                {TEAM_ROLE_LABELS[role] ?? role}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Cycles checked={null} />
-        <button type="submit" className={buttonClass}>
-          Créer un code d’invitation
-        </button>
-      </form>
     </section>
   );
 }

@@ -165,7 +165,8 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
           {
             title: 'Comptes et droits',
             items: [
-              { href: '/mon-espace/equipe', label: 'Équipe et invitations' },
+              { href: '/mon-espace/equipe', label: 'Équipe' },
+              { href: '/mon-espace/invitations', label: 'Invitations' },
               ...(right('comptes', admin)
                 ? [{ href: '/mon-espace/comptes', label: 'Comptes' }]
                 : []),

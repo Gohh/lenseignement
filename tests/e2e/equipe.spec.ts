@@ -15,25 +15,45 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
   }, testInfo) => {
     await loginAs(page, 'directeur.demo', '/mon-espace/equipe');
     await expect(page.getByRole('heading', { level: 1, name: 'Équipe' })).toBeVisible();
+    await expect(page.locator('section').getByRole('link', { name: 'Invitations' })).toBeVisible();
+
+    // Les invitations ont leur propre page : formulaire, puis tableau avec « Révoquer ».
+    await page.goto('/mon-espace/invitations');
+    await expect(page.getByRole('heading', { level: 1, name: 'Invitations' })).toBeVisible();
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations).toEqual([]);
 
     await page.getByLabel('Rôle').selectOption('gestionnaire');
-    await page
-      .locator('form', { hasText: 'Inviter quelqu’un' })
-      .getByLabel('Préscolaire et primaire')
-      .check();
-    await page.getByRole('button', { name: 'Créer un code d’invitation' }).click();
+    await page.getByRole('button', { name: 'Créer le code d’invitation' }).click();
     const code = (await page.getByTestId('invitation-code').textContent())!.trim();
     expect(code).toMatch(/^[A-Z2-9]{8}$/);
+    const row = page.getByTestId('invitations').locator('tr', { hasText: code });
+    await expect(row).toContainText('Active');
+
+    // Un second code est révoqué : il disparaît des codes actifs et ne marche plus.
+    await page.getByLabel('Rôle').selectOption('alphabetiseur');
+    await page.getByRole('button', { name: 'Créer le code d’invitation' }).click();
+    await expect(page.getByTestId('invitation-code')).not.toHaveText(code);
+    const revoked = (await page.getByTestId('invitation-code').textContent())!.trim();
+    await page
+      .getByTestId('invitations')
+      .locator('tr', { hasText: revoked })
+      .getByRole('button', { name: 'Révoquer' })
+      .click();
+    await expect(page.getByText('Invitation révoquée')).toBeVisible();
+    await expect(page.getByTestId('invitations').locator('tr', { hasText: revoked })).toContainText(
+      'Révoquée',
+    );
 
     const other = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
     const member = await other.newPage();
     const username = freshLearner(testInfo);
     await loginAs(member, username, '/mon-espace/rejoindre');
-    await member.getByLabel('Code d’invitation').fill('AAAAAAAA');
+    // Le code révoqué est refusé.
+    await member.getByLabel('Code d’invitation').fill(revoked);
     await member.getByRole('button', { name: 'Rejoindre l’équipe' }).click();
     await expect(member.getByText('Code invalide ou expiré.')).toBeVisible();
+    await member.waitForLoadState('networkidle');
     await member.getByLabel('Code d’invitation').fill(code);
     await member.getByRole('button', { name: 'Rejoindre l’équipe' }).click();
     await expect(member.getByText(/Bienvenue dans l’équipe de/)).toBeVisible();

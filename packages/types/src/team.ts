@@ -30,6 +30,8 @@ export const CreateTeamInvitationSchema = z.object({
   organizationId: z.string().uuid(),
   role: z.enum(GRANTABLE_ROLES),
   branches: Branches,
+  /** Durée de validité du code, en jours (7 par défaut). */
+  days: z.number().int().min(1).max(30).optional(),
 });
 
 /** Création d'un compte d'équipe par le superadministrateur, l'administrateur ou la direction. */
@@ -130,4 +132,33 @@ export interface TeamOverview {
   everywhere: boolean;
   /** Directions régionales que la personne voit, à choisir à la création d'un établissement. */
   directions: Array<{ id: string; name: string }>;
+}
+
+export type InvitationState = 'active' | 'used' | 'expired' | 'revoked';
+
+export const INVITATION_STATE_LABELS: Record<InvitationState, string> = {
+  active: 'Active',
+  used: 'Utilisée',
+  expired: 'Expirée',
+  revoked: 'Révoquée',
+};
+
+export interface TeamInvitation {
+  id: string;
+  code: string;
+  role: string;
+  organization: { id: string; name: string };
+  createdAt: string;
+  expiresAt: string;
+  createdByName: string | null;
+  usedByName: string | null;
+  usedAt: string | null;
+  state: InvitationState;
+}
+
+export interface InvitationList {
+  organizations: Array<{ id: string; name: string }>;
+  /** Rôles que la personne peut accorder. */
+  grantable: string[];
+  items: TeamInvitation[];
 }

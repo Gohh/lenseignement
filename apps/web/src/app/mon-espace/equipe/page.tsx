@@ -1,6 +1,6 @@
 import { BRANCHES, TEAM_ROLE_LABELS, type TeamOverview } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
-import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../configuration/Dialog';

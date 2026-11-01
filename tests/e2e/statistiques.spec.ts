@@ -1,5 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import type ExcelJSType from 'exceljs';
+
+// exceljs est une dépendance du site : on la charge depuis apps/web (tests lancés à la racine).
+const ExcelJS = createRequire(join(process.cwd(), 'apps/web/package.json'))(
+  'exceljs',
+) as typeof ExcelJSType;
 
 // Activité FICTIVE de 12 élèves : apps/api/src/stats/demo-activity.ts. La base E2E est gardée
 // d'un lancement à l'autre (et les autres tests s'inscrivent aussi) : on vérifie des minimums.
@@ -39,7 +47,8 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
       Number(await figure(workshop, 'Apprenants qui ont essayé').textContent()),
     ).toBeGreaterThanOrEqual(8);
     // Un cours sans inscrits de l'école affiche 0 ; un tout petit groupe, « moins de 5 ».
-    await expect(page.getByText('moins de 5').first()).toBeVisible();
+    // (Le rapport imprimé, caché à l'écran, contient aussi ce texte : on regarde le tableau affiché.)
+    await expect(page.getByTestId('pilotage').getByText('moins de 5').first()).toBeVisible();
 
     const text = await page.locator('main').innerText();
     for (const name of ['Élève fictif', 'Awa', 'Koffi', 'Kouamé']) {
@@ -59,6 +68,61 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
       'aria-current',
       'true',
     );
+  });
+
+  test('rapport PDF : à l’impression, une mise en page de rapport sans les menus', async ({
+    page,
+  }) => {
+    await loginAs(page, 'referent.demo', PAGE);
+    await expect(page.getByTestId('pilot-kpis')).toBeVisible();
+    await expect(page.getByTestId('pilot-report')).toBeHidden();
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByRole('navigation', { name: 'Menu de mon espace' })).toBeHidden();
+    await expect(page.getByTestId('pilotage')).toBeHidden();
+    const report = page.getByTestId('pilot-report');
+    await expect(report).toBeVisible();
+    await expect(report).toContainText('Rapport de pilotage');
+    await expect(report).toContainText('Points d’attention');
+    await expect(report).toContainText('Visa du responsable');
+    const text = await report.innerText();
+    for (const name of ['Élève fictif', 'Awa', 'Koffi', 'Kouamé']) {
+      expect(text).not.toContain(name);
+    }
+  });
+
+  test('Excel : un onglet par section, sans nom d’élève, petits groupes masqués', async ({
+    page,
+  }) => {
+    await loginAs(page, 'referent.demo', PAGE);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('link', { name: 'Télécharger pour Excel' }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^pilotage-.+-\d{4}-\d{2}-\d{2}\.xlsx$/);
+    const chunks = await (await download.createReadStream()).toArray();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(Buffer.concat(chunks));
+    expect(workbook.worksheets.map((w) => w.name)).toEqual(
+      expect.arrayContaining([
+        'Synthèse',
+        'Semaines',
+        'Cycles',
+        'Points d’attention',
+        'Cours',
+        'À savoir',
+      ]),
+    );
+    const cells: string[] = [];
+    workbook.eachSheet((sheet) =>
+      sheet.eachRow((row) => row.eachCell((cell) => cells.push(cell.text))),
+    );
+    const text = cells.join('\n');
+    expect(text).toContain('Apprenants actifs');
+    // Un chiffre masqué s'écrit « – », jamais « moins de 5 » au milieu des nombres.
+    expect(cells).not.toContain('moins de 5');
+    for (const name of ['Élève fictif', 'Awa', 'Koffi', 'Kouamé']) {
+      expect(text).not.toContain(name);
+    }
   });
 
   test('un enseignant n’a pas accès au tableau', async ({ page }) => {

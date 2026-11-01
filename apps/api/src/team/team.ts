@@ -525,7 +525,11 @@ export async function redeemTeamInvitation(
   return { organization: result.organization, role: result.role, pending: result.pending };
 }
 
-/** Invitations des structures que la personne gère, les plus récentes d'abord. */
+/**
+ * Invitations encore en attente dans les structures que la personne gère, les plus récentes
+ * d'abord. Un code utilisé, expiré ou révoqué n'est plus attendu : il n'apparaît plus. Un code
+ * d'enseignant (sans limite de personnes) reste tant qu'il est valable.
+ */
 export async function listInvitations(db: Database, userId: string): Promise<InvitationList> {
   const scope = teamOrganizationIds(userId);
   const powers = await teamPowers(db, userId);
@@ -543,6 +547,8 @@ export async function listInvitations(db: Database, userId: string): Promise<Inv
       left join users cu on cu.id = i.created_by_user_id
       left join users uu on uu.id = i.used_by_user_id
      where i.organization_id in ${scope}
+       and i.revoked_at is null and i.expires_at > now()
+       and (i.max_uses is null or i.uses < i.max_uses)
      order by i.created_at desc
      limit 200`);
   const now = Date.now();

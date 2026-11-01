@@ -80,7 +80,7 @@ export function StaffShell({
     <div className="lg:flex lg:items-start lg:gap-6">
       <aside
         aria-label="Administration"
-        className="flex flex-col gap-4 rounded-big bg-primary p-4 text-surface lg:sticky lg:top-4 lg:w-64 lg:flex-none"
+        className="flex flex-col gap-4 rounded-big bg-primary p-4 text-surface print:hidden lg:sticky lg:top-4 lg:w-64 lg:flex-none"
       >
         <nav aria-label="Menu de mon espace" className="space-y-2">
           <ul role="list" className="space-y-1">
@@ -135,8 +135,8 @@ export function StaffShell({
         </form>
       </aside>
 
-      <div className="mt-6 min-w-0 flex-1 space-y-6 lg:mt-0">
-        <div className="flex flex-wrap items-center gap-3 rounded-big border border-line bg-surface px-4 py-2">
+      <div className="mt-6 min-w-0 flex-1 space-y-6 print:mt-0 lg:mt-0">
+        <div className="flex flex-wrap items-center gap-3 rounded-big border border-line bg-surface px-4 py-2 print:hidden">
           <div className="min-w-0 flex-1 basis-56" data-testid="establishment">
             <p className="font-display text-lg font-extrabold leading-tight text-primary">
               L’Enseignement{establishment ? ` à ${establishment.name}` : ''}

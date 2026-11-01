@@ -19,7 +19,7 @@ export function AppShell({ children, headerActions, footer }: AppShellProps) {
       >
         Aller au contenu
       </a>
-      <header className="border-t-4 border-b border-t-accent border-b-line bg-surface">
+      <header className="print:hidden border-t-4 border-b border-t-accent border-b-line bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <a
             href="/"
@@ -31,11 +31,14 @@ export function AppShell({ children, headerActions, footer }: AppShellProps) {
           {headerActions}
         </div>
       </header>
-      <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main
+        id="contenu"
+        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 print:max-w-none print:p-0"
+      >
         {children}
       </main>
       {footer ?? (
-        <footer className="border-t border-line bg-surface">
+        <footer className="border-t border-line bg-surface print:hidden">
           <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-ink-muted">
             Projet indépendant. Aucune affiliation institutionnelle ; les attestations délivrées ne
             sont pas des diplômes d’État.

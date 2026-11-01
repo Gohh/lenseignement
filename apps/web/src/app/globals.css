@@ -72,3 +72,44 @@
     animation: none;
   }
 }
+
+/* Impression (et « Enregistrer en PDF ») : fond blanc, couleurs des barres et des pastilles
+   gardées, une carte n'est jamais coupée entre deux pages. Les menus portent `print:hidden`. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .lse-print-keep {
+    break-inside: avoid;
+  }
+  h2 {
+    break-after: avoid;
+  }
+  /* Rapport de pilotage : pied de page numéroté sur chaque feuille. */
+  .lse-report {
+    page: pilotage;
+  }
+}
+@page pilotage {
+  size: A4;
+  margin: 12mm 12mm 16mm;
+  @bottom-left {
+    content: 'L’Enseignement · Tableau de pilotage · Aucun nom d’élève';
+    font-size: 8pt;
+    color: #4a5a6e;
+  }
+  @bottom-right {
+    content: 'Page ' counter(page) ' / ' counter(pages);
+    font-size: 8pt;
+    color: #4a5a6e;
+  }
+}

@@ -57,7 +57,7 @@ export function SyncStatus() {
   const returnTo = typeof window === 'undefined' ? '/' : window.location.pathname;
 
   return (
-    <div role="status" aria-live="polite" data-testid="sync-status">
+    <div role="status" aria-live="polite" data-testid="sync-status" className="print:hidden">
       {pending > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-card border border-line-strong bg-surface p-4">
           <p className="font-bold">

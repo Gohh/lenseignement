@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { BRANCH_CODES, LEVEL_CODES } from '@lenseignement/types';
+import { BRANCH_CODES, LEVEL_CODES, type WorkshopStepInput } from '@lenseignement/types';
 import {
   boolean,
   customType,
@@ -1114,18 +1114,53 @@ export const safetySimulations = pgTable('safety_simulations', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: text('code').notNull().unique(),
   title: text('title').notNull(),
-  curriculumVersionId: uuid('curriculum_version_id')
-    .notNull()
-    .references(() => curriculumVersions.id),
-  competencyId: uuid('competency_id')
-    .notNull()
-    .references(() => competencies.id),
-  practiceCompetencyId: uuid('practice_competency_id')
-    .notNull()
-    .references(() => competencies.id),
+  /** Référentiel et compétences : obligatoires pour l'atelier d'origine, facultatifs ensuite. */
+  curriculumVersionId: uuid('curriculum_version_id').references(() => curriculumVersions.id),
+  competencyId: uuid('competency_id').references(() => competencies.id),
+  practiceCompetencyId: uuid('practice_competency_id').references(() => competencies.id),
   steps: jsonb('steps').$type<SimulationStepDef[]>().notNull(),
+  /** Atelier rédigé sur la plateforme dont c'est une version publiée (null : atelier d'origine). */
+  workshopId: uuid('workshop_id').references((): AnyPgColumn => workshops.id),
+  trade: text('trade'),
+  summary: text('summary'),
+  /** Une séance pratique encadrée suit la réussite en ligne. */
+  practice: boolean('practice').notNull().default(true),
   createdAt: createdAt(),
 });
+
+export const WORKSHOP_STATUSES = ['draft', 'review', 'published', 'archived'] as const;
+
+/**
+ * Atelier rédigé depuis la plateforme (proposition « Atelier ouvert à tous les métiers »). Le
+ * brouillon se modifie ; chaque publication crée une version figée dans `safety_simulations`,
+ * que les élèves font. Les étapes sont stockées comme l'auteur les écrit (gestes dans le bon ordre).
+ */
+export const workshops = pgTable(
+  'workshops',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    trade: text('trade').notNull(),
+    title: text('title').notNull(),
+    summary: text('summary').notNull().default(''),
+    competencyId: uuid('competency_id').references(() => competencies.id),
+    practice: boolean('practice').notNull().default(true),
+    steps: jsonb('steps').$type<WorkshopStepInput[]>().notNull().default([]),
+    status: text('status', { enum: WORKSHOP_STATUSES }).notNull().default('draft'),
+    /** Ce que la relecture demande de corriger (effacé à la publication). */
+    reviewNote: text('review_note'),
+    authorId: uuid('author_id').references(() => users.id),
+    reviewedBy: uuid('reviewed_by').references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('workshops_organization_idx').on(t.organizationId),
+    check('workshops_status_check', sql`${t.status} in ('draft','review','published','archived')`),
+  ],
+);
 
 /** Essai de simulation : ajout seulement ; l'identifiant vient de l'appareil (pas de doublon). */
 export const simulationAttempts = pgTable(

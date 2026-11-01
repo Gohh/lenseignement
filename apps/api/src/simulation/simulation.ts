@@ -39,10 +39,10 @@ async function loadSimulation(db: Executor, code: string) {
       practice: { code: practice.code, title: practice.title },
     })
     .from(safetySimulations)
-    .innerJoin(curriculumVersions, eq(curriculumVersions.id, safetySimulations.curriculumVersionId))
-    .innerJoin(curricula, eq(curricula.id, curriculumVersions.curriculumId))
-    .innerJoin(safety, eq(safety.id, safetySimulations.competencyId))
-    .innerJoin(practice, eq(practice.id, safetySimulations.practiceCompetencyId))
+    .leftJoin(curriculumVersions, eq(curriculumVersions.id, safetySimulations.curriculumVersionId))
+    .leftJoin(curricula, eq(curricula.id, curriculumVersions.curriculumId))
+    .leftJoin(safety, eq(safety.id, safetySimulations.competencyId))
+    .leftJoin(practice, eq(practice.id, safetySimulations.practiceCompetencyId))
     .where(eq(safetySimulations.code, code));
   if (!row) throw new LearningError('not_found', 'Simulation introuvable.');
   return row;
@@ -190,6 +190,9 @@ export async function requestPractice(
         and(eq(practiceRequests.userId, userId), eq(practiceRequests.simulationId, simulation.id)),
       );
     if (existing) return;
+    if (!simulation.practice) {
+      throw new LearningError('conflict', 'Cet atelier ne prévoit pas de séance pratique.');
+    }
     const latest = await latestAttempt(tx, userId, simulation.id);
     if (!latest?.passed) {
       throw new LearningError(
@@ -232,9 +235,12 @@ export async function overview(
     simulation: {
       code: simulation.code,
       title: simulation.title,
-      curriculum: { code: row.curriculumCode, label: row.label },
-      competency: row.competency,
-      practice: row.practice,
+      trade: simulation.trade,
+      summary: simulation.summary,
+      curriculum:
+        row.curriculumCode && row.label ? { code: row.curriculumCode, label: row.label } : null,
+      competency: row.competency?.code ? row.competency : null,
+      practice: row.practice?.code ? row.practice : null,
     },
     steps: simulation.steps.map(publicStep),
     attempts,
@@ -247,6 +253,8 @@ export async function overview(
       : null,
     practice: request
       ? { status: 'requested', requestedAt: request.createdAt.toISOString() }
-      : { status: latest?.passed ? 'unlocked' : 'locked', requestedAt: null },
+      : !simulation.practice
+        ? { status: 'none', requestedAt: null }
+        : { status: latest?.passed ? 'unlocked' : 'locked', requestedAt: null },
   };
 }

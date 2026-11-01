@@ -55,19 +55,23 @@ export interface SimulationAttemptResult {
 /**
  * - `locked` : séance pratique bloquée, la simulation n'est pas (ou plus) réussie ;
  * - `unlocked` : simulation réussie, la séance encadrée peut être demandée ;
- * - `requested` : demande enregistrée, le formateur organise la séance.
+ * - `requested` : demande enregistrée, le formateur organise la séance ;
+ * - `none` : cet atelier ne prévoit pas de séance pratique.
  */
-export type PracticeStatus = 'locked' | 'unlocked' | 'requested';
+export type PracticeStatus = 'locked' | 'unlocked' | 'requested' | 'none';
 
 export interface SimulationOverview {
   simulation: {
     code: string;
     title: string;
-    curriculum: { code: string; label: string };
+    /** Métier (ateliers rédigés sur la plateforme) ; null pour l'atelier d'origine. */
+    trade: string | null;
+    summary: string | null;
+    curriculum: { code: string; label: string } | null;
     /** Compétence de sécurité vérifiée par la simulation. */
-    competency: { code: string; title: string };
+    competency: { code: string; title: string } | null;
     /** Compétence travaillée pendant la séance pratique encadrée qu'elle ouvre. */
-    practice: { code: string; title: string };
+    practice: { code: string; title: string } | null;
   };
   steps: SimulationStep[];
   attempts: number;

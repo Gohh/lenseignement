@@ -18,6 +18,7 @@ import { guardianLinks, memberships, organizations, SELF_PROFILES, users } from 
 import { activeClassOf, usedTeamCode } from '../cohorts/locks.js';
 import { teamPowers } from '../team/team.js';
 import { UsersService } from '../users/users.service.js';
+import { isWorkshopAuthor, isWorkshopLearner } from '../workshops/workshops.js';
 
 /** Identité et rattachements de la personne connectée. */
 /** Rôles d'équipe : une fois l'un d'eux reçu, la personne ne choisit plus son profil. */
@@ -68,6 +69,10 @@ export class MeController {
       teamCodeUsed: await usedTeamCode(this.db, user.id),
       /** Droits d'équipe réglés dans l'écran « Droits » (pour le menu). */
       rights: [...(await teamPowers(this.db, user.id)).rights],
+      /** Élève concerné par l'Atelier (technique, alphabétisation, cours de métier). */
+      workshopLearner: await isWorkshopLearner(this.db, user.id),
+      /** Peut rédiger des ateliers (auteur d'une structure, ou administration). */
+      workshopAuthor: await isWorkshopAuthor(this.db, user.id),
     };
   }
 

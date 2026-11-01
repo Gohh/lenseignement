@@ -316,6 +316,13 @@
       "when": 1793550986497,
       "tag": "0044_auteur_supprime",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1793575547572,
+      "tag": "0045_atelier_metiers",
+      "breakpoints": true
     }
   ]
 }

@@ -51,6 +51,8 @@ test('la simulation suit le référentiel métier 2026, sans le corrigé', async
   assert.deepEqual(res.body.simulation, {
     code: CODE,
     title: 'Atelier virtuel : mettre un circuit en sécurité (démonstration)',
+    trade: null,
+    summary: null,
     curriculum: { code: 'DEMO-ELEC', label: '2026' },
     competency: { code: 'SECU-02', title: 'Consigner une installation avant intervention' },
     practice: { code: 'INST-01', title: "Câbler un circuit d'éclairage simple" },

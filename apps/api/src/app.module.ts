@@ -33,6 +33,7 @@ import { IDENTITY_ADMIN, KeycloakAdmin } from './team/identity-admin.js';
 import { loadConfig } from './config.js';
 import { TeamController } from './team/team.controller.js';
 import { StatsController } from './stats/stats.controller.js';
+import { MyWorkshopsController, WorkshopsController } from './workshops/workshops.controller.js';
 
 @Module({
   imports: [DatabaseModule, AuthModule, AccessModule],
@@ -55,6 +56,8 @@ import { StatsController } from './stats/stats.controller.js';
     LearningController,
     RemediationController,
     SimulationController,
+    MyWorkshopsController,
+    WorkshopsController,
     StatsController,
     DirectionController,
     FamilyController,

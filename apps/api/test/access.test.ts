@@ -36,6 +36,8 @@ test('GET /me renvoie le compte et les rattachements de la personne', async () =
       organizationId: ID.orgManguiers,
       organizationName: 'École primaire Les Manguiers (fictive)',
       role: 'enseignant',
+      levels: null,
+      subjects: null,
     },
   ]);
 });

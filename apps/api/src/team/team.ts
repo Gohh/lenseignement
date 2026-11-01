@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { and, asc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
 import {
   GRANTABLE_ROLES,
   LEVEL_GROUPS,
@@ -13,6 +13,7 @@ import {
   type InvitationPreview,
   type RedeemResult,
   type CreatedAccount,
+  type FormerTeamMember,
   type InvitationList,
   type InvitationState,
   type TeamMember,
@@ -186,6 +187,7 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
     return {
       organizations: [],
       members: [],
+      former: [],
       grantable: [],
       canCreateOrganization: powers.canCreateOrganization,
       everywhere: powers.everywhere,
@@ -233,11 +235,54 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
   return {
     organizations: orgs,
     members,
+    former: await formerMembers(db, scope, powers),
     grantable: powers.grantable,
     canCreateOrganization: powers.canCreateOrganization,
     everywhere: powers.everywhere,
     directions: await directionsOf(db, scope),
   };
+}
+
+/** Nombre d'anciens membres affichés : les retraits les plus récents suffisent. */
+const FORMER_LIMIT = 50;
+
+/** Rôles retirés dans le champ de la personne, parmi ceux qu'elle peut rendre. */
+async function formerMembers(
+  db: Database,
+  scope: SQL,
+  powers: { isSuper: boolean; grantable: string[] },
+): Promise<FormerTeamMember[]> {
+  const roles = powers.isSuper ? GRANTABLE_ROLES : powers.grantable;
+  if (roles.length === 0) return [];
+  const rows = await db
+    .select({
+      id: memberships.id,
+      userName: users.displayName,
+      role: memberships.role,
+      removedAt: memberships.validUntil,
+      organization: {
+        id: organizations.id,
+        name: organizations.name,
+        type: organizations.type,
+      },
+    })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+    .where(
+      and(
+        sql`${memberships.organizationId} in ${scope}`,
+        sql`${organizations.archivedAt} is null`,
+        sql`${memberships.role} in (${sql.join(
+          roles.map((r) => sql`${r}`),
+          sql`, `,
+        )})`,
+        sql`${memberships.validUntil} <= now()`,
+      ),
+    )
+    .orderBy(desc(memberships.validUntil))
+    .limit(FORMER_LIMIT);
+  return rows.map((r) => ({ ...r, removedAt: r.removedAt!.toISOString() }));
 }
 
 export async function assertManages(db: Database, userId: string, organizationId: string) {
@@ -604,6 +649,31 @@ export async function removeMember(
     .set({ validUntil: sql`now()` })
     .where(eq(memberships.id, row.id));
   await audit(db, userId, 'team.member.remove', row.organizationId, traceId);
+}
+
+/** Rend un rôle retiré, avec ses cycles, niveaux et matières d'avant. Mêmes droits qu'une invitation. */
+export async function restoreMember(
+  db: Database,
+  userId: string,
+  memberId: string,
+  traceId?: string,
+): Promise<void> {
+  const row = await managedMembership(db, userId, memberId);
+  await assertActive(db, row.organizationId);
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ validUntil: memberships.validUntil })
+      .from(memberships)
+      .where(eq(memberships.id, row.id))
+      .for('update');
+    if (!current?.validUntil || current.validUntil > new Date()) {
+      throw new TeamError('invalid', 'Ce rôle est déjà actif.');
+    }
+    await assertCanGrant(tx, userId, row.role, row.organizationId);
+    await assertAdminSeat(tx, row.role, row.userId);
+    await tx.update(memberships).set({ validUntil: null }).where(eq(memberships.id, row.id));
+  });
+  await audit(db, userId, 'team.member.restore', row.organizationId, traceId);
 }
 
 /**

@@ -71,6 +71,13 @@ const ICONS = {
       <path d="M17 11h5" />
     </>
   ),
+  rendreRole: (
+    <>
+      <circle cx="10" cy="8" r="4" />
+      <path d="M3 20a7 7 0 0 1 14 0" />
+      <path d="M17 11h5m-2.5-2.5v5" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -93,6 +93,7 @@ export async function NetworkView({ view, searchParams }: Props) {
     : {
         organizations: [],
         members: [],
+        former: [],
         grantable: [],
         canCreateOrganization: false,
         everywhere: false,

@@ -359,9 +359,21 @@ export interface TeamMember {
   isSelf: boolean;
 }
 
+/** Rôle retiré, que l'on peut rendre (son compte est resté actif). */
+export interface FormerTeamMember {
+  id: string;
+  userName: string | null;
+  role: string;
+  organization: { id: string; name: string; type?: string };
+  /** Date du retrait (ISO). */
+  removedAt: string;
+}
+
 export interface TeamOverview {
   organizations: Array<{ id: string; name: string }>;
   members: TeamMember[];
+  /** Rôles retirés que la personne peut rendre, les plus récents d'abord. */
+  former: FormerTeamMember[];
   /** Rôles que la personne peut accorder. */
   grantable: string[];
   /** Seul le superadministrateur crée des établissements. */

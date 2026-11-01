@@ -202,8 +202,9 @@ export async function updateAccount(
 }
 
 /**
- * Supprime un compte qui n'a jamais servi (personne ne s'y est connecté, aucune donnée ne s'y
- * rattache) : fiche, rôles, classes, et le compte Keycloak. Un compte déjà utilisé se suspend.
+ * Supprime un compte auquel aucun travail ne se rattache (cours, devoirs, quiz, messages…) :
+ * fiche, rôles, classes, et le compte Keycloak. Il peut s'être déjà connecté (ex. un compte
+ * resté « sans nom »). Dès qu'un travail s'y rattache, on refuse : il faut le suspendre.
  */
 export async function deleteAccount(
   db: Database,
@@ -213,12 +214,6 @@ export async function deleteAccount(
   traceId?: string,
 ): Promise<{ removedFromKeycloak: boolean }> {
   const target = await assertCanManage(db, userId, targetId, 'supprimer');
-  if (target.lastSeenAt) {
-    throw new TeamError(
-      'invalid',
-      'Ce compte a déjà servi : il ne peut pas être supprimé. Suspendez-le plutôt.',
-    );
-  }
   const keycloak = identity.configured() && typeof identity.deleteUser === 'function';
   try {
     await db.transaction(async (tx) => {
@@ -226,6 +221,10 @@ export async function deleteAccount(
       await tx.execute(sql`delete from memberships where user_id = ${targetId}`);
       await tx.execute(sql`delete from parent_codes where learner_user_id = ${targetId}`);
       await tx.execute(sql`delete from team_join_requests where user_id = ${targetId}`);
+      // Le journal garde l'action, sans le nom de l'auteur supprimé.
+      await tx.execute(
+        sql`update audit_logs set actor_user_id = null where actor_user_id = ${targetId}`,
+      );
       await tx.execute(sql`delete from users where id = ${targetId}`);
       // Keycloak en dernier : s'il refuse, rien n'est supprimé ici non plus.
       if (keycloak) await identity.deleteUser!(target.oidcSubject);

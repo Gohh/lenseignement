@@ -61,8 +61,10 @@ test.describe('Comptes et journal des actions', () => {
     await edit.getByRole('button', { name: 'Enregistrer' }).click();
     await expect(page.getByText('Compte modifié.')).toBeVisible();
     await expect(page.getByTestId('accounts')).toContainText(`${name} Koné`);
-    // Ce compte a servi : pas de suppression possible.
-    await expect(page.getByRole('button', { name: `Supprimer ${name} Koné` })).toHaveCount(0);
+    // Ce compte a servi : la suppression demande une confirmation.
+    await row.getByRole('button', { name: 'Supprimer' }).click();
+    await expect(page.getByRole('dialog')).toContainText('s’est déjà connecté');
+    await page.keyboard.press('Escape');
 
     // Un compte jamais utilisé se supprime.
     const unused = `Jamais connecté ${stamp}`;

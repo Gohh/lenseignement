@@ -237,7 +237,28 @@ export default async function ComptesPage({ searchParams }: Props) {
                   {a.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
                 </button>
               </form>
-              {!a.lastSeenAt && (
+              {a.lastSeenAt ? (
+                <Dialog
+                  label="Supprimer"
+                  title={`Supprimer : ${a.displayName ?? 'compte sans nom'}`}
+                >
+                  <form action={deleteAccountAction} className="space-y-4">
+                    <input type="hidden" name="id" value={a.id} />
+                    <input type="hidden" name="back" value={here} />
+                    <p>
+                      Ce compte s’est déjà connecté. Le supprimer efface sa fiche ici et dans
+                      Keycloak. On ne peut pas revenir en arrière.
+                    </p>
+                    <p className="text-sm text-ink-muted">
+                      Si des cours, des devoirs ou des messages y sont rattachés, la suppression est
+                      refusée : suspendez-le alors.
+                    </p>
+                    <button type="submit" className={buttonClass}>
+                      Supprimer définitivement
+                    </button>
+                  </form>
+                </Dialog>
+              ) : (
                 <form action={deleteAccountAction}>
                   <input type="hidden" name="id" value={a.id} />
                   <input type="hidden" name="back" value={here} />

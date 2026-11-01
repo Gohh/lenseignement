@@ -6,7 +6,10 @@ import {
   schoolYearChoices,
   schoolYearOf,
   ESTABLISHMENT_CATEGORY_LABELS,
+  isServiceType,
   ORGANIZATION_TYPE_LABELS,
+  parentRuleOf,
+  SERVICE_TYPES,
   TEAM_ROLE_LABELS,
   type OrganizationCohorts,
   type OrganizationDetail,
@@ -65,6 +68,8 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
   const o = result.data;
   const directions = overview.ok ? overview.data.directions : [];
   const isDirection = o.type === 'authority';
+  const isService = isServiceType(o.type);
+  const parentRule = parentRuleOf(o.type);
   const category = asCategory(o.type);
   const path = `/mon-espace/configuration/etablissements/${o.id}`;
   const code = param(query.code);
@@ -122,10 +127,20 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
   return (
     <section className="space-y-6">
       <Link
-        href={isDirection ? '/mon-espace/configuration?vue=drena' : '/mon-espace/configuration'}
+        href={
+          isDirection
+            ? '/mon-espace/configuration?vue=drena'
+            : isService
+              ? '/mon-espace/configuration?vue=services'
+              : '/mon-espace/configuration'
+        }
         className="inline-flex min-h-[44px] items-center font-bold"
       >
-        {isDirection ? '← Directions régionales' : '← Établissements'}
+        {isDirection
+          ? '← Directions régionales'
+          : isService
+            ? '← Services et partenaires'
+            : '← Établissements'}
       </Link>
       <h1 className="text-3xl font-bold">{o.name}</h1>
       {o.archivedAt && (
@@ -135,7 +150,7 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
         >
           {category
             ? 'Cet établissement est retiré de la liste active (archivé).'
-            : 'Cet établissement est archivé.'}
+            : 'Cette structure est archivée.'}
         </p>
       )}
       <Notice message={param(query.message)} error={param(query.erreur)} />
@@ -276,29 +291,33 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
               maxLength={160}
             />
           </label>
-          {o.can.editStructure && !isDirection ? (
+          {o.can.editStructure && isService ? (
             <>
               <label className="block font-bold">
                 Type
                 <select name="type" defaultValue={o.type} className={inputClass}>
-                  {Object.entries(ORGANIZATION_TYPE_LABELS)
-                    .filter(([value]) => value !== 'authority')
-                    .map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
+                  {SERVICE_TYPES.map((value) => (
+                    <option key={value} value={value}>
+                      {ORGANIZATION_TYPE_LABELS[value]}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="block font-bold">
-                Direction régionale
+                DRENA de rattachement
+                <input type="hidden" name="nationalAllowed" value="1" />
                 <select name="parentId" defaultValue={o.direction?.id ?? ''} className={inputClass}>
+                  <option value="">Aucune : structure nationale</option>
                   {directions.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
                     </option>
                   ))}
                 </select>
+                <span className="block font-normal text-ink-muted">
+                  Obligatoire pour une APFC et une IEPP. Le cabinet et les directions centrales
+                  restent nationaux.
+                </span>
               </label>
             </>
           ) : (
@@ -308,11 +327,19 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
                 {ORGANIZATION_TYPE_LABELS[o.type as keyof typeof ORGANIZATION_TYPE_LABELS] ??
                   o.type}
               </dd>
-              {o.direction && (
+              {o.direction ? (
                 <>
                   <dt className="font-bold">Direction régionale</dt>
                   <dd>{o.direction.name}</dd>
                 </>
+              ) : (
+                isService &&
+                parentRule !== 'drena' && (
+                  <>
+                    <dt className="font-bold">Rattachement</dt>
+                    <dd>National</dd>
+                  </>
+                )
               )}
             </dl>
           )}
@@ -359,11 +386,15 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
       )}
 
       <div className={cardClass}>
-        <h2 className="text-xl font-bold">Dans cet établissement</h2>
+        <h2 className="text-xl font-bold">
+          {category ? 'Dans cet établissement' : 'Dans cette structure'}
+        </h2>
         <p className="mt-2" data-testid="organization-counts">
           {isDirection
-            ? `${o.activeChildren} établissement${o.activeChildren > 1 ? 's' : ''} actif${o.activeChildren > 1 ? 's' : ''}`
-            : `${o.cohortCount} classe${o.cohortCount > 1 ? 's' : ''}`}
+            ? `${o.activeChildren} établissement${o.activeChildren > 1 ? 's' : ''} ou service${o.activeChildren > 1 ? 's' : ''} actif${o.activeChildren > 1 ? 's' : ''}`
+            : isService
+              ? `${o.members.length} membre${o.members.length > 1 ? 's' : ''} dans l’équipe`
+              : `${o.cohortCount} classe${o.cohortCount > 1 ? 's' : ''}`}
         </p>
         {o.members.length > 0 && (
           <ul className="mt-3 list-disc pl-6">
@@ -376,7 +407,7 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
         )}
       </div>
 
-      {!isDirection && classes.ok && (
+      {category && classes.ok && (
         <div className={cardClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold">Classes</h2>
@@ -555,8 +586,8 @@ export default async function OrganizationPage({ params, searchParams }: Props) 
         <div className={cardClass}>
           <h2 className="text-xl font-bold">Archivage</h2>
           <p className="mt-2">
-            Un établissement archivé n’apparaît plus dans les listes. Son historique est gardé et
-            vous pouvez le rétablir.
+            Une structure archivée n’apparaît plus dans les listes. Son historique est gardé et vous
+            pouvez la rétablir.
           </p>
           <form
             action={o.archivedAt ? restoreOrganizationAction : archiveOrganizationAction}

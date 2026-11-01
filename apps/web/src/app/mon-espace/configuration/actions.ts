@@ -3,6 +3,8 @@
 import {
   ESTABLISHMENT_CATEGORIES,
   establishmentFields,
+  isServiceType,
+  SERVICE_SHORT_LABELS,
   type CreatedOrganization,
   type EstablishmentCategory,
   type EstablishmentImportResult,
@@ -37,13 +39,26 @@ export async function createOrganizationAction(form: FormData): Promise<void> {
     managerContact: text(form, 'managerContact'),
   });
   // En cas d'erreur, la fenêtre de création se rouvre.
+  const type = text(form, 'type');
   if (!result.ok) {
-    const reopen = text(form, 'type') === 'authority' ? 'vue=drena&ouvrir=drena' : 'ouvrir=creer';
+    const reopen =
+      type === 'authority'
+        ? 'vue=drena&ouvrir=drena'
+        : isServiceType(type)
+          ? 'vue=services&ouvrir=service'
+          : 'ouvrir=creer';
     back('erreur', result.message ?? 'Création impossible.', `${PATH}?${reopen}`);
   }
   // Le superadministrateur reçoit tout de suite le code d'invitation du responsable.
   if (result.data.managerCode) back('code', result.data.managerCode);
-  if (text(form, 'type') === 'authority') {
+  if (isServiceType(type)) {
+    back(
+      'message',
+      `Structure créée (${SERVICE_SHORT_LABELS[type]}) : « ${result.data.name} ».`,
+      `${PATH}?vue=services`,
+    );
+  }
+  if (type === 'authority') {
     back(
       'message',
       'Direction régionale créée. Vous pouvez maintenant y rattacher des établissements.',
@@ -64,8 +79,13 @@ export async function updateOrganizationAction(form: FormData): Promise<void> {
   };
   // Type et direction régionale : champs présents seulement pour qui peut les changer.
   if (form.has('type')) body.type = text(form, 'type');
-  if (form.has('parentId') && text(form, 'parentId')) body.parentId = text(form, 'parentId');
-  const result = await apiSend(await token(), 'PATCH', `/organizations/${id}`, body);
+  const payload: Record<string, string | null> = body;
+  if (form.has('parentId')) {
+    // « Aucune » : un partenaire devient national ; ailleurs, le champ vide ne change rien.
+    if (text(form, 'parentId')) payload.parentId = text(form, 'parentId');
+    else if (form.has('nationalAllowed')) payload.parentId = null;
+  }
+  const result = await apiSend(await token(), 'PATCH', `/organizations/${id}`, payload);
   if (!result.ok) back('erreur', result.message ?? 'Modification impossible.', path);
   back('message', 'Fiche enregistrée.', path);
 }
@@ -75,6 +95,7 @@ function afterRemoval(form: FormData): string {
   const from = text(form, 'retour');
   if (from === 'liste') return PATH;
   if (from === 'drena') return `${PATH}?vue=drena`;
+  if (from === 'services') return `${PATH}?vue=services`;
   return `${PATH}/etablissements/${text(form, 'id')}`;
 }
 

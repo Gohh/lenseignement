@@ -65,8 +65,59 @@ export const ORGANIZATION_TYPE_LABELS = {
   literacy_center: 'Centre d’alphabétisation',
   technical_center: 'Établissement d’enseignement technique',
   authority: 'Direction régionale (DRENA)',
-  partner: 'Partenaire',
+  ministry: 'Cabinet du ministère',
+  central_direction: 'Direction centrale',
+  apfc: 'Antenne de la pédagogie et de la formation continue (APFC)',
+  iepp: 'Inspection de l’enseignement préscolaire et primaire (IEPP)',
+  partner: 'Partenaire technique et financier',
 } as const;
+
+export type OrganizationTypeCode = keyof typeof ORGANIZATION_TYPE_LABELS;
+
+/**
+ * Services et partenaires : ni direction régionale ni établissement. Le cabinet et les directions
+ * centrales sont nationaux ; l'APFC et l'IEPP dépendent d'une DRENA ; un partenaire est national
+ * ou régional.
+ */
+export const SERVICE_TYPES = ['ministry', 'central_direction', 'apfc', 'iepp', 'partner'] as const;
+export type ServiceType = (typeof SERVICE_TYPES)[number];
+
+export const isServiceType = (type: string): type is ServiceType =>
+  (SERVICE_TYPES as readonly string[]).includes(type);
+
+/** Court libellé pour les listes et les badges. */
+export const SERVICE_SHORT_LABELS: Record<ServiceType, string> = {
+  ministry: 'Cabinet',
+  central_direction: 'Direction centrale',
+  apfc: 'APFC',
+  iepp: 'IEPP',
+  partner: 'Partenaire',
+};
+
+/** Courte explication affichée dans le formulaire de création. */
+export const SERVICE_TYPE_HINTS: Record<ServiceType, string> = {
+  ministry: 'Le cabinet du ministre : il suit les chiffres de tout le pays.',
+  central_direction: 'Une direction du ministère (DPFC, DSPS…), nationale.',
+  apfc: 'Antenne de formation continue des enseignants, rattachée à une DRENA.',
+  iepp: 'Inspection d’une circonscription du préscolaire et du primaire, dans une DRENA.',
+  partner: 'Partenaire technique et financier (PTF), national ou rattaché à une DRENA.',
+};
+
+/**
+ * Rattachement de chaque type de structure : aucun (national ou DRENA), une DRENA obligatoire, ou
+ * une DRENA facultative.
+ */
+export function parentRuleOf(type: string): 'none' | 'drena' | 'optional' {
+  if (type === 'authority' || type === 'ministry' || type === 'central_direction') return 'none';
+  if (type === 'partner') return 'optional';
+  return 'drena';
+}
+
+/** Famille d'une structure : on ne passe pas d'une famille à l'autre en modifiant sa fiche. */
+export function organizationFamily(type: string): 'direction' | 'service' | 'etablissement' {
+  if (type === 'authority') return 'direction';
+  return isServiceType(type) ? 'service' : 'etablissement';
+}
 
 const Short = (label: string, min = 2) =>
   z.string().trim().min(min, `${label} : trop court.`).max(160);

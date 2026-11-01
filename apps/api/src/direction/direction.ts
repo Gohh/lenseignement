@@ -70,7 +70,8 @@ export async function directionOverview(
                      and (m.valid_until is null or m.valid_until > now())) as directs
       from organizations o
      where o.id in ${teamOrganizationIds(userId)}
-       and o.type <> 'authority' and o.archived_at is null
+       and o.type not in ('authority','ministry','central_direction','apfc','iepp','partner')
+       and o.archived_at is null
      order by directs desc, o.name
      limit 500`);
   const organizations = (orgRows as Array<{ id: string; name: string; directs: boolean }>).map(

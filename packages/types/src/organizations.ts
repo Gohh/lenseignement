@@ -18,7 +18,8 @@ export const UpdateOrganizationSchema = z.object({
   managerContact: z.string().trim().max(160).optional(),
   /** Type et direction régionale : superadministrateur et administrateur seulement. */
   type: OrganizationType.optional(),
-  parentId: z.string().uuid().optional(),
+  /** `null` : aucune DRENA (partenaire national). */
+  parentId: z.string().uuid().nullable().optional(),
 });
 
 export interface OrganizationListItem {

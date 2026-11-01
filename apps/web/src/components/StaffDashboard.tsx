@@ -1,4 +1,8 @@
-import type { CourseSummary, OrganizationListItem } from '@lenseignement/types';
+import {
+  organizationFamily,
+  type CourseSummary,
+  type OrganizationListItem,
+} from '@lenseignement/types';
 import Link from 'next/link';
 import { STATUS_LABELS } from '@/components/Notice';
 import { apiGet, type CohortSummary } from '@/lib/api';
@@ -32,7 +36,7 @@ export async function StaffDashboard({
     apiGet<CohortSummary[]>(accessToken, '/cohorts'),
   ]);
   const schools = organizations.ok
-    ? organizations.data.items.filter((o) => o.type !== 'authority').length
+    ? organizations.data.items.filter((o) => organizationFamily(o.type) === 'etablissement').length
     : null;
   const list = courses.ok ? courses.data.items : [];
   const count = (status: string) => list.filter((c) => c.latest.status === status).length;

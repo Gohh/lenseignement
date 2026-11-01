@@ -4,6 +4,8 @@ import {
   establishmentFields,
   establishmentValue,
   ORGANIZATION_TYPE_LABELS,
+  organizationFamily,
+  parentRuleOf,
   parseCsv,
   type EstablishmentCategory,
   type EstablishmentChange,
@@ -46,7 +48,23 @@ const TYPE_ALIASES: Record<string, OrganizationType> = {
   autorite: 'authority',
   drena: 'authority',
   'direction regionale': 'authority',
+  cabinet: 'ministry',
+  ministere: 'ministry',
+  'cabinet du ministre': 'ministry',
+  'direction centrale': 'central_direction',
+  apfc: 'apfc',
+  antenne: 'apfc',
+  iepp: 'iepp',
+  inspection: 'iepp',
+  partenaire: 'partner',
+  ptf: 'partner',
 };
+
+/** Établissement scolaire (préscolaire, primaire, collège…) : ni DRENA ni service. */
+const isSchool = (type: string) => organizationFamily(type) === 'etablissement';
+
+/** Liste SQL des types d'une famille, pour les filtres. */
+const SERVICE_SQL = sql`('ministry','central_direction','apfc','iepp','partner')`;
 
 /** Accepte le code (« school »), un nom court (« école ») ou le libellé complet, sans accents ni casse. */
 function parseType(raw: string): OrganizationType | null {
@@ -94,9 +112,10 @@ export async function createOrganization(
 ): Promise<CreatedOrganization> {
   const powers = await teamPowers(db, userId);
   if (!powers.canCreateOrganization) throw new TeamError('forbidden', 'Accès refusé.');
-  const isDirection = input.type === 'authority';
+  const rule = parentRuleOf(input.type);
   let parentId: string | null = null;
-  if (isDirection) {
+  if (rule === 'none' || (rule === 'optional' && !input.parentId)) {
+    // Structure nationale (DRENA, cabinet, direction centrale, partenaire national).
     if (!powers.everywhere) throw new TeamError('forbidden', 'Accès refusé.');
   } else {
     if (!input.parentId) throw MISSING('La direction régionale');
@@ -106,6 +125,8 @@ export async function createOrganization(
     );
     if (rows.length === 0) throw new TeamError('invalid', 'Choisissez une direction régionale.');
     parentId = input.parentId;
+  }
+  if (isSchool(input.type)) {
     if ((input.locality ?? '').length < 2) throw MISSING('La localité');
     if ((input.managerName ?? '').length < 2) throw MISSING('Le responsable');
   }
@@ -115,7 +136,7 @@ export async function createOrganization(
         limit 1`,
   );
   if (same.length > 0) {
-    throw new TeamError('invalid', 'Un établissement porte déjà ce nom à cet endroit.');
+    throw new TeamError('invalid', 'Une structure porte déjà ce nom à cet endroit.');
   }
   const [created] = await db
     .insert(organizations)
@@ -131,7 +152,7 @@ export async function createOrganization(
   if (!created) throw new TeamError('invalid', 'Création impossible.');
   await audit(db, userId, 'organization.create', created.id, traceId);
   const managerCode =
-    !isDirection && powers.grantable.includes('chef-etablissement')
+    isSchool(input.type) && powers.grantable.includes('chef-etablissement')
       ? (
           await createTeamInvitation(
             db,
@@ -212,18 +233,21 @@ export async function importOrganizations(
     const type = parseType(cells[typeCol] ?? '');
     if (!type)
       return fail(
-        'Type inconnu. Types possibles : préscolaire, primaire, collège, lycée, alphabétisation, technique, DRENA.',
+        'Type inconnu. Types possibles : préscolaire, primaire, collège, lycée, alphabétisation, technique, DRENA, cabinet, direction centrale, APFC, IEPP, partenaire.',
       );
     let parentKey: string | null = null;
-    if (type === 'authority') {
-      if (!powers.everywhere) return fail('Vous ne pouvez pas créer une direction régionale.');
+    const rule = parentRuleOf(type);
+    const direction = cell(directionCol);
+    if (rule === 'none' || (rule === 'optional' && !direction)) {
+      if (!powers.everywhere) return fail('Vous ne pouvez pas créer une structure nationale.');
     } else {
-      const direction = cell(directionCol);
       if (!direction) return fail('La direction régionale est obligatoire.');
       const found = directions.get(norm(direction)) ?? [];
       if (found.length === 0) return fail(`Direction régionale introuvable : « ${direction} ».`);
       if (found.length > 1) return fail(`Plusieurs directions s’appellent « ${direction} ».`);
       parentKey = found[0]!;
+    }
+    if (isSchool(type)) {
       if (cell(localityCol).length < 2) return fail('La localité est obligatoire.');
       if (cell(managerCol).length < 2) return fail('Le responsable est obligatoire.');
     }
@@ -332,7 +356,7 @@ export interface OrganizationFilters {
   directionId?: string;
   type?: string;
   archived?: boolean;
-  kind?: 'etablissements' | 'directions';
+  kind?: 'etablissements' | 'directions' | 'services';
 }
 
 /** Structures que la personne gère, filtrées ; les archivées seulement sur demande. */
@@ -353,7 +377,15 @@ export async function listOrganizations(
       from organizations o
       left join organizations p on p.id = o.parent_id
      where o.id in ${teamOrganizationIds(userId)}
-       and (${filters.kind === 'directions' ? sql`o.type = 'authority'` : filters.kind === 'etablissements' ? sql`o.type <> 'authority'` : sql`true`})
+       and (${
+         filters.kind === 'directions'
+           ? sql`o.type = 'authority'`
+           : filters.kind === 'etablissements'
+             ? sql`o.type <> 'authority' and o.type not in ${SERVICE_SQL}`
+             : filters.kind === 'services'
+               ? sql`o.type in ${SERVICE_SQL}`
+               : sql`true`
+       })
        and (${filters.archived ? sql`o.archived_at is not null` : sql`o.archived_at is null`})
        and (${like}::text is null or o.name ilike ${like} or o.locality ilike ${like}
             or o.manager_name ilike ${like} or o.official_code ilike ${like})
@@ -376,7 +408,7 @@ export async function listOrganizations(
       ...(roles.get(row.id) ?? []),
       ...(row.parent_id ? (roles.get(row.parent_id) ?? []) : []),
     ]);
-    const { edit, archive } = powersFrom(powers, here, row.type === 'authority');
+    const { edit, archive } = powersFrom(powers, here, row.type);
     return { ...item, activeChildren: row.active_children, can: { edit, archive } };
   });
 }
@@ -404,21 +436,25 @@ async function rolesIn(db: Database, userId: string, organizationId: string) {
 export async function powersOn(db: Database, userId: string, org: { id: string; type: string }) {
   const powers = await teamPowers(db, userId);
   await assertManages(db, userId, org.id);
-  return powersFrom(powers, await rolesIn(db, userId, org.id), org.type === 'authority');
+  return powersFrom(powers, await rolesIn(db, userId, org.id), org.type);
 }
 
 function powersFrom(
   powers: { everywhere: boolean; rights: Set<string> },
   here: Set<string>,
-  isDirection: boolean,
+  type: string,
 ) {
+  // Une DRENA, le cabinet ou une direction centrale : seuls le superadministrateur et
+  // l'administrateur la modifient ou l'archivent.
+  const isDirection = parentRuleOf(type) === 'none';
   const manager = powers.everywhere || here.has('gestionnaire');
   // Sans le droit « établissements » (écran Droits), seule la direction modifie encore sa fiche.
   const can = powers.rights.has('etablissements');
   return {
     edit:
       (can && powers.everywhere) ||
-      (!isDirection && ((can && here.has('gestionnaire')) || here.has('chef-etablissement'))),
+      (!isDirection &&
+        ((can && here.has('gestionnaire')) || (isSchool(type) && here.has('chef-etablissement')))),
     editStructure: can && powers.everywhere,
     archive: can && (powers.everywhere || (!isDirection && manager)),
   };
@@ -451,7 +487,7 @@ export async function myEstablishment(
       left join organizations p on p.id = o.parent_id
      where m.user_id = ${userId} and (m.valid_until is null or m.valid_until > now())
        and not o.internal and o.archived_at is null
-     order by (o.type = 'authority'), o.name
+     order by (o.type = 'authority' or o.type in ${SERVICE_SQL}), o.name
      limit 1`);
   if (rows.length > 0) return rows[0] as unknown as MyEstablishment;
   const { rows: only } = await db.execute(sql`
@@ -459,7 +495,7 @@ export async function myEstablishment(
       from organizations o
       left join organizations p on p.id = o.parent_id
      where o.id in ${everywhereOrganizationIds(userId)}
-       and o.type <> 'authority' and o.archived_at is null
+       and o.type <> 'authority' and o.type not in ${SERVICE_SQL} and o.archived_at is null
      limit 2`);
   return only.length === 1 ? (only[0] as unknown as MyEstablishment) : null;
 }
@@ -525,7 +561,8 @@ export async function updateOrganization(
     managerName?: string;
     managerContact?: string;
     type?: OrganizationType;
-    parentId?: string;
+    /** `null` : partenaire national (aucune DRENA). */
+    parentId?: string | null;
   },
   traceId?: string,
 ): Promise<OrganizationDetail> {
@@ -540,23 +577,31 @@ export async function updateOrganization(
     throw new TeamError('forbidden', 'Accès refusé.');
   }
   const type = input.type ?? (row.type as OrganizationType);
+  const family = organizationFamily(row.type);
+  if (organizationFamily(type) !== family) {
+    throw new TeamError(
+      'invalid',
+      family === 'direction'
+        ? 'Une direction régionale ne change pas de type.'
+        : family === 'service'
+          ? 'Un service ou un partenaire ne devient ni une DRENA ni un établissement.'
+          : 'Un établissement ne devient ni une DRENA ni un service.',
+    );
+  }
+  const rule = parentRuleOf(type);
   let parentId = row.parent_id;
-  if (input.parentId !== undefined) {
-    if (type === 'authority')
-      throw new TeamError('invalid', 'Une direction régionale n’a pas de direction.');
+  // Pour un partenaire, « aucune » (chaîne vide côté formulaire) le rend national.
+  if (input.parentId === null) parentId = null;
+  else if (input.parentId !== undefined) {
+    if (rule === 'none') throw new TeamError('invalid', 'Cette structure n’a pas de DRENA.');
     const { rows } = await db.execute(
       sql`select 1 from organizations where id = ${input.parentId} and type = 'authority' and archived_at is null`,
     );
     if (rows.length === 0) throw new TeamError('invalid', 'Choisissez une direction régionale.');
     parentId = input.parentId;
   }
-  if (type !== 'authority' && !parentId) throw MISSING('La direction régionale');
-  if (type === 'authority' && row.type !== 'authority') {
-    throw new TeamError('invalid', 'Un établissement ne devient pas une direction régionale.');
-  }
-  if (type !== 'authority' && row.type === 'authority') {
-    throw new TeamError('invalid', 'Une direction régionale ne devient pas un établissement.');
-  }
+  if (rule === 'none') parentId = null;
+  if (rule === 'drena' && !parentId) throw MISSING('La direction régionale');
   const name = input.name ?? row.name;
   const { rows: same } = await db.execute(
     sql`select 1 from organizations
@@ -564,7 +609,7 @@ export async function updateOrganization(
           and id <> ${id} limit 1`,
   );
   if (same.length > 0)
-    throw new TeamError('invalid', 'Un établissement porte déjà ce nom à cet endroit.');
+    throw new TeamError('invalid', 'Une structure porte déjà ce nom à cet endroit.');
   await db
     .update(organizations)
     .set({
@@ -593,7 +638,7 @@ export async function setOrganizationArchived(
   if (archived && detail.activeChildren > 0) {
     throw new TeamError(
       'invalid',
-      `Archivez d’abord les ${detail.activeChildren} établissement(s) actifs de cette direction régionale.`,
+      `Archivez d’abord les ${detail.activeChildren} établissement(s) ou service(s) actifs de cette direction régionale.`,
     );
   }
   if (!archived && detail.direction) {

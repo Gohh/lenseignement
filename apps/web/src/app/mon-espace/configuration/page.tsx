@@ -1,5 +1,9 @@
 import {
+  ESTABLISHMENT_CATEGORY_LABELS,
   ORGANIZATION_TYPE_LABELS,
+  SERVICE_SHORT_LABELS,
+  SERVICE_TYPE_HINTS,
+  SERVICE_TYPES,
   type OrganizationListEntry,
   type TeamOverview,
 } from '@lenseignement/types';
@@ -30,15 +34,17 @@ export default async function ConfigurationPage({ searchParams }: Props) {
   const direction = param(query.direction) ?? '';
   const type = param(query.type) ?? '';
   const archived = param(query.archives) === '1';
-  // Deux onglets : les établissements (par défaut) et les directions régionales.
+  // Trois onglets : les établissements (par défaut), les directions régionales, et les services
+  // et partenaires (cabinet, directions centrales, APFC, IEPP, partenaires).
   const drenaView = param(query.vue) === 'drena';
+  const servicesView = param(query.vue) === 'services';
 
   const filter = new URLSearchParams();
   if (q) filter.set('search', q);
   if (direction && !drenaView) filter.set('direction', direction);
   if (type && !drenaView) filter.set('type', type);
   if (archived) filter.set('archived', '1');
-  filter.set('kind', drenaView ? 'directions' : 'etablissements');
+  filter.set('kind', drenaView ? 'directions' : servicesView ? 'services' : 'etablissements');
   const [list, overview] = await Promise.all([
     apiGet<{ items: OrganizationListEntry[] }>(session.accessToken, `/organizations?${filter}`),
     apiGet<TeamOverview>(session.accessToken, '/team'),
@@ -74,8 +80,9 @@ export default async function ConfigurationPage({ searchParams }: Props) {
         <p className="font-bold text-ink-muted">Référentiels / Établissements</p>
         <h1 className="text-4xl font-extrabold">Configuration</h1>
         <p className="text-ink-muted">
-          Les établissements et les directions régionales que vous gérez, chacun dans son onglet. Le
-          tableau montre l’essentiel ; l’icône en forme d’œil ouvre la fiche complète.
+          Les établissements, les directions régionales, les services et les partenaires que vous
+          gérez, chacun dans son onglet. Le tableau montre l’essentiel ; l’icône en forme d’œil
+          ouvre la fiche complète.
         </p>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />
@@ -96,11 +103,20 @@ export default async function ConfigurationPage({ searchParams }: Props) {
       {showDrenaTab && (
         <nav aria-label="Référentiels" className="flex flex-wrap gap-2 border-b border-line">
           {[
-            { href: '/mon-espace/configuration', label: 'Établissements', current: !drenaView },
+            {
+              href: '/mon-espace/configuration',
+              label: 'Établissements',
+              current: !drenaView && !servicesView,
+            },
             {
               href: '/mon-espace/configuration?vue=drena',
               label: 'Directions régionales (DRENA)',
               current: drenaView,
+            },
+            {
+              href: '/mon-espace/configuration?vue=services',
+              label: 'Services et partenaires',
+              current: servicesView,
             },
           ].map((tab) => (
             <a
@@ -117,6 +133,7 @@ export default async function ConfigurationPage({ searchParams }: Props) {
 
       <form method="get" className={`${cardClass} flex flex-wrap items-end gap-4`}>
         {drenaView && <input type="hidden" name="vue" value="drena" />}
+        {servicesView && <input type="hidden" name="vue" value="services" />}
         <label className="block flex-1 basis-44 font-bold">
           Rechercher
           <input
@@ -145,13 +162,17 @@ export default async function ConfigurationPage({ searchParams }: Props) {
               Type
               <select name="type" defaultValue={type} className={inputClass}>
                 <option value="">Tous</option>
-                {Object.entries(ORGANIZATION_TYPE_LABELS)
-                  .filter(([value]) => value !== 'authority')
-                  .map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                {servicesView
+                  ? SERVICE_TYPES.map((value) => (
+                      <option key={value} value={value}>
+                        {SERVICE_SHORT_LABELS[value]}
+                      </option>
+                    ))
+                  : Object.entries(ESTABLISHMENT_CATEGORY_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
               </select>
             </label>
           </>
@@ -174,7 +195,11 @@ export default async function ConfigurationPage({ searchParams }: Props) {
       <div className="overflow-hidden rounded-big border border-line bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-xl font-extrabold">
-            {drenaView ? 'Directions régionales' : 'Établissements'}{' '}
+            {drenaView
+              ? 'Directions régionales'
+              : servicesView
+                ? 'Services et partenaires'
+                : 'Établissements'}{' '}
             {drenaView ? (archived ? 'archivées' : 'actives') : archived ? 'archivés' : 'actifs'} (
             {items.length})
           </h2>
@@ -219,7 +244,94 @@ export default async function ConfigurationPage({ searchParams }: Props) {
                 </form>
               </Dialog>
             )}
+            {servicesView &&
+              team.canCreateOrganization &&
+              (team.everywhere || team.directions.length > 0) && (
+                <Dialog
+                  primary
+                  label="+ Créer une structure"
+                  title="Créer un service ou un partenaire"
+                  openAtStart={open === 'service'}
+                >
+                  <form action={createOrganizationAction} className="space-y-6">
+                    <fieldset className="space-y-2">
+                      <legend className="font-bold">Type de structure</legend>
+                      {SERVICE_TYPES.filter(
+                        // Le cabinet et les directions centrales sont nationaux : réservés au
+                        // superadministrateur et à l'administrateur.
+                        (value) =>
+                          team.everywhere ||
+                          (value !== 'ministry' && value !== 'central_direction'),
+                      ).map((value, index) => (
+                        <label
+                          key={value}
+                          className="flex min-h-[44px] items-start gap-3 rounded-card border border-line p-3 has-[:checked]:border-primary has-[:checked]:bg-primary-soft"
+                        >
+                          <input
+                            type="radio"
+                            name="type"
+                            value={value}
+                            defaultChecked={index === 0}
+                            required
+                            className="mt-1 h-5 w-5 accent-primary"
+                          />
+                          <span>
+                            <span className="block font-bold">
+                              {ORGANIZATION_TYPE_LABELS[value]}
+                            </span>
+                            <span className="block text-ink-muted">
+                              {SERVICE_TYPE_HINTS[value]}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block font-bold sm:col-span-2">
+                        Nom officiel
+                        <input
+                          name="name"
+                          className={inputClass}
+                          required
+                          minLength={3}
+                          maxLength={160}
+                          placeholder="Exemple : IEPP Yopougon 2"
+                        />
+                      </label>
+                      <label className="block font-bold sm:col-span-2">
+                        DRENA de rattachement
+                        <select name="parentId" className={inputClass} defaultValue="">
+                          {team.everywhere && (
+                            <option value="">Aucune : structure nationale</option>
+                          )}
+                          {team.directions.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="block font-normal text-ink-muted">
+                          Obligatoire pour une APFC et une IEPP. Laissez « Aucune » pour le cabinet,
+                          une direction centrale ou un partenaire national.
+                        </span>
+                      </label>
+                      <label className="block font-bold">
+                        Localité (siège)
+                        <input name="locality" className={inputClass} maxLength={160} />
+                      </label>
+                      <label className="block font-bold">
+                        Responsable (facultatif)
+                        <input name="managerName" className={inputClass} maxLength={160} />
+                      </label>
+                    </div>
+                    <button type="submit" className={buttonClass}>
+                      Créer la structure
+                    </button>
+                  </form>
+                </Dialog>
+              )}
             {!drenaView &&
+              !servicesView &&
               team.canCreateOrganization &&
               (team.everywhere || team.directions.length > 0) && (
                 <a href="/mon-espace/configuration/etablissements/nouveau" className={buttonClass}>
@@ -232,8 +344,80 @@ export default async function ConfigurationPage({ searchParams }: Props) {
           <p className="p-4">
             {drenaView
               ? 'Aucune direction régionale ne correspond.'
-              : 'Aucun établissement ne correspond.'}
+              : servicesView
+                ? 'Aucun service ni partenaire ne correspond.'
+                : 'Aucun établissement ne correspond.'}
           </p>
+        ) : servicesView ? (
+          <div className="overflow-x-auto" data-testid="service-list">
+            <table className="w-full min-w-[40rem] text-left">
+              <thead className="bg-primary-soft text-sm uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th scope="col" className={cell}>
+                    Structure
+                  </th>
+                  <th scope="col" className={cell}>
+                    Type
+                  </th>
+                  <th scope="col" className={cell}>
+                    Rattachement
+                  </th>
+                  <th scope="col" className={cell}>
+                    Siège
+                  </th>
+                  <th scope="col" className={`${cell} text-right`}>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {items.map((o) => {
+                  const fiche = `/mon-espace/configuration/etablissements/${o.id}`;
+                  return (
+                    <tr key={o.id} className="hover:bg-primary-soft">
+                      <th scope="row" className={`${cell} font-bold`}>
+                        <a href={fiche} className="underline">
+                          {o.name}
+                        </a>
+                      </th>
+                      <td className={cell}>
+                        {SERVICE_SHORT_LABELS[o.type as keyof typeof SERVICE_SHORT_LABELS] ??
+                          typeLabel(o.type)}
+                      </td>
+                      <td className={cell}>{o.direction?.name ?? 'National'}</td>
+                      <td className={cell}>{o.locality ?? '–'}</td>
+                      <td className={`${cell} py-2`}>
+                        <div className="flex justify-end gap-2">
+                          <IconLink
+                            href={fiche}
+                            icon="voir"
+                            label={`Voir la fiche de ${o.name}`}
+                            tip="Voir : la fiche de la structure"
+                          />
+                          {o.can.edit && !o.archivedAt && (
+                            <IconLink
+                              href={fiche}
+                              icon="modifier"
+                              label={`Modifier ${o.name}`}
+                              tip="Modifier : corriger le nom, le siège ou le responsable"
+                            />
+                          )}
+                          {o.can.archive && (
+                            <RemoveButton
+                              id={o.id}
+                              name={o.name}
+                              archived={Boolean(o.archivedAt)}
+                              from="services"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : drenaView ? (
           <div className="overflow-x-auto" data-testid="direction-list">
             <table className="w-full min-w-[40rem] text-left">

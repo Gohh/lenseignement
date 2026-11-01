@@ -34,6 +34,10 @@ export const ORGANIZATION_TYPES = [
   'literacy_center',
   'technical_center',
   'authority',
+  'ministry',
+  'central_direction',
+  'apfc',
+  'iepp',
   'partner',
 ] as const;
 
@@ -71,7 +75,7 @@ export const organizations = pgTable(
   (t) => [
     check(
       'organizations_type_check',
-      sql`${t.type} in ('preschool','primary','college','lycee','literacy_center','technical_center','authority','partner')`,
+      sql`${t.type} in ('preschool','primary','college','lycee','literacy_center','technical_center','authority','ministry','central_direction','apfc','iepp','partner')`,
     ),
     uniqueIndex('organizations_official_code_unique')
       .on(sql`lower(${t.officialCode})`)

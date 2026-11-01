@@ -46,7 +46,7 @@ const QuerySchema = z.object({
   type: z.string().max(40).optional(),
   archived: z.enum(['0', '1']).optional(),
   /** Onglet : les établissements, ou les directions régionales. */
-  kind: z.enum(['etablissements', 'directions']).optional(),
+  kind: z.enum(['etablissements', 'directions', 'services']).optional(),
 });
 
 async function guard<T>(run: () => Promise<T>): Promise<T> {

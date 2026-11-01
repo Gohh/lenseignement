@@ -112,7 +112,7 @@ export function RemoveButton({
   id: string;
   name: string;
   archived: boolean;
-  from: 'liste' | 'fiche' | 'drena';
+  from: 'liste' | 'fiche' | 'drena' | 'services';
   variant?: 'icon' | 'text';
 }) {
   const [open, setOpen] = useState(false);
@@ -175,7 +175,9 @@ export function RemoveButton({
           <p className="mt-3">
             {from === 'drena'
               ? 'Elle n’apparaîtra plus dans les listes ni dans les choix. Rien n’est effacé. Ce n’est possible que si plus aucun établissement actif n’y est rattaché. Vous pourrez la rétablir depuis « Archivés ».'
-              : 'Il n’apparaîtra plus dans les listes ni dans les choix des autres écrans. Rien n’est effacé : ses classes, ses élèves et son historique sont gardés. Vous pourrez le rétablir depuis « Archivés ».'}
+              : from === 'services'
+                ? 'Elle n’apparaîtra plus dans les listes ni dans les choix. Rien n’est effacé : son équipe et son historique sont gardés. Vous pourrez la rétablir depuis « Archivés ».'
+                : 'Il n’apparaîtra plus dans les listes ni dans les choix des autres écrans. Rien n’est effacé : ses classes, ses élèves et son historique sont gardés. Vous pourrez le rétablir depuis « Archivés ».'}
           </p>
           <form action={archiveOrganizationAction} className="mt-5 flex flex-wrap gap-3">
             {hidden}

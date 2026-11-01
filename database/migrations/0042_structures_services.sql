@@ -1,0 +1,2 @@
+ALTER TABLE "organizations" DROP CONSTRAINT "organizations_type_check";--> statement-breakpoint
+ALTER TABLE "organizations" ADD CONSTRAINT "organizations_type_check" CHECK ("organizations"."type" in ('preschool','primary','college','lycee','literacy_center','technical_center','authority','ministry','central_direction','apfc','iepp','partner'));

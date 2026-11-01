@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LEVEL_CODES, LEVEL_GROUPS, type LevelCode } from './levels.js';
+import { isServiceType } from './team.js';
 
 /** Classes : création, enseignants et code de classe (configuration, étape 2). */
 
@@ -44,7 +45,8 @@ export function levelsForOrganizationType(
     literacy_center: ['alphabetisation'],
   };
   const wanted = groups[type];
-  if (type === 'authority') return [];
+  // Une DRENA, un service (IEPP, APFC…) ou un partenaire n'a pas de classes.
+  if (type === 'authority' || isServiceType(type)) return [];
   return LEVEL_GROUPS.filter((g) => !wanted || wanted.includes(g.code)).flatMap((g) =>
     g.levels.map((l) => ({ code: l.code, title: `${g.title} ${l.title}` })),
   );

@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import {
   checkEstablishment,
   checkEstablishmentField,
+  ESTABLISHMENT_CATEGORIES,
   ESTABLISHMENT_COLUMN_KEYS,
   establishmentFields,
   establishmentValue,
@@ -311,7 +312,7 @@ async function loadEditable(db: Database, userId: string, id: string) {
     throw new TeamError('not_found', 'Établissement introuvable.');
   });
   if (!can.edit) throw new TeamError('forbidden', 'Accès refusé.');
-  if (row.type === 'authority' || row.type === 'partner') {
+  if (!(ESTABLISHMENT_CATEGORIES as readonly string[]).includes(row.type)) {
     throw new TeamError('invalid', 'Cette structure n’est pas un établissement.');
   }
   return { row, can, category: row.type as EstablishmentCategory };

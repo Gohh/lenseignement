@@ -1,4 +1,4 @@
-import { BRANCHES, type LearningPlanItem } from '@lenseignement/types';
+import { BRANCHES, TEAM_ROLE_LABELS, type LearningPlanItem } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { apiGet, type Child, type CohortSummary, type Me } from '@/lib/api';
@@ -13,13 +13,7 @@ export const metadata = { title: 'Mon espace' };
 const ROLE_LABELS: Record<string, string> = {
   apprenant: 'Apprenant',
   parent: 'Parent ou tuteur',
-  enseignant: 'Enseignant ou formateur',
-  alphabetiseur: 'Alphabétiseur',
-  'chef-etablissement': 'Chef d’établissement',
-  'referent-pedagogique': 'Référent pédagogique',
-  gestionnaire: 'Gestionnaire',
-  administrateur: 'Administrateur',
-  superadministrateur: 'Superadministrateur',
+  ...TEAM_ROLE_LABELS,
   'admin-plateforme': 'Administrateur de la plateforme',
 };
 
@@ -56,7 +50,8 @@ export default async function MyspacePage() {
   ].filter((role) => role in ROLE_LABELS);
   const resume = followed.find((c) => c.resumeAt && !c.finished);
 
-  const staff = staffMenu(session.roles, me.ok ? me.data : null) !== null;
+  const menu = staffMenu(session.roles, me.ok ? me.data : null);
+  const staff = menu !== null;
 
   return (
     <section className="space-y-10">
@@ -65,6 +60,10 @@ export default async function MyspacePage() {
           accessToken={session.accessToken}
           displayName={session.displayName}
           roleLabel={topRoleLabel(roles)}
+          manages={menu.manages}
+          statistics={menu.groups.some((g) =>
+            g.items.some((i) => i.href === '/mon-espace/statistiques'),
+          )}
         />
       ) : (
         <div className="space-y-1">

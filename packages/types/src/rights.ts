@@ -6,11 +6,20 @@ import { z } from 'zod';
  */
 export const RIGHT_PROFILES = [
   'administrateur',
-  'gestionnaire',
-  'chef-etablissement',
+  'cabinet',
+  'direction-centrale',
+  'partenaire',
   'referent-pedagogique',
+  'gestionnaire',
+  'apfc',
   'iepp',
+  'conseiller-pedagogique',
   'conseiller-alpha',
+  'chef-etablissement',
+  'censeur',
+  'correspondant-fichier',
+  'educateur',
+  'conseiller-orientation',
 ] as const;
 export type RightProfile = (typeof RIGHT_PROFILES)[number];
 
@@ -82,13 +91,37 @@ export const RIGHT_DEFINITIONS: readonly RightDefinition[] = [
     code: 'suivi',
     label: 'Suivi de l’établissement',
     description: 'Voir les classes et les élèves à suivre.',
-    profiles: ['administrateur', 'gestionnaire', 'chef-etablissement'],
+    profiles: [
+      'administrateur',
+      'gestionnaire',
+      'iepp',
+      'conseiller-alpha',
+      'chef-etablissement',
+      'censeur',
+      'correspondant-fichier',
+      'educateur',
+      'conseiller-orientation',
+    ],
   },
   {
     code: 'statistiques',
     label: 'Statistiques',
-    description: 'Voir les chiffres anonymes.',
-    profiles: ['administrateur', 'chef-etablissement', 'referent-pedagogique'],
+    description: 'Voir les chiffres anonymes, sans aucun nom d’élève.',
+    profiles: [
+      'administrateur',
+      'cabinet',
+      'direction-centrale',
+      'partenaire',
+      'referent-pedagogique',
+      'gestionnaire',
+      'apfc',
+      'iepp',
+      'conseiller-pedagogique',
+      'conseiller-alpha',
+      'chef-etablissement',
+      'censeur',
+      'conseiller-orientation',
+    ],
   },
 ];
 

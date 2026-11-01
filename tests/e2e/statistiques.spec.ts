@@ -54,7 +54,7 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
         .getByRole('link', { name: 'Statistiques' }),
     ).toHaveCount(0);
     await page.goto(PAGE);
-    await expect(page.getByText('Ce tableau est réservé')).toBeVisible();
+    await expect(page.getByText('Ce tableau ne fait pas partie de vos droits')).toBeVisible();
   });
 
   test('E2E-16 : tableau sans violation axe WCAG A/AA', async ({ page }) => {

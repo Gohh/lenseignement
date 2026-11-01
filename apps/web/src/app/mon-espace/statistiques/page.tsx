@@ -27,7 +27,8 @@ function Figures({ rows }: { rows: Array<[string, string]> }) {
 }
 
 /**
- * Tableau de chiffres anonymes (ADR-016) : direction et référents, pour leurs structures.
+ * Tableau de chiffres anonymes (ADR-016) : chacun pour sa zone (établissement, IEPP, DRENA ou tout
+ * le pays pour le cabinet, les directions centrales et les partenaires nationaux).
  * Aucun nom ; un groupe de 1 à 4 personnes est affiché « moins de 5 ».
  */
 export default async function StatsPage() {
@@ -42,7 +43,7 @@ export default async function StatsPage() {
       </Link>
       <h1 className="text-3xl font-bold">Statistiques anonymes</h1>
       {!stats.ok ? (
-        <p>Ce tableau est réservé à la direction des établissements et aux référents.</p>
+        <p>Ce tableau ne fait pas partie de vos droits.</p>
       ) : (
         <>
           <p className="rounded-card border-2 border-line-strong bg-surface p-4">
@@ -50,9 +51,18 @@ export default async function StatsPage() {
             personnes s’affiche « moins de {stats.data.threshold} », pour que personne ne soit
             reconnu.
           </p>
-          <p className="text-ink-muted" data-testid="stats-scope">
-            Structures : {stats.data.organizations.join(', ')}.
-          </p>
+          {stats.data.organizations.length <= 6 ? (
+            <p className="text-ink-muted" data-testid="stats-scope">
+              Structures : {stats.data.organizations.join(', ')}.
+            </p>
+          ) : (
+            <details className="text-ink-muted" data-testid="stats-scope">
+              <summary className="min-h-[44px] cursor-pointer">
+                {stats.data.organizations.length} structures couvertes (voir la liste)
+              </summary>
+              <p>{stats.data.organizations.join(', ')}.</p>
+            </details>
+          )}
 
           <h2 className="text-2xl font-bold">Cours</h2>
           {stats.data.courses.length === 0 && <p>Aucun cours publié dans vos structures.</p>}

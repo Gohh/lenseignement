@@ -1,15 +1,11 @@
 import { STATS_THRESHOLD, type MaskedCount, type StatsOverview } from '@lenseignement/types';
 import { sql } from 'drizzle-orm';
-import {
-  everywhereOrganizationIds,
-  organizationIdsWithRoles,
-  STATS_ROLES,
-} from '../access/access.service.js';
+import { statsOrganizationIds } from '../access/access.service.js';
 import type { Executor } from '../db/database.js';
 
 /**
  * Tableau de chiffres anonymes (ADR-016). Seulement des effectifs agrégés, calculés sur les
- * structures de la personne (sous-structures comprises) ; un effectif de 1 à 4 personnes est
+ * structures de la personne (sous-structures comprises, ou tout le pays : `statsOrganizationIds`) ; un effectif de 1 à 4 personnes est
  * masqué, et un pourcentage n'est donné que sur 5 personnes ou plus. Aucun nom ni identifiant
  * de personne ne sort d'ici.
  */
@@ -39,10 +35,7 @@ interface CourseRow extends Record<string, unknown> {
 }
 
 export async function statsOverview(db: Executor, userId: string): Promise<StatsOverview> {
-  const scope = sql`(
-    select r.id from ${organizationIdsWithRoles(userId, STATS_ROLES)} r
-    union
-    select e.id from ${everywhereOrganizationIds(userId)} e)`;
+  const scope = statsOrganizationIds(userId);
 
   const orgs = await db.execute<{ name: string }>(
     sql`select name from organizations where id in ${scope} order by name`,

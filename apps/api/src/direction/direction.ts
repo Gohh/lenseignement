@@ -8,7 +8,7 @@ import {
   type LearnerToFollow,
 } from '@lenseignement/types';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import { teamOrganizationIds } from '../access/access.service.js';
+import { followOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
 import { cohortMembers, cohorts, users } from '../db/schema.js';
 import { TeamError, teamPowers } from '../team/team.js';
@@ -69,7 +69,7 @@ export async function directionOverview(
                      and m.organization_id = o.id and m.role = 'chef-etablissement'
                      and (m.valid_until is null or m.valid_until > now())) as directs
       from organizations o
-     where o.id in ${teamOrganizationIds(userId)}
+     where o.id in ${followOrganizationIds(userId)}
        and o.type not in ('authority','ministry','central_direction','apfc','iepp','partner')
        and o.archived_at is null
      order by directs desc, o.name

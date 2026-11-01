@@ -96,9 +96,7 @@ export const organizationChanges = pgTable(
     newValue: text('new_value').notNull().default(''),
     effectiveOn: date('effective_on').notNull(),
     note: text('note'),
-    changedBy: uuid('changed_by')
-      .notNull()
-      .references(() => users.id),
+    changedBy: uuid('changed_by').references(() => users.id),
     createdAt: createdAt(),
   },
   (t) => [index('organization_changes_org_idx').on(t.organizationId, t.effectiveOn)],
@@ -235,9 +233,7 @@ export const membershipInvitations = pgTable(
     role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
     /** Cycles accordés ; null = tous. */
     branches: text('branches').array(),
-    createdByUserId: uuid('created_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     usedByUserId: uuid('used_by_user_id').references(() => users.id),
     usedAt: timestamp('used_at', { withTimezone: true }),
@@ -348,9 +344,7 @@ export const tutorLinks = pgTable(
     learnerUserId: uuid('learner_user_id')
       .notNull()
       .references(() => users.id),
-    grantedByUserId: uuid('granted_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    grantedByUserId: uuid('granted_by_user_id').references(() => users.id),
     status: text('status', { enum: TUTOR_LINK_STATUSES }).notNull().default('active'),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdAt: createdAt(),
@@ -390,9 +384,7 @@ export const parentCodes = pgTable('parent_codes', {
     .primaryKey()
     .references(() => users.id),
   code: text('code').notNull().unique(),
-  createdByUserId: uuid('created_by_user_id')
-    .notNull()
-    .references(() => users.id),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
   createdAt: createdAt(),
 });
 
@@ -402,9 +394,7 @@ export const withdrawnRights = pgTable(
   {
     role: text('role').notNull(),
     right: text('right').notNull(),
-    withdrawnBy: uuid('withdrawn_by')
-      .notNull()
-      .references(() => users.id),
+    withdrawnBy: uuid('withdrawn_by').references(() => users.id),
     withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.role, t.right] })],

@@ -8,6 +8,7 @@ import {
 } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { IconSubmit } from '@/components/IconAction';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../configuration/Dialog';
@@ -144,9 +145,12 @@ export default async function ComptesPage({ searchParams }: Props) {
       <p className="font-bold" data-testid="account-total">
         {total} compte{total > 1 ? 's' : ''}
       </p>
-      <ul className="space-y-3" data-testid="accounts">
+      <ul
+        className={items.length > 0 ? `${cardClass} divide-y divide-line py-1` : undefined}
+        data-testid="accounts"
+      >
         {items.map((a) => (
-          <li key={a.id} className={`${cardClass} flex flex-wrap items-center gap-4`}>
+          <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
             <div className="min-w-0 flex-1 basis-64">
               <p className="font-bold">
                 {a.displayName ?? 'Sans nom'}
@@ -168,8 +172,13 @@ export default async function ComptesPage({ searchParams }: Props) {
                 {a.lastSeenAt ? ` · vu le ${formatDate(a.lastSeenAt)}` : ' · jamais connecté'}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Dialog label="Modifier" title={`Modifier : ${a.displayName ?? 'compte sans nom'}`}>
+            <div className="flex shrink-0 gap-2">
+              <Dialog
+                label={`Modifier ${a.displayName ?? 'ce compte'}`}
+                icon="modifier"
+                tip="Modifier : nom, profils, niveau"
+                title={`Modifier : ${a.displayName ?? 'compte sans nom'}`}
+              >
                 <form action={updateAccountAction} className="space-y-4">
                   <input type="hidden" name="id" value={a.id} />
                   <input type="hidden" name="back" value={here} />
@@ -229,17 +238,25 @@ export default async function ComptesPage({ searchParams }: Props) {
                   name="status"
                   value={a.status === 'suspended' ? 'active' : 'suspended'}
                 />
-                <button
-                  type="submit"
-                  className={secondaryButtonClass}
-                  aria-label={`${a.status === 'suspended' ? 'Réactiver' : 'Suspendre'} ${a.displayName ?? 'ce compte'}`}
-                >
-                  {a.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
-                </button>
+                {a.status === 'suspended' ? (
+                  <IconSubmit
+                    icon="reactiver"
+                    label={`Réactiver ${a.displayName ?? 'ce compte'}`}
+                    tip="Réactiver : il pourra de nouveau se connecter"
+                  />
+                ) : (
+                  <IconSubmit
+                    icon="suspendre"
+                    label={`Suspendre ${a.displayName ?? 'ce compte'}`}
+                    tip="Suspendre : il ne pourra plus se connecter"
+                  />
+                )}
               </form>
               {a.lastSeenAt ? (
                 <Dialog
-                  label="Supprimer"
+                  label={`Supprimer ${a.displayName ?? 'ce compte'}`}
+                  icon="supprimer"
+                  tip="Supprimer définitivement (avec confirmation)"
                   title={`Supprimer : ${a.displayName ?? 'compte sans nom'}`}
                 >
                   <form action={deleteAccountAction} className="space-y-4">
@@ -250,8 +267,9 @@ export default async function ComptesPage({ searchParams }: Props) {
                       Keycloak. On ne peut pas revenir en arrière.
                     </p>
                     <p className="text-sm text-ink-muted">
-                      Si des cours, des devoirs ou des messages y sont rattachés, la suppression est
-                      refusée : suspendez-le alors.
+                      Ses rôles et ses inscriptions partent avec lui. Si la personne a déjà suivi
+                      des leçons ou créé des cours, des devoirs ou des messages, la suppression est
+                      refusée pour garder l’historique : suspendez-la alors.
                     </p>
                     <button type="submit" className={buttonClass}>
                       Supprimer définitivement
@@ -262,13 +280,11 @@ export default async function ComptesPage({ searchParams }: Props) {
                 <form action={deleteAccountAction}>
                   <input type="hidden" name="id" value={a.id} />
                   <input type="hidden" name="back" value={here} />
-                  <button
-                    type="submit"
-                    className={secondaryButtonClass}
-                    aria-label={`Supprimer ${a.displayName ?? 'ce compte'}`}
-                  >
-                    Supprimer
-                  </button>
+                  <IconSubmit
+                    icon="supprimer"
+                    label={`Supprimer ${a.displayName ?? 'ce compte'}`}
+                    tip="Supprimer : ce compte ne s’est jamais connecté"
+                  />
                 </form>
               )}
             </div>

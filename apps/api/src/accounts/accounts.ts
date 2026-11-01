@@ -202,9 +202,37 @@ export async function updateAccount(
 }
 
 /**
- * Supprime un compte auquel aucun travail ne se rattache (cours, devoirs, quiz, messages…) :
- * fiche, rôles, classes, et le compte Keycloak. Il peut s'être déjà connecté (ex. un compte
- * resté « sans nom »). Dès qu'un travail s'y rattache, on refuse : il faut le suspendre.
+ * Ce qui empêche de supprimer un compte : le travail produit pour les autres (cours, devoirs,
+ * évaluations, séances, ressources, messages aux parents, relectures) et l'historique
+ * d'apprentissage, qui est conservé en ajout seulement. Le compte se suspend alors.
+ */
+async function blockers(db: Database, targetId: string): Promise<string[]> {
+  const rows = await db.execute<{ label: string; n: number }>(sql`
+    select label, n::int from (
+      select 'cours' as label, (select count(*) from courses where created_by = ${targetId}) as n
+      union all select 'versions de cours', (select count(*) from course_versions where created_by = ${targetId})
+      union all select 'devoirs', (select count(*) from assignments where created_by_user_id = ${targetId})
+      union all select 'évaluations', (select count(*) from evaluations where created_by_user_id = ${targetId})
+      union all select 'séances de classe virtuelle', (select count(*) from class_sessions where created_by_user_id = ${targetId})
+      union all select 'ressources de classe', (select count(*) from class_resources where created_by_user_id = ${targetId})
+      union all select 'conversations avec des parents', (select count(*) from parent_conversations
+        where parent_user_id = ${targetId} or teacher_user_id = ${targetId} or learner_user_id = ${targetId})
+      union all select 'relectures de cours', (select count(*) from course_review_events where actor_user_id = ${targetId})
+        + (select count(*) from course_versions where ${targetId} in (reviewer_user_id, submitted_by, approved_by, published_by))
+      union all select 'traces d''apprentissage (leçons ouvertes, quiz, bilans)',
+        (select count(*) from learning_events where user_id = ${targetId})
+        + (select count(*) from quiz_attempts where user_id = ${targetId})
+        + (select count(*) from diagnostic_sessions where user_id = ${targetId})
+        + (select count(*) from simulation_attempts where user_id = ${targetId})
+        + (select count(*) from remediation_plans where user_id = ${targetId} or decided_by = ${targetId})
+    ) w where n > 0`);
+  return rows.rows.map((r) => `${r.n} ${r.label}`);
+}
+
+/**
+ * Supprime un compte : fiche, rôles, classes, inscriptions, devoirs rendus, notes, questions,
+ * et le compte Keycloak. Les actions qu'il a faites pour d'autres (invitations, changements
+ * d'établissement, journal…) restent, sans son nom. Voir `blockers` pour les refus.
  */
 export async function deleteAccount(
   db: Database,
@@ -214,18 +242,50 @@ export async function deleteAccount(
   traceId?: string,
 ): Promise<{ removedFromKeycloak: boolean }> {
   const target = await assertCanManage(db, userId, targetId, 'supprimer');
+  const work = await blockers(db, targetId);
+  if (work.length > 0) {
+    throw new TeamError(
+      'invalid',
+      `Ce compte ne peut pas être supprimé car il garde un historique (${work.join(', ')}). Suspendez-le plutôt : il ne pourra plus se connecter.`,
+    );
+  }
   const keycloak = identity.configured() && typeof identity.deleteUser === 'function';
+  const id = targetId;
   try {
     await db.transaction(async (tx) => {
-      await tx.execute(sql`delete from cohort_members where user_id = ${targetId}`);
-      await tx.execute(sql`delete from memberships where user_id = ${targetId}`);
-      await tx.execute(sql`delete from parent_codes where learner_user_id = ${targetId}`);
-      await tx.execute(sql`delete from team_join_requests where user_id = ${targetId}`);
-      // Le journal garde l'action, sans le nom de l'auteur supprimé.
-      await tx.execute(
-        sql`update audit_logs set actor_user_id = null where actor_user_id = ${targetId}`,
-      );
-      await tx.execute(sql`delete from users where id = ${targetId}`);
+      // Ce que la personne a fait pour d'autres reste, sans son nom.
+      for (const q of [
+        // Ce que la personne a fait pour d'autres reste, sans son nom.
+        sql`update audit_logs set actor_user_id = null where actor_user_id = ${id}`,
+        sql`update membership_invitations set created_by_user_id = null where created_by_user_id = ${id}`,
+        sql`update membership_invitations set used_by_user_id = null where used_by_user_id = ${id}`,
+        sql`update organization_changes set changed_by = null where changed_by = ${id}`,
+        sql`update withdrawn_rights set withdrawn_by = null where withdrawn_by = ${id}`,
+        sql`update parent_codes set created_by_user_id = null where created_by_user_id = ${id}`,
+        sql`update tutor_links set granted_by_user_id = null where granted_by_user_id = ${id}`,
+        sql`update tutor_invitations set used_by_user_id = null where used_by_user_id = ${id}`,
+        sql`update help_questions set answered_by_user_id = null where answered_by_user_id = ${id}`,
+        sql`update level_requests set decided_by_user_id = null where decided_by_user_id = ${id}`,
+        sql`update team_join_requests set decided_by_user_id = null where decided_by_user_id = ${id}`,
+        sql`update assignment_submissions set graded_by_user_id = null where graded_by_user_id = ${id}`,
+        // Ce qui n'appartient qu'à elle part avec elle.
+        sql`delete from lesson_progress where enrollment_id in (select id from enrollments where user_id = ${id})`,
+        sql`delete from enrollments where user_id = ${id}`,
+        sql`delete from help_questions where learner_user_id = ${id}`,
+        sql`delete from level_requests where learner_user_id = ${id}`,
+        sql`delete from assignment_submissions where learner_user_id = ${id}`,
+        sql`delete from evaluation_scores where learner_user_id = ${id}`,
+        sql`delete from guardian_links where learner_user_id = ${id} or guardian_user_id = ${id}`,
+        sql`delete from tutor_links where learner_user_id = ${id} or tutor_user_id = ${id}`,
+        sql`delete from tutor_invitations where guardian_user_id = ${id}`,
+        sql`delete from cohort_members where user_id = ${id}`,
+        sql`delete from memberships where user_id = ${id}`,
+        sql`delete from parent_codes where learner_user_id = ${id}`,
+        sql`delete from team_join_requests where user_id = ${id}`,
+        sql`delete from users where id = ${id}`,
+      ]) {
+        await tx.execute(q);
+      }
       // Keycloak en dernier : s'il refuse, rien n'est supprimé ici non plus.
       if (keycloak) await identity.deleteUser!(target.oidcSubject);
     });

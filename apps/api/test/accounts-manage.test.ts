@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, test } from 'node:test';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
 import { memberships, users } from '../src/db/schema.js';
@@ -106,7 +106,7 @@ test('modifier un compte : nom, profils et niveau', async () => {
   });
 });
 
-test('supprimer : un compte sans travail rattaché, et aussi dans Keycloak', async () => {
+test('supprimer : un compte sans travail pour les autres, avec ses traces, et dans Keycloak', async () => {
   const [marie] = await ctx.db
     .select({ id: users.id, subject: users.oidcSubject })
     .from(users)
@@ -119,8 +119,27 @@ test('supprimer : un compte sans travail rattaché, et aussi dans Keycloak', asy
   // Koffi a des cours et des quiz : on le suspend, on ne le supprime pas.
   await call(SUB.koffi, 'get', '/me', 200);
   const used = (await call(SUB.yao, 'delete', `/admin/accounts/${ID.userKoffi}`, 400)).body;
-  assert.match(used.message, /Des données sont déjà rattachées/);
+  assert.match(used.message, /garde un historique \(\d+ cours/);
   assert.equal((await ctx.db.select().from(users).where(eq(users.id, ID.userKoffi))).length, 1);
+
+  // Un élève inscrit à un cours, sans autre trace : son inscription part avec lui.
+  const learner = ID.learnerKouame;
+  const [course] = (await ctx.db.execute<{ id: string }>(sql`select id from courses limit 1`)).rows;
+  await ctx.db.execute(
+    sql`insert into enrollments (user_id, course_id) values (${learner}, ${course!.id})`,
+  );
+  const traces = async () =>
+    Number(
+      (
+        await ctx.db.execute<{ n: string }>(
+          sql`select count(*) as n from enrollments where user_id = ${learner}`,
+        )
+      ).rows[0]!.n,
+    );
+  assert.ok((await traces()) > 0);
+  await call(SUB.yao, 'delete', `/admin/accounts/${learner}`, 200);
+  assert.equal(await traces(), 0);
+  assert.equal((await ctx.db.select().from(users).where(eq(users.id, learner))).length, 0);
 
   // Un compte resté « sans nom » qui s'est seulement connecté se supprime.
   await call('compte-sans-nom', 'get', '/me', 200);

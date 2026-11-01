@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BRANCH_CODES } from './branches.js';
+import { LEVEL_CODES } from './levels.js';
 
 /** Rôles qu'on peut accorder par invitation ; « chef-etablissement » seulement par un superadministrateur. */
 export const GRANTABLE_ROLES = [
@@ -107,7 +108,64 @@ export interface OrganizationImportResult {
   confirmed: boolean;
 }
 
-export const RedeemTeamInvitationSchema = z.object({ code: z.string().trim().min(4).max(20) });
+/** Rôles qui enseignent : ils choisissent leurs niveaux et matières, puis la direction valide. */
+export const TEACHING_ROLES = ['enseignant', 'alphabetiseur'] as const;
+
+const Subjects = z
+  .array(z.string().trim().min(2, 'Matière trop courte.').max(60))
+  .min(1, 'Choisissez au moins une matière.')
+  .max(30);
+const Levels = z.array(z.enum(LEVEL_CODES)).min(1, 'Choisissez au moins un niveau.');
+
+export const RedeemTeamInvitationSchema = z.object({
+  code: z.string().trim().min(4).max(20),
+  /** Pour un rôle qui enseigne : ses niveaux et ses matières, soumis à la direction. */
+  levels: Levels.optional(),
+  subjects: Subjects.optional(),
+});
+
+/** La direction valide une demande, en corrigeant au besoin niveaux et matières. */
+export const DecideJoinRequestSchema = z.object({ levels: Levels, subjects: Subjects });
+
+/** Ce que la personne voit après avoir saisi le code, avant d'envoyer sa demande. */
+export interface InvitationPreview {
+  organization: string;
+  role: string;
+  /** Vrai pour un rôle qui enseigne : fiche à remplir, puis validation par la direction. */
+  needsValidation: boolean;
+  /** Niveaux proposés selon le type d'établissement. */
+  levels: Array<{ code: string; title: string }>;
+  /** Matières des programmes publiés pour ces niveaux (peut être vide). */
+  subjects: string[];
+}
+
+export type JoinRequestStatus = 'pending' | 'approved' | 'refused';
+
+export const JOIN_REQUEST_STATUS_LABELS: Record<JoinRequestStatus, string> = {
+  pending: 'En attente de validation par la direction',
+  approved: 'Validée',
+  refused: 'Refusée',
+};
+
+export interface JoinRequest {
+  id: string;
+  userName: string | null;
+  role: string;
+  organization: { id: string; name: string };
+  levels: string[];
+  subjects: string[];
+  status: JoinRequestStatus;
+  createdAt: string;
+  /** Niveaux possibles dans cet établissement (pour corriger avant de valider). */
+  levelOptions: Array<{ code: string; title: string }>;
+}
+
+export interface RedeemResult {
+  organization: string;
+  role: string;
+  /** Vrai quand la demande attend la validation de la direction. */
+  pending: boolean;
+}
 
 export const UpdateTeamMemberSchema = z.object({ branches: Branches });
 
@@ -118,6 +176,9 @@ export interface TeamMember {
   organization: { id: string; name: string };
   /** Cycles accordés ; null = tous. */
   branches: string[] | null;
+  /** Niveaux et matières validés par la direction (null : pas encore précisés). */
+  levels: string[] | null;
+  subjects: string[] | null;
   isSelf: boolean;
 }
 
@@ -154,6 +215,10 @@ export interface TeamInvitation {
   usedByName: string | null;
   usedAt: string | null;
   state: InvitationState;
+  /** Nombre de personnes qui ont saisi ce code. */
+  uses: number;
+  /** null : sans limite de personnes. */
+  maxUses: number | null;
 }
 
 export interface InvitationList {
@@ -161,4 +226,8 @@ export interface InvitationList {
   /** Rôles que la personne peut accorder. */
   grantable: string[];
   items: TeamInvitation[];
+}
+
+export interface JoinRequestList {
+  items: JoinRequest[];
 }

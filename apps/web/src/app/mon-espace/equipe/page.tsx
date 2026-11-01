@@ -1,11 +1,22 @@
-import { BRANCHES, TEAM_ROLE_LABELS, type TeamOverview } from '@lenseignement/types';
+import {
+  BRANCHES,
+  levelLabel,
+  TEAM_ROLE_LABELS,
+  type JoinRequestList,
+  type TeamOverview,
+} from '@lenseignement/types';
 import { redirect } from 'next/navigation';
-import { Notice, param, secondaryButtonClass } from '@/components/Notice';
+import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../configuration/Dialog';
 import { CreateAccount } from './CreateAccount';
-import { removeMemberAction, updateBranchesAction } from './actions';
+import {
+  approveRequestAction,
+  refuseRequestAction,
+  removeMemberAction,
+  updateBranchesAction,
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Équipe' };
@@ -55,6 +66,8 @@ export default async function TeamPage({ searchParams }: Props) {
         everywhere: false,
         directions: [] as Array<{ id: string; name: string }>,
       };
+  const pending = await apiGet<JoinRequestList>(session.accessToken, '/team/requests');
+  const requests = pending.ok ? pending.data.items : [];
   const accountStatus = await apiGet<{ configured: boolean }>(
     session.accessToken,
     '/team/accounts/status',
@@ -95,6 +108,70 @@ export default async function TeamPage({ searchParams }: Props) {
       </p>
       <Notice message={param(query.message)} error={param(query.erreur)} />
 
+      {requests.length > 0 && (
+        <div className={`${cardClass} border-2 border-primary`} data-testid="join-requests">
+          <h2 className="text-xl font-bold">Demandes à valider ({requests.length})</h2>
+          <p className="mt-1">
+            Ces personnes ont saisi un code d’invitation. Vérifiez leurs niveaux et matières,
+            corrigez-les au besoin, puis validez ou refusez.
+          </p>
+          <ul className="mt-3 space-y-4" role="list">
+            {requests.map((r) => (
+              <li key={r.id} className="rounded-card border border-line p-4">
+                <p className="text-lg font-bold">
+                  {r.userName ?? 'Sans nom'} : {TEAM_ROLE_LABELS[r.role] ?? r.role}
+                </p>
+                <p className="text-ink-muted">
+                  {r.organization.name} · reçue le{' '}
+                  {new Intl.DateTimeFormat('fr-FR', {
+                    dateStyle: 'medium',
+                    timeZone: 'UTC',
+                  }).format(new Date(r.createdAt))}
+                </p>
+                <form action={approveRequestAction.bind(null, r.id)} className="mt-2 space-y-3">
+                  <fieldset className="flex flex-wrap gap-x-5 gap-y-1">
+                    <legend className="font-bold">Niveaux</legend>
+                    {r.levelOptions.map((l) => (
+                      <label key={l.code} className="flex min-h-[44px] items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="level"
+                          value={l.code}
+                          defaultChecked={r.levels.includes(l.code)}
+                          className="h-6 w-6 accent-primary"
+                        />
+                        {l.title}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <label className="block font-bold">
+                    Matières (séparées par des virgules)
+                    <input
+                      name="subjects"
+                      defaultValue={r.subjects.join(', ')}
+                      className={inputClass}
+                      maxLength={600}
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" className={buttonClass}>
+                      Valider<span className="sr-only"> la demande de {r.userName}</span>
+                    </button>
+                    <button
+                      type="submit"
+                      formAction={refuseRequestAction.bind(null, r.id)}
+                      className={secondaryButtonClass}
+                    >
+                      Refuser<span className="sr-only"> la demande de {r.userName}</span>
+                    </button>
+                  </div>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className={cardClass}>
         <h2 className="text-xl font-bold">Membres</h2>
         <ul className="mt-3 space-y-4" role="list">
@@ -104,6 +181,12 @@ export default async function TeamPage({ searchParams }: Props) {
                 {m.userName ?? 'Sans nom'} : {TEAM_ROLE_LABELS[m.role] ?? m.role}
               </p>
               <p className="text-ink-muted">{m.organization.name}</p>
+              {m.levels && (
+                <p data-testid="member-levels">
+                  Niveaux : {m.levels.map((l) => levelLabel(l) ?? l).join(', ')}
+                  {m.subjects && m.subjects.length > 0 && ` · Matières : ${m.subjects.join(', ')}`}
+                </p>
+              )}
               <form action={updateBranchesAction} className="mt-2 space-y-2">
                 <input type="hidden" name="memberId" value={m.id} />
                 <Cycles checked={m.branches} />

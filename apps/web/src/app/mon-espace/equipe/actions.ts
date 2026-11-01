@@ -61,3 +61,23 @@ export async function createAccountAction(
   if (!result.ok) return { error: result.message ?? 'Création impossible.' };
   return { created: result.data };
 }
+
+/** La direction valide la demande, avec les niveaux et matières (corrigés au besoin). */
+export async function approveRequestAction(requestId: string, form: FormData): Promise<void> {
+  const subjects = text(form, 'subjects')
+    .split(/[,;\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const result = await apiSend(await token(), 'POST', `/team/requests/${requestId}/approve`, {
+    levels: form.getAll('level').map(String),
+    subjects,
+  });
+  if (!result.ok) back('erreur', result.message ?? 'Validation impossible.');
+  back('message', 'Demande validée : la personne fait maintenant partie de l’équipe.');
+}
+
+export async function refuseRequestAction(requestId: string): Promise<void> {
+  const result = await apiSend(await token(), 'POST', `/team/requests/${requestId}/refuse`);
+  if (!result.ok) back('erreur', result.message ?? 'Refus impossible.');
+  back('message', 'Demande refusée.');
+}

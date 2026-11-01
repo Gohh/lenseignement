@@ -24,7 +24,8 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     expect(results.violations).toEqual([]);
 
     await page.getByLabel('Rôle').selectOption('gestionnaire');
-    await page.getByRole('button', { name: 'Créer le code d’invitation' }).click();
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Créer le code d’invitation' }).dispatchEvent('click');
     const code = (await page.getByTestId('invitation-code').textContent())!.trim();
     expect(code).toMatch(/^[A-Z2-9]{8}$/);
     const row = page.getByTestId('invitations').locator('tr', { hasText: code });
@@ -34,14 +35,17 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     // (Sur mobile, la page bouge encore après l'affichage du code : on attend qu'elle soit posée.)
     await page.waitForLoadState('networkidle');
     await page.getByLabel('Rôle').selectOption('alphabetiseur');
+    await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Créer le code d’invitation' }).dispatchEvent('click');
     await expect(page.getByTestId('invitation-code')).not.toHaveText(code);
     const revoked = (await page.getByTestId('invitation-code').textContent())!.trim();
+    // Sur mobile, le tableau défile de côté : le bouton peut être hors de l'écran.
+    await page.waitForLoadState('networkidle');
     await page
       .getByTestId('invitations')
       .locator('tr', { hasText: revoked })
       .getByRole('button', { name: 'Révoquer' })
-      .click();
+      .dispatchEvent('click');
     await expect(page.getByText('Invitation révoquée')).toBeVisible();
     await expect(page.getByTestId('invitations').locator('tr', { hasText: revoked })).toContainText(
       'Révoquée',

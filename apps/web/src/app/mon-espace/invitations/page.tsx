@@ -55,8 +55,10 @@ export default async function InvitationsPage({ searchParams }: Props) {
             {code}
           </p>
           <p className="mt-2">
-            Donnez ce code à la personne. Elle le saisit dans « Rejoindre une équipe », depuis Mon
-            espace.
+            Donnez ce code aux personnes concernées. Elles le saisissent dans « Rejoindre une équipe
+            », depuis Mon espace. Un code d’enseignant ou d’alphabétiseur sert à autant de personnes
+            que nécessaire : chacune choisit ses niveaux et matières, puis vous validez sa demande
+            dans Équipe. Les autres rôles : une seule personne par code.
           </p>
         </div>
       )}
@@ -106,7 +108,7 @@ export default async function InvitationsPage({ searchParams }: Props) {
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table
-              className="w-full min-w-[44rem] border-collapse text-left"
+              className="w-full min-w-[50rem] border-collapse text-left"
               data-testid="invitations"
             >
               <thead>
@@ -116,6 +118,7 @@ export default async function InvitationsPage({ searchParams }: Props) {
                   <th className="p-2">Code</th>
                   <th className="p-2">Créée le</th>
                   <th className="p-2">Expire le</th>
+                  <th className="p-2">Utilisations</th>
                   <th className="p-2">État</th>
                   <th className="p-2">Action</th>
                 </tr>
@@ -128,6 +131,10 @@ export default async function InvitationsPage({ searchParams }: Props) {
                     <td className="p-2 font-mono font-bold tracking-wider">{i.code}</td>
                     <td className="p-2">{formatDate(i.createdAt)}</td>
                     <td className="p-2">{formatDate(i.expiresAt)}</td>
+                    <td className="p-2">
+                      {i.uses}
+                      {i.maxUses === null ? ' (sans limite)' : ` sur ${i.maxUses}`}
+                    </td>
                     <td className="p-2">
                       {INVITATION_STATE_LABELS[i.state]}
                       {i.state === 'used' && i.usedByName ? ` par ${i.usedByName}` : ''}

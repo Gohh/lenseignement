@@ -2,6 +2,7 @@ import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { sql, type SQL } from 'drizzle-orm';
 import { DATABASE, type Database } from '../db/database.js';
 import { auditLogs } from '../db/schema.js';
+import { activeClassOf } from '../cohorts/locks.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -307,7 +308,7 @@ export class AccessService {
    * lien vérifié ou le personnel de son périmètre ; ni l'apprenant lui-même ni un répétiteur.
    */
   async assertCanDecideLevel(request: AccessRequest): Promise<void> {
-    const decided = await this.decide(request);
+    const decided = await this.levelDecider(request);
     const reason: AccessReason =
       decided === 'scope' || decided === 'guardian' || decided === 'invalid_id'
         ? decided
@@ -318,8 +319,18 @@ export class AccessService {
 
   /** Vrai si la personne peut décider du niveau de l'apprenant (sans journal). */
   async canDecideLevel(request: AccessRequest): Promise<boolean> {
-    const reason = await this.decide(request);
+    const reason = await this.levelDecider(request);
     return reason === 'scope' || reason === 'guardian';
+  }
+
+  /**
+   * Le niveau d'un élève entré dans sa classe se décide à l'établissement (équipe et enseignant de
+   * la classe) ; le parent ne décide que pour un enfant qui n'est dans aucune classe.
+   */
+  private async levelDecider(request: AccessRequest): Promise<AccessReason> {
+    const reason = await this.decide(request);
+    if (reason !== 'guardian') return reason;
+    return (await activeClassOf(this.db, request.resourceId)) ? 'out_of_scope' : reason;
   }
 
   /** Vrai si la personne fait partie du personnel du périmètre de l'apprenant (sans journal). */

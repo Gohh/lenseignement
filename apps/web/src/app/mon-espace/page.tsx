@@ -199,12 +199,14 @@ export default async function MyspacePage() {
               >
                 Choisir un cours
               </Link>{' '}
-              <Link
-                href="/mon-espace/rejoindre"
-                className="inline-flex min-h-[48px] items-center font-bold underline"
-              >
-                J’ai un code de classe
-              </Link>
+              {!(me.ok && (me.data.activeClass || me.data.teamCodeUsed)) && (
+                <Link
+                  href="/mon-espace/rejoindre"
+                  className="inline-flex min-h-[48px] items-center font-bold underline"
+                >
+                  J’ai un code de classe
+                </Link>
+              )}
             </div>
           )}
         </div>

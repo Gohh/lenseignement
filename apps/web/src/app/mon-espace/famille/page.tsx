@@ -4,7 +4,13 @@ import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
-import { addChildAction, inviteTutorAction, linkChildAction, revokeTutorAction } from './actions';
+import {
+  addChildAction,
+  inviteTutorAction,
+  joinChildCohortAction,
+  linkChildAction,
+  revokeTutorAction,
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ma famille' };
@@ -65,9 +71,35 @@ export default async function FamilyPage({ searchParams }: Props) {
                     </p>
                   ))
                 ) : (
-                  <p className="text-ink-muted">
-                    {child.level ? (levelLabel(child.level) ?? child.level) : 'Niveau non précisé'}
-                  </p>
+                  <>
+                    <p className="text-ink-muted">
+                      {child.level
+                        ? (levelLabel(child.level) ?? child.level)
+                        : 'Niveau non précisé'}
+                    </p>
+                    <form
+                      action={joinChildCohortAction}
+                      className="mt-3 flex flex-wrap items-end gap-3"
+                      data-testid="child-class-code"
+                    >
+                      <input type="hidden" name="childId" value={child.id} />
+                      <label className="block font-bold">
+                        Code de sa classe
+                        <input
+                          name="code"
+                          className={`${inputClass} uppercase tracking-widest`}
+                          required
+                          minLength={4}
+                          maxLength={20}
+                          autoComplete="off"
+                          aria-label={`Code de la classe de ${child.displayName}`}
+                        />
+                      </label>
+                      <button type="submit" className={secondaryButtonClass}>
+                        Inscrire dans sa classe
+                      </button>
+                    </form>
+                  </>
                 )}
                 <p className="mt-2">
                   <Link href={`/mon-espace/eleves/${child.id}`} className="font-bold underline">

@@ -65,7 +65,7 @@ export default async function CohortPage({ params, searchParams }: Props) {
                     <li key={learner.id} className="flex flex-wrap items-center gap-3">
                       <label className="inline-flex min-h-[44px] items-center gap-2">
                         <input type="checkbox" name="learnerId" value={learner.id} />
-                        <span>{learner.displayName}</span>
+                        <span>{learner.displayName ?? 'Sans nom'}</span>
                       </label>
                       <Link
                         href={`/mon-espace/eleves/${learner.id}`}
@@ -90,10 +90,11 @@ export default async function CohortPage({ params, searchParams }: Props) {
                 </ul>
                 {tools.data.targets.length > 0 ? (
                   <div className="space-y-2 rounded-card border border-line p-3">
-                    <p className="font-bold">Passage de classe</p>
+                    <p className="font-bold">Changer de classe ou passage de classe</p>
                     <p className="text-ink-muted">
-                      Coche les élèves à faire passer, ou ne coche personne pour faire passer toute
-                      la classe.
+                      Coche un ou plusieurs élèves pour les changer de classe, ou ne coche personne
+                      pour faire passer toute la classe. Leur niveau devient celui de la nouvelle
+                      classe. Les élèves ne peuvent pas le faire eux-mêmes.
                     </p>
                     <label className="block font-bold">
                       Nouvelle classe
@@ -106,7 +107,7 @@ export default async function CohortPage({ params, searchParams }: Props) {
                       </select>
                     </label>
                     <button type="submit" className={buttonClass}>
-                      Faire passer
+                      Changer de classe
                     </button>
                   </div>
                 ) : (

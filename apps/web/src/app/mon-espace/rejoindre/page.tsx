@@ -6,7 +6,7 @@ import {
 } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param } from '@/components/Notice';
-import { apiGet } from '@/lib/api';
+import { apiGet, type Me } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { joinCohortAction, joinTeamAction } from './actions';
 
@@ -23,6 +23,13 @@ export default async function JoinPage({ searchParams }: Props) {
   const query = await searchParams;
   const mine = await apiGet<JoinRequestList>(session.accessToken, '/team/requests/mine');
   const requests = mine.ok ? mine.data.items : [];
+  const me = await apiGet<Me>(session.accessToken, '/me');
+  const activeClass = me.ok ? (me.data.activeClass ?? null) : null;
+  // Un code par personne : une fois utilisé (classe ou équipe), la zone disparaît.
+  const teamDone = me.ok && (me.data.teamCodeUsed || me.data.profileLocked);
+  const isLearner = me.ok && me.data.profiles.includes('apprenant');
+  const showClass = !activeClass && !teamDone;
+  const showTeam = !activeClass && !teamDone && !isLearner;
 
   return (
     <section className="space-y-6">
@@ -49,51 +56,79 @@ export default async function JoinPage({ searchParams }: Props) {
           </ul>
         </div>
       )}
-      <form
-        action={joinCohortAction}
-        className="space-y-4 rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]"
-      >
-        <h2 className="text-xl font-bold">J’ai un code de classe</h2>
-        <p>Ton enseignant t’a donné un code ? Écris-le ici pour entrer dans ta classe.</p>
-        <label className="block font-bold">
-          Code de classe
-          <input
-            name="code"
-            className={`${inputClass} uppercase tracking-widest`}
-            required
-            minLength={4}
-            maxLength={20}
-            autoComplete="off"
-          />
-        </label>
-        <button type="submit" className={buttonClass}>
-          Rejoindre la classe
-        </button>
-      </form>
-      <h2 className="text-xl font-bold">J’ai un code d’invitation d’équipe</h2>
-      <p>
-        La direction de votre établissement vous a remis un code ? Saisissez-le ici. Si vous
-        enseignez, vous choisirez ensuite vos niveaux et vos matières, puis la direction validera.
-      </p>
-      <form
-        action={joinTeamAction}
-        className="space-y-4 rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]"
-      >
-        <label className="block font-bold">
-          Code d’invitation
-          <input
-            name="code"
-            className={`${inputClass} uppercase tracking-widest`}
-            required
-            minLength={4}
-            maxLength={20}
-            autoComplete="off"
-          />
-        </label>
-        <button type="submit" className={buttonClass}>
-          Rejoindre l’équipe
-        </button>
-      </form>
+      {activeClass && (
+        <div
+          className="rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]"
+          data-testid="class-locked"
+        >
+          <h2 className="text-xl font-bold">Ta classe</h2>
+          <p className="mt-2 text-lg">
+            <strong>{activeClass.name}</strong> · {activeClass.organization}
+          </p>
+          <p className="mt-2 text-ink-muted">
+            Tu es entré dans ta classe avec son code. Pour changer de classe, adresse-toi à ton
+            établissement.
+          </p>
+        </div>
+      )}
+      {teamDone && requests.length === 0 && (
+        <p className="text-ink-muted" data-testid="code-used">
+          Vous avez déjà utilisé un code d’invitation. Pour un autre rôle, adressez-vous à la
+          direction de votre établissement.
+        </p>
+      )}
+      {showClass && (
+        <form
+          action={joinCohortAction}
+          className="space-y-4 rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]"
+        >
+          <h2 className="text-xl font-bold">J’ai un code de classe</h2>
+          <p>Ton établissement t’a donné le code de ta classe ? Écris-le ici pour y entrer.</p>
+          <label className="block font-bold">
+            Code de classe
+            <input
+              name="code"
+              className={`${inputClass} uppercase tracking-widest`}
+              required
+              minLength={4}
+              maxLength={20}
+              autoComplete="off"
+            />
+          </label>
+          <button type="submit" className={buttonClass}>
+            Rejoindre la classe
+          </button>
+        </form>
+      )}
+      {showTeam && (
+        <>
+          <h2 className="text-xl font-bold">J’ai un code d’invitation d’équipe</h2>
+          <p>
+            La direction de votre établissement vous a remis un code ? Saisissez-le ici. Si vous
+            enseignez, vous choisirez ensuite vos niveaux et vos matières, puis la direction
+            validera.
+          </p>
+          <form
+            action={joinTeamAction}
+            className="space-y-4 rounded-big border border-line bg-surface p-5 shadow-[var(--shadow-soft)]"
+          >
+            <label className="block font-bold">
+              Code d’invitation
+              <input
+                name="code"
+                className={`${inputClass} uppercase tracking-widest`}
+                required
+                minLength={4}
+                maxLength={20}
+                autoComplete="off"
+              />
+            </label>
+            <button type="submit" className={buttonClass}>
+              Rejoindre l’équipe
+            </button>
+          </form>
+        </>
+      )}
     </section>
   );
 }

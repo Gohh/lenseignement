@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { activeClassOf, usedTeamCode } from '../cohorts/locks.js';
 import { and, asc, desc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
 import {
   GRANTABLE_ROLES,
@@ -439,6 +440,16 @@ export async function redeemTeamInvitation(
 ): Promise<RedeemResult> {
   const result = await db.transaction(async (tx) => {
     const invitation = await usableInvitation(tx, input.code, true);
+    // Un code d'invitation par personne : ensuite, la zone disparaît et l'API refuse.
+    if (await usedTeamCode(tx, userId)) {
+      throw new TeamError(
+        'invalid',
+        'Vous avez déjà utilisé un code d’invitation. Pour un autre rôle, adressez-vous à la direction.',
+      );
+    }
+    if (await activeClassOf(tx, userId)) {
+      throw new TeamError('invalid', 'Un élève ne peut pas rejoindre une équipe avec un code.');
+    }
     const [org] = await tx
       .select({ name: organizations.name })
       .from(organizations)

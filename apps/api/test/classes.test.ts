@@ -99,7 +99,14 @@ test('passage de classe : la direction fait passer ou retire des élèves', asyn
       await call(SUB.bamba, 'get', `/organizations/${ID.orgManguiers}/cohorts`, 200)
     ).body.items.find((c: { id: string }) => c.id === id).joinCode;
   await call(SUB.fatou, 'post', '/me/join-cohort', 200, { code: await codeOf(from) });
-  await call(SUB.mariam, 'post', '/me/join-cohort', 200, { code: await codeOf(from) });
+  // Une personne d'une équipe n'entre pas dans une classe avec un code d'élève.
+  await call(SUB.mariam, 'post', '/me/join-cohort', 400, { code: await codeOf(from) });
+  await call('eleve-passage', 'post', '/me/join-cohort', 200, { code: await codeOf(from) });
+  // Un seul code de classe : ensuite, seule l'équipe de l'établissement change la classe.
+  const again = await call('eleve-passage', 'post', '/me/join-cohort', 400, {
+    code: await codeOf(to),
+  });
+  assert.match(again.body.message, /déjà dans la classe/);
 
   // Seule la direction a ces outils.
   await call(SUB.aminata, 'get', `/cohorts/${from}/roster-tools`, 404);
@@ -129,4 +136,29 @@ test('passage de classe : la direction fait passer ou retire des élèves', asyn
   await call(SUB.aminata, 'delete', `/cohorts/${to}/learners/${ID.userFatou}`, 404);
   await call(SUB.bamba, 'delete', `/cohorts/${to}/learners/${ID.userFatou}`, 200);
   await call(SUB.bamba, 'delete', `/cohorts/${to}/learners/${ID.userFatou}`, 404);
+});
+
+test('le parent saisit le code de classe de l’enfant qu’il a créé ; ensuite, c’est verrouillé', async () => {
+  const { id: classId } = (
+    await call(SUB.bamba, 'post', '/cohorts', 201, {
+      organizationId: ID.orgManguiers,
+      level: 'cp2',
+      name: `CP2 enfant ${Date.now() % 100000}`,
+      schoolYear: '2027-2028',
+    })
+  ).body;
+  const code = (
+    await call(SUB.bamba, 'get', `/organizations/${ID.orgManguiers}/cohorts`, 200)
+  ).body.items.find((c: { id: string }) => c.id === classId).joinCode;
+  const child = (
+    await call('parent-de-test', 'post', '/family/children', 201, { displayName: 'Petit Test' })
+  ).body;
+  const childId = child.id as string;
+  // Un autre parent ne peut pas inscrire cet enfant.
+  await call(SUB.fatou, 'post', `/me/children/${childId}/join-cohort`, 404, { code });
+  const joined = await call('parent-de-test', 'post', `/me/children/${childId}/join-cohort`, 200, {
+    code,
+  });
+  assert.match(joined.body.cohort, /CP2 enfant/);
+  await call('parent-de-test', 'post', `/me/children/${childId}/join-cohort`, 400, { code });
 });

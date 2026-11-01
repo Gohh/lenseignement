@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
+import { users } from '../src/db/schema.js';
 import { createTestApp, type TestContext } from './helpers.js';
 
 let ctx: TestContext;
@@ -51,23 +53,25 @@ test('l’enfant d’un parent passe au niveau suivant sur décision du parent s
 });
 
 test('l’apprenant demande le niveau supérieur ; avec un parent ou une classe, il attend', async () => {
-  // Awa est dans une classe : sa demande attend la validation.
-  await call(SUB.awa, 'put', '/me/level', 200, { level: '6e' });
+  // Awa est dans une classe (CP1) : son niveau est verrouillé, sa demande attend la validation.
+  await ctx.db.update(users).set({ level: 'cp1' }).where(eq(users.id, ID.userAwa));
+  await call(SUB.awa, 'put', '/me/level', 403, { level: '6e' });
   const requested = await call(SUB.awa, 'post', '/me/level-request', 201);
-  assert.deepEqual(requested.body, { status: 'pending', level: '5e' });
+  assert.equal(requested.body.status, 'pending');
   const mine = (await call(SUB.awa, 'get', '/me/promotion', 200)).body;
   assert.equal(mine.pending, true);
   assert.equal(mine.canDecide, false);
 
-  // Elle ne se valide pas elle-même.
+  // Elle ne se valide pas elle-même ; sa mère non plus : elle est dans une classe.
   await call(SUB.awa, 'post', `/learners/${ID.userAwa}/promotion/approve`, 403);
-  // Sa mère (lien vérifié) refuse, puis l'enseignant de sa classe accepte une nouvelle demande.
-  await call(SUB.fatou, 'post', `/learners/${ID.userAwa}/promotion/decline`, 201);
+  await call(SUB.fatou, 'post', `/learners/${ID.userAwa}/promotion/decline`, 403);
+  // L'enseignant de sa classe refuse, puis accepte une nouvelle demande.
+  await call(SUB.koffi, 'post', `/learners/${ID.userAwa}/promotion/decline`, 201);
   assert.equal((await call(SUB.awa, 'get', '/me/promotion', 200)).body.pending, false);
   await call(SUB.awa, 'post', '/me/level-request', 201);
   await call(SUB.koffi, 'post', `/learners/${ID.userAwa}/promotion/approve`, 201);
-  assert.equal((await call(SUB.awa, 'get', '/me/promotion', 200)).body.level, '5e');
-  await call(SUB.awa, 'put', '/me/level', 200, { level: null });
+  assert.equal((await call(SUB.awa, 'get', '/me/promotion', 200)).body.level, requested.body.level);
+  await ctx.db.update(users).set({ level: null }).where(eq(users.id, ID.userAwa));
 });
 
 test('un apprenant autonome passe directement ; sans niveau suivant, la demande est refusée', async () => {

@@ -32,6 +32,7 @@ import {
   addLearners,
   createCohort,
   joinCohort,
+  joinCohortForChild,
   organizationCohorts,
   removeCohortTeacher,
   renewJoinCode,
@@ -198,5 +199,19 @@ export class CohortAdminController {
   async join(@Req() request: Request, @Body() body: unknown) {
     const { code } = parse(JoinCohortSchema, body);
     return guard(async () => joinCohort(this.db, await this.me(request), code, request.traceId));
+  }
+
+  /** Le parent saisit le code de classe pour l'enfant dont il a créé le profil. */
+  @Post('me/children/:childId/join-cohort')
+  @HttpCode(200)
+  async joinForChild(
+    @Req() request: Request,
+    @Param('childId', ParseUUIDPipe) childId: string,
+    @Body() body: unknown,
+  ) {
+    const { code } = parse(JoinCohortSchema, body);
+    return guard(async () =>
+      joinCohortForChild(this.db, await this.me(request), childId, code, request.traceId),
+    );
   }
 }

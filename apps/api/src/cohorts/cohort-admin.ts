@@ -23,6 +23,7 @@ import { issueParentCode, parentCounts } from '../family/family.js';
 import { IdentityError, temporaryPassword, type IdentityAdmin } from '../team/identity-admin.js';
 import { classKeeperOrganizationIds } from '../access/access.service.js';
 import { audit, TeamError } from '../team/team.js';
+import { activeClassOf, usedTeamCode } from './locks.js';
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const newCode = () =>
@@ -269,6 +270,17 @@ export async function joinCohort(
   if (!row || row.archivedAt || row.orgArchivedAt) {
     throw new TeamError('not_found', 'Code de classe invalide.');
   }
+  // Un seul code de classe par élève : ensuite, seule l'équipe de l'établissement le change.
+  const current = await activeClassOf(db, userId);
+  if (current) {
+    throw new TeamError(
+      'invalid',
+      `Tu es déjà dans la classe ${current.name} (${current.organization}). Seule l’équipe de ton établissement peut te changer de classe.`,
+    );
+  }
+  if (await usedTeamCode(db, userId)) {
+    throw new TeamError('invalid', 'Le code de classe est réservé aux élèves.');
+  }
   await db.transaction(async (tx) => {
     await tx
       .insert(cohortMembers)
@@ -281,18 +293,38 @@ export async function joinCohort(
         target: [memberships.userId, memberships.organizationId, memberships.role],
         set: { validUntil: null },
       });
-    // Le menu de l'apprenant suit son profil ; le niveau de la classe devient le sien s'il n'en a pas.
+    // Le menu de l'apprenant suit son profil ; le niveau de la classe devient le sien (verrouillé).
     await tx
       .update(users)
       .set({
         profiles: sql`case when 'apprenant' = any(${users.profiles}) then ${users.profiles}
           else array_append(${users.profiles}, 'apprenant') end`,
-        level: sql`coalesce(${users.level}, ${row.level})`,
+        level: sql`coalesce(${row.level}, ${users.level})`,
       })
       .where(eq(users.id, userId));
   });
   await audit(db, userId, 'cohort.join', row.id, traceId);
   return { cohort: row.name, organization: row.organization };
+}
+
+/**
+ * Le parent saisit le code de classe pour l'enfant dont il a créé le profil (un jeune enfant n'a
+ * pas de compte à lui). Mêmes règles que pour l'élève : une seule classe, ensuite verrouillée.
+ */
+export async function joinCohortForChild(
+  db: Database,
+  parentId: string,
+  childId: string,
+  rawCode: string,
+  traceId?: string,
+): Promise<{ cohort: string; organization: string }> {
+  const { rows } = await db.execute(sql`
+    select 1 from guardian_links
+     where guardian_user_id = ${parentId} and learner_user_id = ${childId} and status = 'verified'`);
+  if (rows.length === 0) throw new TeamError('not_found', 'Enfant introuvable.');
+  const joined = await joinCohort(db, childId, rawCode);
+  await audit(db, parentId, 'cohort.join.child', childId, traceId);
+  return joined;
 }
 
 /** Élèves (rôle apprenant) d'une classe. */

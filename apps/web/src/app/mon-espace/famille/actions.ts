@@ -59,3 +59,15 @@ export async function revokeTutorAction(form: FormData): Promise<void> {
   if (!result.ok) back('erreur', result.message ?? 'Retrait impossible.');
   back('message', 'Accès retiré.');
 }
+
+/** Le parent saisit le code de classe de son enfant : ensuite, seule l'école change la classe. */
+export async function joinChildCohortAction(form: FormData): Promise<void> {
+  const result = await apiSend<{ cohort: string; organization: string }>(
+    await token(),
+    'POST',
+    `/me/children/${text(form, 'childId')}/join-cohort`,
+    { code: text(form, 'code') },
+  );
+  if (!result.ok) back('erreur', result.message ?? 'Code de classe refusé.');
+  back('message', `Votre enfant est maintenant dans la classe ${result.data.cohort}.`);
+}

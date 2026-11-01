@@ -4,6 +4,8 @@ import {
   GRANTABLE_ROLES,
   MAX_ADMINISTRATORS,
   type CreatedAccount,
+  type InvitationList,
+  type InvitationState,
   type TeamMember,
   type TeamOverview,
 } from '@lenseignement/types';
@@ -205,7 +207,7 @@ async function assertAdminSeat(db: Executor, role: string, userId?: string) {
 export async function createTeamInvitation(
   db: Database,
   userId: string,
-  input: { organizationId: string; role: string; branches: string[] | null },
+  input: { organizationId: string; role: string; branches: string[] | null; days?: number },
   traceId?: string,
 ): Promise<{ code: string; expiresAt: string }> {
   await assertManages(db, userId, input.organizationId);
@@ -214,7 +216,7 @@ export async function createTeamInvitation(
     throw new TeamError('forbidden', 'Accès refusé.');
   }
   await assertAdminSeat(db, input.role);
-  const expiresAt = new Date(Date.now() + INVITATION_DAYS * 24 * 3600 * 1000);
+  const expiresAt = new Date(Date.now() + (input.days ?? INVITATION_DAYS) * 24 * 3600 * 1000);
   const code = newCode();
   await db.insert(membershipInvitations).values({
     code,
@@ -244,6 +246,7 @@ export async function redeemTeamInvitation(
         and(
           eq(membershipInvitations.code, code),
           isNull(membershipInvitations.usedAt),
+          isNull(membershipInvitations.revokedAt),
           gt(membershipInvitations.expiresAt, new Date()),
         ),
       )
@@ -278,6 +281,81 @@ export async function redeemTeamInvitation(
   });
   await audit(db, userId, 'team.invitation.redeem', result.organizationId, traceId);
   return { organization: result.organization, role: result.role };
+}
+
+/** Invitations des structures que la personne gère, les plus récentes d'abord. */
+export async function listInvitations(db: Database, userId: string): Promise<InvitationList> {
+  const scope = teamOrganizationIds(userId);
+  const powers = await teamPowers(db, userId);
+  const orgs = await db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations)
+    .where(sql`${organizations.id} in ${scope} and ${organizations.archivedAt} is null`)
+    .orderBy(asc(organizations.name));
+  const { rows } = await db.execute(sql`
+    select i.id, i.code, i.role, i.created_at, i.expires_at, i.used_at, i.revoked_at,
+           o.id as org_id, o.name as org_name,
+           cu.display_name as created_by, uu.display_name as used_by
+      from membership_invitations i
+      join organizations o on o.id = i.organization_id
+      left join users cu on cu.id = i.created_by_user_id
+      left join users uu on uu.id = i.used_by_user_id
+     where i.organization_id in ${scope}
+     order by i.created_at desc
+     limit 200`);
+  const now = Date.now();
+  const items = rows.map((r) => {
+    const row = r as Record<string, unknown>;
+    const expiresAt = new Date(row.expires_at as string);
+    const state: InvitationState = row.revoked_at
+      ? 'revoked'
+      : row.used_at
+        ? 'used'
+        : expiresAt.getTime() <= now
+          ? 'expired'
+          : 'active';
+    return {
+      id: String(row.id),
+      code: String(row.code),
+      role: String(row.role),
+      organization: { id: String(row.org_id), name: String(row.org_name) },
+      createdAt: new Date(row.created_at as string).toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      createdByName: (row.created_by as string | null) ?? null,
+      usedByName: (row.used_by as string | null) ?? null,
+      usedAt: row.used_at ? new Date(row.used_at as string).toISOString() : null,
+      state,
+    };
+  });
+  return { organizations: orgs, grantable: powers.grantable, items };
+}
+
+/** La direction annule une invitation pas encore utilisée : le code ne marche plus. */
+export async function revokeInvitation(
+  db: Database,
+  userId: string,
+  invitationId: string,
+  traceId?: string,
+): Promise<void> {
+  const [row] = await db
+    .select()
+    .from(membershipInvitations)
+    .where(eq(membershipInvitations.id, invitationId));
+  if (!row) throw new TeamError('not_found', 'Invitation introuvable.');
+  await assertManages(db, userId, row.organizationId).catch(() => {
+    throw new TeamError('not_found', 'Invitation introuvable.');
+  });
+  const powers = await teamPowers(db, userId);
+  if (!powers.isSuper && !powers.grantable.includes(row.role)) {
+    throw new TeamError('forbidden', 'Accès refusé.');
+  }
+  if (row.usedAt) throw new TeamError('invalid', 'Ce code a déjà été utilisé.');
+  if (row.revokedAt) return;
+  await db
+    .update(membershipInvitations)
+    .set({ revokedAt: sql`now()` })
+    .where(eq(membershipInvitations.id, row.id));
+  await audit(db, userId, 'team.invitation.revoke', row.organizationId, traceId);
 }
 
 async function managedMembership(db: Database, userId: string, memberId: string) {

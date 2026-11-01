@@ -70,6 +70,28 @@ test('ADR-021 : la direction invite un gestionnaire, règle ses cycles, puis ret
   );
   await call(SUB.awa, 'post', '/team/invitations/redeem', 404, { code });
 
+  // Liste des invitations : la direction voit la sienne, utilisée ; l'enseignant ne voit rien.
+  const listed = (await call(SUB.bamba, 'get', '/team/invitations', 200)).body;
+  const used = listed.items.find((i: { code: string }) => i.code === code);
+  assert.equal(used.state, 'used');
+  assert.equal(used.role, base.role);
+  assert.deepEqual((await call(SUB.koffi, 'get', '/team/invitations', 200)).body.items, []);
+  // Un code utilisé ne se révoque plus ; un code actif, oui, une seule fois pour tous.
+  await call(SUB.bamba, 'delete', `/team/invitations/${used.id}`, 400);
+  const second = (await call(SUB.bamba, 'post', '/team/invitations', 201, { ...base, days: 3 }))
+    .body;
+  const secondId = (await call(SUB.bamba, 'get', '/team/invitations', 200)).body.items.find(
+    (i: { code: string }) => i.code === second.code,
+  ).id;
+  await call(SUB.koffi, 'delete', `/team/invitations/${secondId}`, 404);
+  await call(SUB.bamba, 'delete', `/team/invitations/${secondId}`, 200);
+  await call(SUB.awa, 'post', '/team/invitations/redeem', 404, { code: second.code });
+  const after = (await call(SUB.bamba, 'get', '/team/invitations', 200)).body.items.find(
+    (i: { id: string }) => i.id === secondId,
+  );
+  assert.equal(after.state, 'revoked');
+  await call(SUB.bamba, 'post', '/team/invitations', 400, { ...base, days: 99 });
+
   // Le gestionnaire rédige dans son cycle seulement.
   assert.deepEqual(await authoringBranches(SUB.yao), [['primaire']]);
   const member = (await call(SUB.bamba, 'get', '/team', 200)).body.members.find(

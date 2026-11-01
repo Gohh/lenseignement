@@ -164,6 +164,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'team.account.create': 'Compte créé',
   'team.invitation.create': 'Invitation d’équipe créée',
   'team.invitation.redeem': 'Invitation d’équipe utilisée',
+  'team.invitation.revoke': 'Invitation d’équipe révoquée',
   'team.member.remove': 'Rôle retiré',
   'team.member.update': 'Rôle modifié',
 };

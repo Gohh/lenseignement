@@ -222,6 +222,8 @@ export const membershipInvitations = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     usedByUserId: uuid('used_by_user_id').references(() => users.id),
     usedAt: timestamp('used_at', { withTimezone: true }),
+    /** Invitation annulée par la direction : le code ne marche plus. */
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index('membership_invitations_org_idx').on(t.organizationId)],

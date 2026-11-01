@@ -23,7 +23,9 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
     ...(learner
       ? [
           { href: '/mon-espace/bilan-lecture', label: 'Mon bilan' },
-          { href: '/mon-espace/atelier-securite', label: 'Atelier' },
+          ...(me?.workshopLearner
+            ? [{ href: '/mon-espace/atelier', label: 'Atelier', section: true }]
+            : []),
           { href: '/mon-espace/classe', label: 'Ma classe' },
           { href: '/mon-espace/devoirs', label: 'Mes devoirs' },
           { href: '/mon-espace/evaluations', label: 'Mes notes' },
@@ -163,6 +165,14 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
         ]),
         ...when(validator, [
           { href: '/mon-espace/relecture', label: 'Relecture', icon: 'relecture' as const },
+        ]),
+        ...when(me?.workshopAuthor ?? (author || validator), [
+          {
+            href: '/mon-espace/ateliers',
+            label: 'Ateliers',
+            section: true,
+            icon: 'ateliers' as const,
+          },
         ]),
         ...when(programmes, [
           {

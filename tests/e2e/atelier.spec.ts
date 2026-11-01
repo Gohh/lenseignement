@@ -3,7 +3,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { closeDb, sql, subjectOf } from './support/db';
 
 // Atelier virtuel FICTIF : apps/api/src/simulation/demo-simulation.ts (référentiel DEMO-ELEC 2026).
-const PAGE = '/mon-espace/atelier-securite';
+const PAGE = '/mon-espace/atelier/DEMO-ATELIER-ELEC';
 
 const freshLearner = (testInfo: TestInfo) =>
   `nouveau.a${Date.now()}-${testInfo.project.name}-${testInfo.retry}`.toLowerCase();
@@ -53,9 +53,17 @@ test.describe('Atelier virtuel de sécurité (ticket 18)', () => {
   }, testInfo) => {
     const username = freshLearner(testInfo);
     await loginAs(page, username, '/mon-espace');
+    const menu = page.getByRole('navigation', { name: 'Menu de mon espace' });
+    await expect(menu.getByRole('link', { name: 'Mon bilan' })).toBeVisible();
+    // Le lien « Atelier » n'apparaît qu'aux élèves concernés (ici : alphabétisation).
+    await expect(menu.getByRole('link', { name: 'Atelier' })).toHaveCount(0);
+    await sql(`update users set level = 'alpha-1' where oidc_subject = $1`, [subjectOf(username)]);
+    await page.reload();
+    await menu.getByRole('link', { name: 'Atelier' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Atelier' })).toBeVisible();
     await page
-      .getByRole('navigation', { name: 'Menu de mon espace' })
-      .getByRole('link', { name: 'Atelier' })
+      .getByTestId('workshop-catalog')
+      .getByRole('link', { name: /Commencer « Atelier virtuel : mettre un circuit/ })
       .click();
     const practice = page.getByTestId('practice-status');
     await expect(practice).toContainText('🔒 Bloquée');

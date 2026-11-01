@@ -217,6 +217,7 @@ async function blockers(db: Database, targetId: string): Promise<string[]> {
       union all select 'ressources de classe', (select count(*) from class_resources where created_by_user_id = ${targetId})
       union all select 'conversations avec des parents', (select count(*) from parent_conversations
         where parent_user_id = ${targetId} or teacher_user_id = ${targetId} or learner_user_id = ${targetId})
+      union all select 'ateliers', (select count(*) from workshops where author_id = ${targetId})
       union all select 'relectures de cours', (select count(*) from course_review_events where actor_user_id = ${targetId})
         + (select count(*) from course_versions where ${targetId} in (reviewer_user_id, submitted_by, approved_by, published_by))
       union all select 'traces d''apprentissage (leçons ouvertes, quiz, bilans)',
@@ -258,6 +259,7 @@ export async function deleteAccount(
         // Ce que la personne a fait pour d'autres reste, sans son nom.
         sql`update audit_logs set actor_user_id = null where actor_user_id = ${id}`,
         sql`update membership_invitations set created_by_user_id = null where created_by_user_id = ${id}`,
+        sql`update workshops set reviewed_by = null where reviewed_by = ${id}`,
         sql`update membership_invitations set used_by_user_id = null where used_by_user_id = ${id}`,
         sql`update organization_changes set changed_by = null where changed_by = ${id}`,
         sql`update withdrawn_rights set withdrawn_by = null where withdrawn_by = ${id}`,

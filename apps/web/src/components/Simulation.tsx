@@ -1,4 +1,5 @@
 import type { PracticeStatus, SimulationAttemptResult, SimulationStep } from '@lenseignement/types';
+import type { ReactNode } from 'react';
 import { buttonClass, inputClass } from './Notice';
 
 const ordinal = (n: number) => (n === 1 ? '1er' : `${n}e`);
@@ -31,17 +32,20 @@ export function PracticeCard({
   status,
   title,
   action,
+  hidden,
 }: {
   status: PracticeStatus;
   title: string;
-  action: () => Promise<void>;
+  action: (form: FormData) => Promise<void>;
+  /** Champs cachés envoyés avec la demande (code de l'atelier). */
+  hidden?: ReactNode;
 }) {
   return (
     <div className="space-y-3" data-testid="practice-status">
       {status === 'locked' && (
         <p>
           <span className="font-bold">🔒 Bloquée</span> : séance pratique « {title} ». Réussis
-          d’abord la simulation de sécurité.
+          d’abord l’atelier en ligne.
         </p>
       )}
       {status === 'unlocked' && (
@@ -51,6 +55,7 @@ export function PracticeCard({
             formateur.
           </p>
           <form action={action}>
+            {hidden}
             <button type="submit" className={buttonClass}>
               Demander ma séance pratique encadrée
             </button>
@@ -75,14 +80,17 @@ export function SimulationForm({
   steps,
   attemptId,
   action,
+  hidden,
 }: {
   steps: SimulationStep[];
   attemptId: string;
   action: (form: FormData) => Promise<void>;
+  hidden?: ReactNode;
 }) {
   return (
     <form action={action} className="space-y-6">
       <input type="hidden" name="attemptId" value={attemptId} />
+      {hidden}
       {steps.map((step, s) => (
         <fieldset key={step.id} className="space-y-3">
           <input type="hidden" name={`s:${step.id}`} value="" />

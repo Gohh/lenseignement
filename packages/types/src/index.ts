@@ -12,6 +12,7 @@ export * from './organizations.js';
 export * from './quiz.js';
 export * from './remediation.js';
 export * from './simulation.js';
+export * from './workshops.js';
 export * from './stats.js';
 export * from './promotion.js';
 export * from './help.js';

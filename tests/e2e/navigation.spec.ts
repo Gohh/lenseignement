@@ -32,6 +32,7 @@ test.describe('Navigation', () => {
       'Mon travail',
       'Cours',
       'Relecture',
+      'Ateliers',
       'Établissements',
       'Équipe',
       'Invitations',
@@ -74,12 +75,11 @@ test.describe('Navigation', () => {
     );
   });
 
-  test('l’apprenant a son bilan et son atelier dans le menu', async ({ page }) => {
-    await loginAs(page, 'apprenant.demo', '/mon-espace/atelier-securite');
+  test('l’élève du primaire a son bilan, sans l’atelier des métiers', async ({ page }) => {
+    await loginAs(page, 'apprenant.demo', '/mon-espace/bilan-lecture');
     await expect(menu(page).getByRole('link')).toHaveText([
       'Vue d’ensemble',
       'Mon bilan',
-      'Atelier',
       'Ma classe',
       'Mes devoirs',
       'Mes notes',
@@ -87,7 +87,7 @@ test.describe('Navigation', () => {
       'Mes réussites',
       'Aide et tutorat',
     ]);
-    await expect(menu(page).getByRole('link', { name: 'Atelier' })).toHaveAttribute(
+    await expect(menu(page).getByRole('link', { name: 'Mon bilan' })).toHaveAttribute(
       'aria-current',
       'page',
     );

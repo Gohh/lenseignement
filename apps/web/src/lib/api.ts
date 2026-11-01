@@ -99,6 +99,10 @@ export interface Me {
   activeClass?: { id: string; name: string; organization: string } | null;
   /** Code d'équipe déjà utilisé (rôle actif ou demande en attente). */
   teamCodeUsed?: boolean;
+  /** Élève concerné par l'Atelier (technique, alphabétisation, cours de métier). */
+  workshopLearner?: boolean;
+  /** Peut rédiger ou publier des ateliers. */
+  workshopAuthor?: boolean;
 }
 
 export interface CohortSummary {

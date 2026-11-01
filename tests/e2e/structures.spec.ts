@@ -19,7 +19,10 @@ test.describe('Services et partenaires', () => {
     );
     const suffix = `${testInfo.project.name}-${Date.now() % 1000000}`;
     await page.goto('/mon-espace/configuration');
-    await page.getByRole('link', { name: 'Services et partenaires' }).click();
+    await page
+      .getByRole('navigation', { name: 'Réseau scolaire' })
+      .getByRole('link', { name: 'Services et partenaires' })
+      .click();
     await expect(
       page.getByRole('heading', { name: /Services et partenaires actifs/ }),
     ).toBeVisible();
@@ -66,11 +69,12 @@ test.describe('Services et partenaires', () => {
     await expect(page.getByRole('heading', { name: 'Classes' })).toHaveCount(0);
     await expect(page.getByTestId('organization-counts')).toContainText('dans l’équipe');
     await page.getByRole('link', { name: '← Services et partenaires' }).click();
+    await expect(page).toHaveURL(/\/configuration\/services$/);
     await expect(page.getByTestId('service-list')).toBeVisible();
 
     // L'onglet Établissements ne les montre pas.
     await page
-      .getByRole('navigation', { name: 'Référentiels' })
+      .getByRole('navigation', { name: 'Réseau scolaire' })
       .getByRole('link', { name: 'Établissements', exact: true })
       .click();
     await expect(page.getByText(`IEPP Essai ${suffix}`)).toHaveCount(0);

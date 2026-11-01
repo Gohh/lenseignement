@@ -1,4 +1,5 @@
 import type { Me } from './api';
+import type { MenuIconName } from '@/components/MenuIcon';
 import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from './roles';
 
 export interface SpaceMenuItem {
@@ -46,7 +47,7 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
     ...(has(TEAM_ROLES)
       ? [
           { href: '/mon-espace/equipe', label: 'Équipe' },
-          { href: '/mon-espace/configuration', label: 'Configuration' },
+          { href: '/mon-espace/configuration', label: 'Établissements' },
         ]
       : []),
     ...(has(AUTHOR_ROLES) ? [{ href: '/mon-espace/cours', label: 'Rédiger', section: true }] : []),
@@ -61,20 +62,29 @@ export function spaceMenuItems(sessionRoles: readonly string[], me: Me | null): 
 
 export interface StaffMenuGroup {
   title: string;
-  items: SpaceMenuItem[];
-  /** Replié à l'ouverture de la page. */
+  items: StaffMenuItem[];
+  /** Replié à l'ouverture de la page (il s'ouvre quand même s'il contient la page en cours). */
   closed?: boolean;
 }
 
+/** Entrée du menu d'administration, avec son pictogramme. */
+export interface StaffMenuItem extends SpaceMenuItem {
+  icon: MenuIconName;
+}
+
 export interface StaffMenu {
-  main: SpaceMenuItem[];
+  main: StaffMenuItem[];
   groups: StaffMenuGroup[];
 }
 
+/** Rôles qui suivent plusieurs structures : ils voient les DRENA, services et partenaires. */
+const NETWORK_ROLES = new Set(['gestionnaire', 'iepp', 'conseiller-alpha']);
+
 /**
- * Menu de l'espace d'administration (direction, gestionnaires, relecteurs, administrateurs) :
- * entrées principales puis groupes repliables. Renvoie null pour les apprenants, parents, etc.,
- * qui gardent le menu simple.
+ * Menu de l'espace d'administration (direction, DRENA, relecteurs, administrateurs) : le tableau
+ * de bord, puis des rubriques par intention (piloter, enseigner, contenus, réseau scolaire,
+ * personnes, administration). Renvoie null pour les apprenants, parents, etc., qui gardent le
+ * menu simple.
  */
 export function staffMenu(sessionRoles: readonly string[], me: Me | null): StaffMenu | null {
   const memberRoles = new Set(me ? me.memberships.map((m) => m.role) : []);
@@ -86,6 +96,7 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
   const team = admin || has(TEAM_ROLES);
   const author = has(AUTHOR_ROLES);
   const validator = has(VALIDATOR_ROLES);
+  const teaching = memberRoles.has('enseignant') || memberRoles.has('chef-etablissement');
   // Droits réglés par le superadministrateur (écran « Droits ») ; sans réponse, les rôles suffisent.
   const right = (code: string, fallback: boolean) =>
     me?.rights ? me.rights.includes(code) : fallback;
@@ -93,91 +104,135 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     right('programmes-importer', admin) ||
     right('programmes-publier', memberRoles.has('referent-pedagogique'));
   if (!team && !author && !validator) return null;
-  const main: SpaceMenuItem[] = [
-    { href: '/mon-espace', label: 'Tableau de bord' },
-    ...(team && right('suivi', true)
-      ? [{ href: '/mon-espace/suivi', label: 'Suivi de l’établissement' }]
-      : []),
-    ...(author || validator ? [{ href: '/mon-espace/travail', label: 'Mon travail' }] : []),
-    ...(author ? [{ href: '/mon-espace/cours', label: 'Cours', section: true }] : []),
-    ...(validator ? [{ href: '/mon-espace/relecture', label: 'Relecture' }] : []),
-    ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement')
-      ? [
-          { href: '/mon-espace/classe', label: 'Classe virtuelle' },
-          { href: '/mon-espace/devoirs', label: 'Devoirs' },
-          { href: '/mon-espace/evaluations', label: 'Évaluations' },
-          { href: '/mon-espace/bibliotheque', label: 'Bibliothèque' },
-          { href: '/mon-espace/messages', label: 'Messages' },
-        ]
-      : []),
-    ...(memberRoles.has('enseignant') || memberRoles.has('chef-etablissement') || admin
-      ? [{ href: '/mon-espace/questions', label: 'Questions des élèves' }]
-      : []),
-    ...((validator || team) && right('statistiques', true)
-      ? [{ href: '/mon-espace/statistiques', label: 'Statistiques' }]
-      : []),
+  const when = <T>(condition: boolean, items: T[]): T[] => (condition ? items : []);
+
+  const main: StaffMenuItem[] = [
+    { href: '/mon-espace', label: 'Tableau de bord', icon: 'accueil' },
   ];
   const groups: StaffMenuGroup[] = [
-    ...(team || programmes
-      ? [
+    {
+      title: 'Piloter',
+      items: [
+        ...when(team && right('suivi', true), [
+          { href: '/mon-espace/suivi', label: 'Suivi de l’établissement', icon: 'suivi' as const },
+        ]),
+        ...when((validator || team) && right('statistiques', true), [
           {
-            title: 'Référentiels',
-            items: [
-              ...(team
-                ? [
-                    {
-                      href: '/mon-espace/configuration',
-                      label: 'Établissements',
-                      section: '/mon-espace/configuration/etablissements',
-                    },
-                  ]
-                : []),
-              ...(programmes
-                ? [
-                    {
-                      href: '/mon-espace/configuration/programmes',
-                      label: 'Programmes',
-                      section: true,
-                    },
-                  ]
-                : []),
-            ],
+            href: '/mon-espace/statistiques',
+            label: 'Statistiques',
+            icon: 'statistiques' as const,
           },
-        ]
-      : []),
-    ...(right('consulter', admin)
-      ? [
+        ]),
+      ],
+    },
+    {
+      title: 'Enseigner',
+      items: [
+        ...when(teaching, [
+          { href: '/mon-espace/classe', label: 'Classe virtuelle', icon: 'classe' as const },
+          { href: '/mon-espace/devoirs', label: 'Devoirs', icon: 'devoirs' as const },
+          { href: '/mon-espace/evaluations', label: 'Évaluations', icon: 'evaluations' as const },
           {
-            // Lecture seule (superadministrateur, administrateurs) : replié par défaut.
-            title: 'Consulter',
-            closed: true,
-            items: [
-              { href: '/mon-espace/consulter/cours', label: 'Cours' },
-              { href: '/mon-espace/consulter/classes', label: 'Classes' },
-              { href: '/mon-espace/consulter/devoirs', label: 'Devoirs' },
-              { href: '/mon-espace/consulter/evaluations', label: 'Évaluations' },
-            ],
+            href: '/mon-espace/bibliotheque',
+            label: 'Bibliothèque',
+            icon: 'bibliotheque' as const,
           },
-        ]
-      : []),
-    ...(team
-      ? [
+          { href: '/mon-espace/messages', label: 'Messages', icon: 'messages' as const },
+        ]),
+        ...when(teaching || admin, [
           {
-            title: 'Comptes et droits',
-            items: [
-              { href: '/mon-espace/equipe', label: 'Équipe' },
-              { href: '/mon-espace/invitations', label: 'Invitations' },
-              ...(right('comptes', admin)
-                ? [{ href: '/mon-espace/comptes', label: 'Comptes' }]
-                : []),
-              ...(right('journal', admin)
-                ? [{ href: '/mon-espace/journal', label: 'Journal des actions' }]
-                : []),
-              ...(superAdmin ? [{ href: '/mon-espace/droits', label: 'Droits' }] : []),
-            ],
+            href: '/mon-espace/questions',
+            label: 'Questions des élèves',
+            icon: 'questions' as const,
           },
-        ]
-      : []),
+        ]),
+      ],
+    },
+    {
+      title: 'Contenus',
+      items: [
+        ...when(author || validator, [
+          { href: '/mon-espace/travail', label: 'Mon travail', icon: 'travail' as const },
+        ]),
+        ...when(author, [
+          { href: '/mon-espace/cours', label: 'Cours', section: true, icon: 'cours' as const },
+        ]),
+        ...when(validator, [
+          { href: '/mon-espace/relecture', label: 'Relecture', icon: 'relecture' as const },
+        ]),
+        ...when(programmes, [
+          {
+            href: '/mon-espace/configuration/programmes',
+            label: 'Programmes',
+            section: true,
+            icon: 'programmes' as const,
+          },
+        ]),
+      ],
+    },
+    {
+      title: 'Réseau scolaire',
+      items: [
+        ...when(team, [
+          {
+            href: '/mon-espace/configuration',
+            label: 'Établissements',
+            section: '/mon-espace/configuration/etablissements',
+            icon: 'etablissements' as const,
+          },
+        ]),
+        ...when(admin || has(NETWORK_ROLES), [
+          {
+            href: '/mon-espace/configuration/drena',
+            label: 'Directions régionales',
+            icon: 'drena' as const,
+          },
+          {
+            href: '/mon-espace/configuration/services',
+            label: 'Services et partenaires',
+            icon: 'services' as const,
+          },
+        ]),
+      ],
+    },
+    {
+      title: 'Personnes',
+      items: [
+        ...when(team, [
+          { href: '/mon-espace/equipe', label: 'Équipe', icon: 'equipe' as const },
+          { href: '/mon-espace/invitations', label: 'Invitations', icon: 'invitations' as const },
+        ]),
+        ...when(team && right('comptes', admin), [
+          { href: '/mon-espace/comptes', label: 'Comptes', icon: 'comptes' as const },
+        ]),
+      ],
+    },
+    {
+      title: 'Administration',
+      items: [
+        ...when(superAdmin, [
+          { href: '/mon-espace/droits', label: 'Droits', icon: 'droits' as const },
+        ]),
+        ...when(team && right('journal', admin), [
+          { href: '/mon-espace/journal', label: 'Journal des actions', icon: 'journal' as const },
+        ]),
+      ],
+    },
+    {
+      // Lecture seule (superadministrateur, administrateurs) : replié par défaut.
+      title: 'Consulter',
+      closed: true,
+      items: when(right('consulter', admin), [
+        { href: '/mon-espace/consulter/cours', label: 'Cours', icon: 'consulter' as const },
+        { href: '/mon-espace/consulter/classes', label: 'Classes', icon: 'consulter' as const },
+        { href: '/mon-espace/consulter/devoirs', label: 'Devoirs', icon: 'consulter' as const },
+        {
+          href: '/mon-espace/consulter/evaluations',
+          label: 'Évaluations',
+          icon: 'consulter' as const,
+        },
+      ]),
+    },
   ];
-  return { main, groups };
+  return { main, groups: groups.filter((g) => g.items.length > 0) };
 }

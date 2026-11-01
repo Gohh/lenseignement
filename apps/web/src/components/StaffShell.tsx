@@ -1,21 +1,35 @@
 import type { MyEstablishment } from '@lenseignement/types';
 import type { ReactNode } from 'react';
+import { MenuGroup } from '@/components/MenuGroup';
+import { MenuIcon } from '@/components/MenuIcon';
 import { NavLink } from '@/components/NavLink';
 import { setMyNameAction } from '@/app/mon-espace/nom-actions';
 import { buttonClass, inputClass } from '@/components/Notice';
 import type { StaffMenu } from '@/lib/space-menu';
 
 const linkClass =
-  'flex min-h-[44px] items-center rounded-card px-3 font-bold text-surface no-underline hover:bg-surface/15 aria-[current=page]:bg-surface aria-[current=page]:text-primary';
+  'flex min-h-[44px] items-center gap-3 rounded-card px-3 font-bold text-surface no-underline hover:bg-surface/15 aria-[current=page]:bg-surface aria-[current=page]:text-primary';
 
 const ROLE_TITLES: Record<string, string> = {
   superadministrateur: 'Superadministrateur',
   administrateur: 'Administrateur',
-  gestionnaire: 'Gestionnaire',
-  'chef-etablissement': 'Direction',
+  cabinet: 'Cabinet',
+  'direction-centrale': 'Direction centrale',
+  gestionnaire: 'DRENA',
+  iepp: 'IEPP',
+  apfc: 'APFC',
+  'conseiller-alpha': 'Conseiller Alpha',
+  'chef-etablissement': 'Chef d’établissement',
+  censeur: 'Censeur',
   'referent-pedagogique': 'Référent pédagogique',
+  technopedagogue: 'Technopédagogue',
+  'conseiller-pedagogique': 'Conseiller pédagogique',
+  'conseiller-orientation': 'Conseiller d’orientation',
+  educateur: 'Éducateur',
+  'correspondant-fichier': 'Correspondant fichier',
   enseignant: 'Enseignant',
   alphabetiseur: 'Alphabétiseur',
+  partenaire: 'Partenaire',
 };
 
 /** Rôle le plus élevé, pour la carte en bas du menu. */
@@ -68,34 +82,35 @@ export function StaffShell({
         aria-label="Administration"
         className="flex flex-col gap-4 rounded-big bg-primary p-4 text-surface lg:sticky lg:top-4 lg:w-64 lg:flex-none"
       >
-        <nav aria-label="Menu de mon espace" className="space-y-3">
+        <nav aria-label="Menu de mon espace" className="space-y-2">
           <ul role="list" className="space-y-1">
             {menu.main.map((item) => (
               <li key={item.href}>
                 <NavLink href={item.href} section={item.section} className={linkClass}>
+                  <MenuIcon name={item.icon} />
                   {item.label}
                 </NavLink>
               </li>
             ))}
           </ul>
           {menu.groups.map((group) => (
-            <details key={group.title} open={!group.closed} className="group">
-              <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between px-3 text-sm font-bold uppercase tracking-widest text-surface/90 marker:hidden [&::-webkit-details-marker]:hidden">
-                {group.title}
-                <span aria-hidden="true" className="transition-transform group-open:rotate-90">
-                  ›
-                </span>
-              </summary>
+            <MenuGroup
+              key={group.title}
+              title={group.title}
+              closed={group.closed}
+              hrefs={group.items.map((item) => item.href)}
+            >
               <ul role="list" className="space-y-1">
                 {group.items.map((item) => (
                   <li key={item.href}>
                     <NavLink href={item.href} section={item.section} className={linkClass}>
+                      <MenuIcon name={item.icon} />
                       {item.label}
                     </NavLink>
                   </li>
                 ))}
               </ul>
-            </details>
+            </MenuGroup>
           ))}
         </nav>
         <div className="mt-2 flex items-center gap-3 rounded-card bg-surface/10 p-3">

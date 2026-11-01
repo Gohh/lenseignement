@@ -100,7 +100,7 @@ export function ImportAccounts({ configured }: { configured: boolean }) {
     <form action={action} className="space-y-4">
       <p>
         Un tableau Excel enregistré en CSV, une ligne par personne : Nom ; Prénom ; E-mail ; Rôle ;
-        Établissement (écrit comme dans Configuration).{' '}
+        Structure (écrite comme dans Réseau scolaire).{' '}
         <a href="/modele-comptes.csv" download>
           Télécharger le modèle Excel
         </a>

@@ -17,6 +17,7 @@ import {
   CreateOrganizationSchema,
   ImportOrganizationsSchema,
   CreateTeamInvitationSchema,
+  DecideJoinRequestSchema,
   RedeemTeamInvitationSchema,
   UpdateTeamMemberSchema,
 } from '@lenseignement/types';
@@ -27,10 +28,12 @@ import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
 import { IDENTITY_ADMIN, type IdentityAdmin } from './identity-admin.js';
 import { createOrganization, importOrganizations } from './organizations.js';
+import { approveRequest, myRequests, pendingRequests, refuseRequest } from './join-requests.js';
 import {
   createAccount,
   createTeamInvitation,
   listInvitations,
+  previewInvitation,
   redeemTeamInvitation,
   removeMember,
   revokeInvitation,
@@ -60,6 +63,11 @@ async function guard<T>(run: () => Promise<T>): Promise<T> {
 
 const memberId = (id: string) => {
   if (!z.string().uuid().safeParse(id).success) throw new NotFoundException('Membre introuvable.');
+  return id;
+};
+
+const requestId = (id: string) => {
+  if (!z.string().uuid().safeParse(id).success) throw new NotFoundException('Demande introuvable.');
   return id;
 };
 
@@ -132,12 +140,45 @@ export class TeamController {
     return { ok: true };
   }
 
+  @Post('invitations/preview')
+  async preview(@Body() body: unknown) {
+    const { code } = parse(RedeemTeamInvitationSchema, body);
+    return guard(async () => previewInvitation(this.db, code));
+  }
+
   @Post('invitations/redeem')
   async redeem(@Req() request: Request, @Body() body: unknown) {
-    const { code } = parse(RedeemTeamInvitationSchema, body);
+    const input = parse(RedeemTeamInvitationSchema, body);
     return guard(async () =>
-      redeemTeamInvitation(this.db, await this.me(request), code, request.traceId),
+      redeemTeamInvitation(this.db, await this.me(request), input, request.traceId),
     );
+  }
+
+  @Get('requests')
+  async requests(@Req() request: Request) {
+    return { items: await pendingRequests(this.db, await this.me(request)) };
+  }
+
+  @Get('requests/mine')
+  async mine(@Req() request: Request) {
+    return { items: await myRequests(this.db, await this.me(request)) };
+  }
+
+  @Post('requests/:id/approve')
+  async approve(@Req() request: Request, @Param('id') id: string, @Body() body: unknown) {
+    const input = parse(DecideJoinRequestSchema, body);
+    await guard(async () =>
+      approveRequest(this.db, await this.me(request), requestId(id), input, request.traceId),
+    );
+    return { ok: true };
+  }
+
+  @Post('requests/:id/refuse')
+  async refuse(@Req() request: Request, @Param('id') id: string) {
+    await guard(async () =>
+      refuseRequest(this.db, await this.me(request), requestId(id), request.traceId),
+    );
+    return { ok: true };
   }
 
   @Patch('members/:id')

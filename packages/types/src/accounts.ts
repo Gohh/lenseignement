@@ -165,6 +165,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'team.invitation.create': 'Invitation d’équipe créée',
   'team.invitation.redeem': 'Invitation d’équipe utilisée',
   'team.invitation.revoke': 'Invitation d’équipe révoquée',
+  'team.request.create': 'Demande pour rejoindre une équipe',
+  'team.request.approve': 'Demande d’équipe validée',
+  'team.request.refuse': 'Demande d’équipe refusée',
   'team.member.remove': 'Rôle retiré',
   'team.member.update': 'Rôle modifié',
 };

@@ -76,4 +76,6 @@ export interface HelpBadge {
   sessions: number;
   /** Messages de parents ou d'enseignants pas encore lus. */
   messages: number;
+  /** Demandes pour rejoindre l'équipe qui attendent ma validation (direction). */
+  teamRequests: number;
 }

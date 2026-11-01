@@ -166,6 +166,9 @@ export const memberships = pgTable(
     role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
     /** Cycles (espaces) accordés ; null = tous les cycles de la structure (ADR-019). */
     branches: text('branches').array(),
+    /** Niveaux et matières validés par la direction ; null = pas encore précisés. */
+    levels: text('levels').array(),
+    subjects: text('subjects').array(),
     validUntil: timestamp('valid_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
@@ -224,9 +227,46 @@ export const membershipInvitations = pgTable(
     usedAt: timestamp('used_at', { withTimezone: true }),
     /** Invitation annulée par la direction : le code ne marche plus. */
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /** Nombre de personnes qui ont saisi le code. */
+    uses: integer('uses').notNull().default(0),
+    /** null : sans limite de personnes (rôles qui enseignent, validés par la direction). */
+    maxUses: integer('max_uses'),
     createdAt: createdAt(),
   },
   (t) => [index('membership_invitations_org_idx').on(t.organizationId)],
+);
+
+/**
+ * Demande pour rejoindre une équipe : la personne a saisi un code d'enseignant, choisi ses niveaux
+ * et matières ; la direction valide (en corrigeant au besoin) ou refuse.
+ */
+export const teamJoinRequests = pgTable(
+  'team_join_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    invitationId: uuid('invitation_id')
+      .notNull()
+      .references(() => membershipInvitations.id),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    role: text('role', { enum: MEMBERSHIP_ROLES }).notNull(),
+    levels: text('levels').array().notNull(),
+    subjects: text('subjects').array().notNull(),
+    status: text('status', { enum: ['pending', 'approved', 'refused'] })
+      .notNull()
+      .default('pending'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('team_join_requests_org_idx').on(t.organizationId, t.status),
+    index('team_join_requests_user_idx').on(t.userId),
+  ],
 );
 
 export const COHORT_MEMBER_ROLES = ['enseignant', 'apprenant'] as const;

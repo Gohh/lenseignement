@@ -1,3 +1,4 @@
+import { pendingRequestCount } from '../team/join-requests.js';
 import {
   HELP_ATTACHMENT_RULES,
   type AskHelp,
@@ -359,5 +360,6 @@ export async function badge(db: Database, userId: string): Promise<HelpBadge> {
     toGrade,
     sessions,
     messages: await unreadMessages(db, userId),
+    teamRequests: await pendingRequestCount(db, userId),
   };
 }

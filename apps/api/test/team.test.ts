@@ -583,3 +583,77 @@ test('trois administrateurs au plus ; seul le superadministrateur les nomme', as
     await ctx.db.delete(organizations).where(eq(organizations.internal, true));
   }
 });
+
+test('code d’enseignant : plusieurs personnes, fiche niveaux et matières, validation par la direction', async () => {
+  const [first, second] = ['ens-demande-1', 'ens-demande-2'];
+  const base = { organizationId: ID.orgManguiers, role: 'enseignant', branches: null };
+  const { code } = (await call(SUB.bamba, 'post', '/team/invitations', 201, base)).body;
+  const listed = (await call(SUB.bamba, 'get', '/team/invitations', 200)).body.items;
+  assert.equal(listed.find((i: { code: string }) => i.code === code).maxUses, null);
+
+  // Aperçu : les niveaux de l'école primaire, sans la maternelle.
+  const preview = (await call(first, 'post', '/team/invitations/preview', 201, { code })).body;
+  assert.equal(preview.needsValidation, true);
+  const levels = preview.levels.map((l: { code: string }) => l.code);
+  assert.deepEqual(levels, ['cp1', 'cp2', 'ce1', 'ce2', 'cm1', 'cm2']);
+
+  // Sans niveau ni matière : refusé. Avec : demande en attente, pas encore membre.
+  await call(first, 'post', '/team/invitations/redeem', 400, { code });
+  const sent = await call(first, 'post', '/team/invitations/redeem', 201, {
+    code,
+    levels: ['cp1', 'mat-1'],
+    subjects: ['Mathématiques', 'mathématiques', 'Français'],
+  });
+  assert.equal(sent.body.pending, true);
+  await call(second, 'post', '/team/invitations/redeem', 201, {
+    code,
+    levels: ['cm2'],
+    subjects: ['Éveil'],
+  });
+  const mine = (await call(first, 'get', '/team/requests/mine', 200)).body.items;
+  assert.equal(mine[0].status, 'pending');
+  assert.deepEqual(mine[0].levels, ['cp1']);
+  assert.equal(mine[0].subjects.length, 2);
+  const team = (await call(SUB.bamba, 'get', '/team', 200)).body;
+  assert.ok(!team.members.some((m: { userName: string | null }) => m.userName === null));
+
+  // La direction voit les deux demandes et la cloche ; un enseignant ne voit rien.
+  const pending = (await call(SUB.bamba, 'get', '/team/requests', 200)).body.items;
+  assert.equal(pending.length, 2);
+  assert.equal((await call(SUB.bamba, 'get', '/me/help-badge', 200)).body.teamRequests, 2);
+  assert.deepEqual((await call(SUB.koffi, 'get', '/team/requests', 200)).body.items, []);
+  const [a, b] = pending;
+  await call(SUB.koffi, 'post', `/team/requests/${a.id}/approve`, 404, {
+    levels: ['cp1'],
+    subjects: ['Français'],
+  });
+
+  // Validée avec correction : membre avec ses niveaux, matières et le cycle primaire.
+  await call(SUB.bamba, 'post', `/team/requests/${a.id}/approve`, 201, {
+    levels: ['cp1', 'cp2'],
+    subjects: ['Français'],
+  });
+  await call(SUB.bamba, 'post', `/team/requests/${b.id}/refuse`, 201);
+  await call(SUB.bamba, 'post', `/team/requests/${b.id}/approve`, 400, {
+    levels: ['cm2'],
+    subjects: ['Éveil'],
+  });
+  const [member] = await ctx.db
+    .select()
+    .from(memberships)
+    .where(and(eq(memberships.organizationId, ID.orgManguiers), eq(memberships.role, 'enseignant')))
+    .then((rows) => rows.filter((r) => r.levels?.includes('cp2')));
+  assert.deepEqual(member!.levels, ['cp1', 'cp2']);
+  assert.deepEqual(member!.subjects, ['Français']);
+  assert.deepEqual(member!.branches, ['primaire']);
+  assert.equal((await call(SUB.bamba, 'get', '/me/help-badge', 200)).body.teamRequests, 0);
+  const after = (await call(SUB.bamba, 'get', '/team/invitations', 200)).body.items;
+  assert.equal(after.find((i: { code: string }) => i.code === code).uses, 2);
+  assert.equal(after.find((i: { code: string }) => i.code === code).state, 'active');
+  // Déjà membre : une nouvelle demande est refusée.
+  await call(first, 'post', '/team/invitations/redeem', 400, {
+    code,
+    levels: ['cp1'],
+    subjects: ['Français'],
+  });
+});

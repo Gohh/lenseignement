@@ -38,7 +38,7 @@ export function levelsForOrganizationType(
 ): ReadonlyArray<{ code: LevelCode; title: string }> {
   const groups: Record<string, string[]> = {
     preschool: ['maternelle'],
-    primary: ['maternelle', 'primaire'],
+    primary: ['primaire'],
     college: ['college'],
     lycee: ['lycee'],
     literacy_center: ['alphabetisation'],

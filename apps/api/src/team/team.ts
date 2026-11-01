@@ -2,7 +2,12 @@ import { randomInt } from 'node:crypto';
 import { and, asc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
 import {
   GRANTABLE_ROLES,
+  LEVEL_GROUPS,
+  levelsForOrganizationType,
   MAX_ADMINISTRATORS,
+  TEACHING_ROLES,
+  type InvitationPreview,
+  type RedeemResult,
   type CreatedAccount,
   type InvitationList,
   type InvitationState,
@@ -18,6 +23,7 @@ import {
   memberships,
   membershipInvitations,
   organizations,
+  teamJoinRequests,
   users,
 } from '../db/schema.js';
 
@@ -138,6 +144,8 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
       userName: users.displayName,
       role: memberships.role,
       branches: memberships.branches,
+      levels: memberships.levels,
+      subjects: memberships.subjects,
       organization: { id: organizations.id, name: organizations.name },
     })
     .from(memberships)
@@ -160,6 +168,8 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
     role: r.role,
     organization: r.organization,
     branches: r.branches,
+    levels: r.levels,
+    subjects: r.subjects,
     isSelf: r.userId === userId,
   }));
   return {
@@ -225,62 +235,182 @@ export async function createTeamInvitation(
     branches: input.branches,
     createdByUserId: userId,
     expiresAt,
+    // Un code d'enseignant sert à autant de personnes que nécessaire : chacune est validée par la
+    // direction. Les autres rôles entrent tout de suite : leur code ne sert qu'une fois.
+    maxUses: isTeaching(input.role) ? null : 1,
   });
   await audit(db, userId, 'team.invitation.create', input.organizationId, traceId);
   return { code, expiresAt: expiresAt.toISOString() };
 }
 
-/** La personne saisit le code : elle rejoint l'équipe avec le rôle et les cycles prévus. */
+const isTeaching = (role: string) => (TEACHING_ROLES as readonly string[]).includes(role);
+
+/** Invitation encore valable pour ce code (pas révoquée, pas expirée, pas épuisée). */
+async function usableInvitation(db: Executor, rawCode: string, lock = false) {
+  const code = rawCode.replace(/[\s-]/g, '').toUpperCase();
+  const query = db
+    .select()
+    .from(membershipInvitations)
+    .where(
+      and(
+        eq(membershipInvitations.code, code),
+        isNull(membershipInvitations.revokedAt),
+        gt(membershipInvitations.expiresAt, new Date()),
+        sql`(${membershipInvitations.maxUses} is null or ${membershipInvitations.uses} < ${membershipInvitations.maxUses})`,
+      ),
+    );
+  const [invitation] = lock ? await query.for('update') : await query;
+  if (!invitation) throw new TeamError('not_found', 'Code invalide ou expiré.');
+  return invitation;
+}
+
+/** Niveaux de l'établissement, et matières des programmes publiés pour ces niveaux. */
+async function levelsAndSubjects(db: Executor, organizationId: string) {
+  const [org] = await db
+    .select({ name: organizations.name, type: organizations.type })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId));
+  const levels = levelsForOrganizationType(org!.type);
+  const codes = new Set(levels.map((l) => l.code as string));
+  const branches = [
+    ...new Set(
+      LEVEL_GROUPS.filter((g) => g.levels.some((l) => codes.has(l.code))).map((g) => g.branch),
+    ),
+  ];
+  let subjects: string[] = [];
+  if (branches.length > 0) {
+    const { rows } = await db.execute<{ title: string }>(sql`
+      select distinct s.title from subjects s
+        join curriculum_versions v on v.id = s.version_id and v.status = 'published'
+        join curricula c on c.id = v.curriculum_id
+       where c.branch in (${sql.join(
+         branches.map((b) => sql`${b}`),
+         sql`, `,
+       )})
+       order by s.title`);
+    subjects = rows.map((r) => r.title);
+  }
+  return { name: org!.name, levels: [...levels], subjects };
+}
+
+/** Cycles qui correspondent à des niveaux (pour filtrer les contenus comme avant). */
+export function branchesOfLevels(levels: readonly string[]): string[] {
+  return [
+    ...new Set(
+      LEVEL_GROUPS.filter((g) => g.levels.some((l) => levels.includes(l.code))).map(
+        (g) => g.branch,
+      ),
+    ),
+  ];
+}
+
+const cleanSubjects = (subjects: readonly string[]) => [
+  ...new Map(
+    subjects
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => [s.toLowerCase(), s]),
+  ).values(),
+];
+
+/** Ce que la personne verra en saisissant le code : établissement, rôle, niveaux, matières. */
+export async function previewInvitation(db: Database, rawCode: string): Promise<InvitationPreview> {
+  const invitation = await usableInvitation(db, rawCode);
+  const found = await levelsAndSubjects(db, invitation.organizationId);
+  return {
+    organization: found.name,
+    role: invitation.role,
+    needsValidation: isTeaching(invitation.role),
+    levels: found.levels,
+    subjects: found.subjects,
+  };
+}
+
+/**
+ * La personne saisit le code. Rôle qui enseigne : elle envoie ses niveaux et matières, et attend la
+ * validation de la direction. Autre rôle : elle rejoint l'équipe tout de suite.
+ */
 export async function redeemTeamInvitation(
   db: Database,
   userId: string,
-  rawCode: string,
+  input: { code: string; levels?: string[]; subjects?: string[] },
   traceId?: string,
-): Promise<{ organization: string; role: string }> {
-  const code = rawCode.replace(/[\s-]/g, '').toUpperCase();
+): Promise<RedeemResult> {
   const result = await db.transaction(async (tx) => {
-    const [invitation] = await tx
-      .select()
-      .from(membershipInvitations)
-      .where(
-        and(
-          eq(membershipInvitations.code, code),
-          isNull(membershipInvitations.usedAt),
-          isNull(membershipInvitations.revokedAt),
-          gt(membershipInvitations.expiresAt, new Date()),
-        ),
-      )
-      .for('update');
-    if (!invitation) throw new TeamError('not_found', 'Code invalide ou expiré.');
-    await assertAdminSeat(tx, invitation.role, userId);
-    await tx
-      .insert(memberships)
-      .values({
-        userId,
-        organizationId: invitation.organizationId,
-        role: invitation.role,
-        branches: invitation.branches,
-      })
-      .onConflictDoUpdate({
-        target: [memberships.userId, memberships.organizationId, memberships.role],
-        set: { validUntil: null, branches: invitation.branches },
-      });
-    await tx
-      .update(membershipInvitations)
-      .set({ usedByUserId: userId, usedAt: sql`now()` })
-      .where(eq(membershipInvitations.id, invitation.id));
+    const invitation = await usableInvitation(tx, input.code, true);
     const [org] = await tx
       .select({ name: organizations.name })
       .from(organizations)
       .where(eq(organizations.id, invitation.organizationId));
+    if (isTeaching(invitation.role)) {
+      const { levels: allowed } = await levelsAndSubjects(tx, invitation.organizationId);
+      const levels = (input.levels ?? []).filter((l) => allowed.some((a) => a.code === l));
+      const subjects = cleanSubjects(input.subjects ?? []);
+      if (levels.length === 0) throw new TeamError('invalid', 'Choisissez au moins un niveau.');
+      if (subjects.length === 0) throw new TeamError('invalid', 'Choisissez au moins une matière.');
+      const { rows: already } = await tx.execute(sql`
+        select 1 from memberships where user_id = ${userId}
+           and organization_id = ${invitation.organizationId} and role = ${invitation.role}
+           and (valid_until is null or valid_until > now())`);
+      if (already.length > 0)
+        throw new TeamError('invalid', 'Vous faites déjà partie de cette équipe.');
+      // Une seule demande en attente par personne et par équipe : la nouvelle remplace l'ancienne.
+      await tx
+        .delete(teamJoinRequests)
+        .where(
+          and(
+            eq(teamJoinRequests.userId, userId),
+            eq(teamJoinRequests.organizationId, invitation.organizationId),
+            eq(teamJoinRequests.role, invitation.role),
+            eq(teamJoinRequests.status, 'pending'),
+          ),
+        );
+      await tx.insert(teamJoinRequests).values({
+        invitationId: invitation.id,
+        organizationId: invitation.organizationId,
+        userId,
+        role: invitation.role,
+        levels,
+        subjects,
+      });
+    } else {
+      await assertAdminSeat(tx, invitation.role, userId);
+      await tx
+        .insert(memberships)
+        .values({
+          userId,
+          organizationId: invitation.organizationId,
+          role: invitation.role,
+          branches: invitation.branches,
+        })
+        .onConflictDoUpdate({
+          target: [memberships.userId, memberships.organizationId, memberships.role],
+          set: { validUntil: null, branches: invitation.branches },
+        });
+    }
+    await tx
+      .update(membershipInvitations)
+      .set({
+        usedByUserId: userId,
+        usedAt: sql`now()`,
+        uses: sql`${membershipInvitations.uses} + 1`,
+      })
+      .where(eq(membershipInvitations.id, invitation.id));
     return {
       organizationId: invitation.organizationId,
       organization: org!.name,
       role: invitation.role,
+      pending: isTeaching(invitation.role),
     };
   });
-  await audit(db, userId, 'team.invitation.redeem', result.organizationId, traceId);
-  return { organization: result.organization, role: result.role };
+  await audit(
+    db,
+    userId,
+    result.pending ? 'team.request.create' : 'team.invitation.redeem',
+    result.organizationId,
+    traceId,
+  );
+  return { organization: result.organization, role: result.role, pending: result.pending };
 }
 
 /** Invitations des structures que la personne gère, les plus récentes d'abord. */
@@ -293,7 +423,7 @@ export async function listInvitations(db: Database, userId: string): Promise<Inv
     .where(sql`${organizations.id} in ${scope} and ${organizations.archivedAt} is null`)
     .orderBy(asc(organizations.name));
   const { rows } = await db.execute(sql`
-    select i.id, i.code, i.role, i.created_at, i.expires_at, i.used_at, i.revoked_at,
+    select i.id, i.code, i.role, i.created_at, i.expires_at, i.used_at, i.revoked_at, i.uses, i.max_uses,
            o.id as org_id, o.name as org_name,
            cu.display_name as created_by, uu.display_name as used_by
       from membership_invitations i
@@ -307,9 +437,11 @@ export async function listInvitations(db: Database, userId: string): Promise<Inv
   const items = rows.map((r) => {
     const row = r as Record<string, unknown>;
     const expiresAt = new Date(row.expires_at as string);
+    const uses = Number(row.uses);
+    const maxUses = row.max_uses == null ? null : Number(row.max_uses);
     const state: InvitationState = row.revoked_at
       ? 'revoked'
-      : row.used_at
+      : maxUses !== null && uses >= maxUses
         ? 'used'
         : expiresAt.getTime() <= now
           ? 'expired'
@@ -325,6 +457,8 @@ export async function listInvitations(db: Database, userId: string): Promise<Inv
       usedByName: (row.used_by as string | null) ?? null,
       usedAt: row.used_at ? new Date(row.used_at as string).toISOString() : null,
       state,
+      uses,
+      maxUses,
     };
   });
   return { organizations: orgs, grantable: powers.grantable, items };
@@ -349,7 +483,9 @@ export async function revokeInvitation(
   if (!powers.isSuper && !powers.grantable.includes(row.role)) {
     throw new TeamError('forbidden', 'Accès refusé.');
   }
-  if (row.usedAt) throw new TeamError('invalid', 'Ce code a déjà été utilisé.');
+  if (row.maxUses !== null && row.uses >= row.maxUses) {
+    throw new TeamError('invalid', 'Ce code a déjà été utilisé.');
+  }
   if (row.revokedAt) return;
   await db
     .update(membershipInvitations)

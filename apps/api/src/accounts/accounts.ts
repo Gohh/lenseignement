@@ -1,5 +1,6 @@
 import {
   GRANTABLE_ROLES,
+  type GrantableRole,
   parseCsv,
   TEAM_ROLE_LABELS,
   type AccountImportResult,
@@ -253,6 +254,39 @@ const IMPORT_COLUMNS = {
   organization: /^(etablissement|structure|ecole)/,
 } as const;
 
+/** Autres façons d'écrire un rôle dans le tableau (sans accents ni majuscules). */
+const ROLE_ALIASES: Record<string, GrantableRole> = {
+  admin: 'administrateur',
+  drena: 'gestionnaire',
+  'directeur regional': 'gestionnaire',
+  inspecteur: 'iepp',
+  'inspecteur iepp': 'iepp',
+  'chef d’etablissement': 'chef-etablissement',
+  "chef d'etablissement": 'chef-etablissement',
+  directeur: 'chef-etablissement',
+  directrice: 'chef-etablissement',
+  "directeur d'ecole": 'chef-etablissement',
+  'directeur d’ecole': 'chef-etablissement',
+  principal: 'chef-etablissement',
+  principale: 'chef-etablissement',
+  proviseur: 'chef-etablissement',
+  proviseure: 'chef-etablissement',
+  enseignant: 'enseignant',
+  enseignante: 'enseignant',
+  professeur: 'enseignant',
+  instituteur: 'enseignant',
+  institutrice: 'enseignant',
+  educatrice: 'educateur',
+  'conseillere pedagogique': 'conseiller-pedagogique',
+  "conseillere d'orientation": 'conseiller-orientation',
+  'conseillere d’orientation': 'conseiller-orientation',
+  'conseillere alpha': 'conseiller-alpha',
+  alphabetiseuse: 'alphabetiseur',
+  ptf: 'partenaire',
+  partenaire: 'partenaire',
+  referent: 'referent-pedagogique',
+};
+
 const plainText = (text: string) =>
   text
     .normalize('NFD')
@@ -273,7 +307,11 @@ export async function importAccounts(
   csv: string,
   traceId?: string,
 ): Promise<AccountImportResult> {
-  await assertEverywhere(db, userId);
+  // Toute personne qui crée des comptes peut aussi les importer ; chaque ligne est vérifiée comme
+  // un formulaire (rôle permis, structure de sa zone).
+  if ((await teamPowers(db, userId)).grantable.length === 0) {
+    throw new TeamError('forbidden', 'Accès refusé.');
+  }
   if (!identity.configured()) {
     throw new TeamError(
       'invalid',
@@ -304,8 +342,10 @@ export async function importAccounts(
   }
   const roleOf = (raw: string) => {
     const wanted = plainText(raw);
-    return GRANTABLE_ROLES.find(
-      (r) => r === wanted || plainText(TEAM_ROLE_LABELS[r] ?? '') === wanted,
+    return (
+      GRANTABLE_ROLES.find(
+        (r) => r === wanted || plainText(TEAM_ROLE_LABELS[r] ?? '') === wanted,
+      ) ?? ROLE_ALIASES[wanted]
     );
   };
 

@@ -10,6 +10,8 @@ export const VALIDATOR_ROLES = new Set(['referent-pedagogique', 'chef-etablissem
 export const TEAM_ROLES = new Set([
   'chef-etablissement',
   'gestionnaire',
+  'iepp',
+  'conseiller-alpha',
   'administrateur',
   'superadministrateur',
 ]);

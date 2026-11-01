@@ -3,6 +3,10 @@ import { and, asc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm';
 import {
   GRANTABLE_ROLES,
   LEVEL_GROUPS,
+  NAMES_BY_ROLE,
+  ORGANIZATION_TYPE_LABELS,
+  roleFitsStructure,
+  TEAM_ROLE_LABELS,
   levelsForOrganizationType,
   MAX_ADMINISTRATORS,
   TEACHING_ROLES,
@@ -14,7 +18,7 @@ import {
   type TeamMember,
   type TeamOverview,
 } from '@lenseignement/types';
-import { teamOrganizationIds } from '../access/access.service.js';
+import { inspectionOrganizationIds, teamOrganizationIds } from '../access/access.service.js';
 import { rightsForRoles } from './rights.js';
 import type { Database, Executor } from '../db/database.js';
 import { IdentityError, temporaryPassword, type IdentityAdmin } from './identity-admin.js';
@@ -44,7 +48,7 @@ const STAFF_ROLES = [...GRANTABLE_ROLES, 'superadministrateur'];
 const newCode = () =>
   Array.from({ length: 8 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 
-async function activeRoles(db: Database, userId: string): Promise<Set<string>> {
+async function activeRoles(db: Executor, userId: string): Promise<Set<string>> {
   const { rows } = await db.execute(
     sql`select distinct m.role from memberships m where m.user_id = ${userId}
         and (m.valid_until is null or m.valid_until > now())`,
@@ -71,19 +75,69 @@ export async function teamPowers(db: Database, userId: string) {
 }
 
 /**
- * Rôles accordables : le superadministrateur donne tout (administrateur compris) ; son adjoint et
- * la direction, tout sauf une direction ou un administrateur ; le gestionnaire seul, enseignant,
- * alphabétiseur et référent dans sa zone.
+ * Rôles accordables, toutes structures confondues : le superadministrateur donne tout
+ * (administrateur compris) ; son adjoint, tout sauf un administrateur ; les autres, d'après la
+ * grille « qui nomme qui » (`NAMES_BY_ROLE`).
  */
 function grantableForRoles(roles: Set<string>): string[] {
   if (roles.has('superadministrateur')) return [...GRANTABLE_ROLES];
-  if (roles.has('administrateur') || roles.has('chef-etablissement')) {
-    return GRANTABLE_ROLES.filter((r) => r !== 'chef-etablissement' && r !== 'administrateur');
+  if (roles.has('administrateur')) return GRANTABLE_ROLES.filter((r) => r !== 'administrateur');
+  const names = new Set<string>();
+  for (const role of roles) for (const r of NAMES_BY_ROLE[role] ?? []) names.add(r);
+  return GRANTABLE_ROLES.filter((r) => names.has(r));
+}
+
+/**
+ * Peut-elle donner ce rôle dans cette structure ? Le rôle doit convenir au type de structure, et la
+ * personne doit le nommer depuis un rôle qu'elle tient sur cette structure ou au-dessus (DRENA),
+ * ou, pour l'IEPP et le conseiller Alpha, sur les écoles et centres qu'ils suivent.
+ */
+export async function assertCanGrant(
+  db: Executor,
+  userId: string,
+  role: string,
+  organizationId: string,
+) {
+  const [org] = await db
+    .select({ type: organizations.type })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId));
+  if (!org) throw new TeamError('not_found', 'Structure introuvable.');
+  if (!roleFitsStructure(role, org.type)) {
+    const label = TEAM_ROLE_LABELS[role] ?? role;
+    throw new TeamError(
+      'invalid',
+      `Le rôle « ${label} » ne se donne pas dans ce type de structure (${
+        ORGANIZATION_TYPE_LABELS[org.type as keyof typeof ORGANIZATION_TYPE_LABELS] ?? org.type
+      }).`,
+    );
   }
-  if (roles.has('gestionnaire')) {
-    return ['enseignant', 'alphabetiseur', 'referent-pedagogique'];
+  const roles = await activeRoles(db, userId);
+  const rights = await rightsForRoles(db, roles);
+  if (!rights.has('equipe')) throw new TeamError('forbidden', 'Accès refusé.');
+  if (roles.has('superadministrateur') || roles.has('administrateur')) {
+    if (grantableForRoles(roles).includes(role)) return;
+    throw new TeamError('forbidden', 'Accès refusé.');
   }
-  return [];
+  // Rôles de la personne qui couvrent la structure : sur elle, sur ses parents, ou par le suivi
+  // (IEPP pour ses écoles, conseiller Alpha pour ses centres).
+  const { rows } = await db.execute<{ role: string }>(sql`
+    select distinct m.role from memberships m
+     where m.user_id = ${userId} and (m.valid_until is null or m.valid_until > now())
+       and m.organization_id in (
+         with recursive up as (
+           select ${organizationId}::uuid as id
+           union select o.parent_id from organizations o join up on o.id = up.id
+            where o.parent_id is not null)
+         select id from up)
+    union
+    select m.role from memberships m
+     where m.user_id = ${userId} and (m.valid_until is null or m.valid_until > now())
+       and m.role in ('iepp', 'conseiller-alpha')
+       and ${organizationId}::uuid in ${inspectionOrganizationIds(userId)}`);
+  const here = new Set(rows.map((r) => r.role));
+  if ([...here].some((r) => (NAMES_BY_ROLE[r] ?? []).includes(role as never))) return;
+  throw new TeamError('forbidden', 'Accès refusé.');
 }
 
 export async function audit(
@@ -146,7 +200,11 @@ export async function teamOverview(db: Database, userId: string): Promise<TeamOv
       branches: memberships.branches,
       levels: memberships.levels,
       subjects: memberships.subjects,
-      organization: { id: organizations.id, name: organizations.name },
+      organization: {
+        id: organizations.id,
+        name: organizations.name,
+        type: organizations.type,
+      },
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
@@ -222,9 +280,7 @@ export async function createTeamInvitation(
 ): Promise<{ code: string; expiresAt: string }> {
   await assertManages(db, userId, input.organizationId);
   await assertActive(db, input.organizationId);
-  if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
-    throw new TeamError('forbidden', 'Accès refusé.');
-  }
+  await assertCanGrant(db, userId, input.role, input.organizationId);
   await assertAdminSeat(db, input.role);
   const expiresAt = new Date(Date.now() + (input.days ?? INVITATION_DAYS) * 24 * 3600 * 1000);
   const code = newCode();
@@ -570,9 +626,7 @@ export async function createAccount(
 ): Promise<CreatedAccount> {
   await assertManages(db, userId, input.organizationId);
   await assertActive(db, input.organizationId);
-  if (!(await teamPowers(db, userId)).grantable.includes(input.role)) {
-    throw new TeamError('forbidden', 'Accès refusé.');
-  }
+  await assertCanGrant(db, userId, input.role, input.organizationId);
   await assertAdminSeat(db, input.role);
   const [firstName, ...rest] = input.displayName.split(/\s+/);
   const password = temporaryPassword();

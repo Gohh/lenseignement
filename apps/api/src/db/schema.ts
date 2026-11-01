@@ -153,6 +153,18 @@ export const MEMBERSHIP_ROLES = [
   'gestionnaire',
   'administrateur',
   'superadministrateur',
+  'cabinet',
+  'direction-centrale',
+  'partenaire',
+  'technopedagogue',
+  'apfc',
+  'iepp',
+  'conseiller-pedagogique',
+  'conseiller-alpha',
+  'censeur',
+  'correspondant-fichier',
+  'educateur',
+  'conseiller-orientation',
 ] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 

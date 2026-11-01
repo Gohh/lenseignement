@@ -1,6 +1,7 @@
 import {
   BRANCHES,
   levelLabel,
+  roleTitle,
   TEAM_ROLE_LABELS,
   type JoinRequestList,
   type TeamOverview,
@@ -10,6 +11,7 @@ import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { Dialog } from '../configuration/Dialog';
+import { ImportAccounts } from '../comptes/ImportAccounts';
 import { CreateAccount } from './CreateAccount';
 import {
   approveRequestAction,
@@ -93,13 +95,20 @@ export default async function TeamPage({ searchParams }: Props) {
     <section className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">Équipe</h1>
-        <Dialog label="+ Créer un compte" title="Créer un compte" primary>
-          <CreateAccount
-            organizations={team.organizations}
-            grantable={team.grantable}
-            configured={accountStatus.ok && accountStatus.data.configured}
-          />
-        </Dialog>
+        {team.grantable.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <Dialog label="Importer des comptes" title="Importer des comptes">
+              <ImportAccounts configured={accountStatus.ok && accountStatus.data.configured} />
+            </Dialog>
+            <Dialog label="+ Créer un compte" title="Créer un compte" primary>
+              <CreateAccount
+                organizations={team.organizations}
+                grantable={team.grantable}
+                configured={accountStatus.ok && accountStatus.data.configured}
+              />
+            </Dialog>
+          </div>
+        )}
       </div>
       <p>
         Voici les membres de l’équipe. Pour inviter quelqu’un avec un code, ouvrez la page{' '}
@@ -178,7 +187,7 @@ export default async function TeamPage({ searchParams }: Props) {
           {team.members.map((m) => (
             <li key={m.id} className="rounded-card border border-line p-4">
               <p className="text-lg font-bold">
-                {m.userName ?? 'Sans nom'} : {TEAM_ROLE_LABELS[m.role] ?? m.role}
+                {m.userName ?? 'Sans nom'} : {roleTitle(m.role, m.organization.type)}
               </p>
               <p className="text-ink-muted">{m.organization.name}</p>
               {m.levels && (

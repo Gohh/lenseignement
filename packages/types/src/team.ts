@@ -2,28 +2,153 @@ import { z } from 'zod';
 import { BRANCH_CODES } from './branches.js';
 import { LEVEL_CODES } from './levels.js';
 
-/** Rôles qu'on peut accorder par invitation ; « chef-etablissement » seulement par un superadministrateur. */
+/**
+ * Rôles d'équipe qu'on peut accorder (invitation, formulaire ou import). Le superadministrateur
+ * se donne par la commande, jamais depuis l'écran.
+ */
 export const GRANTABLE_ROLES = [
+  // National
+  'administrateur',
+  'cabinet',
+  'direction-centrale',
+  'partenaire',
+  'technopedagogue',
+  'referent-pedagogique',
+  // Régional et local
   'gestionnaire',
+  'apfc',
+  'iepp',
+  'conseiller-pedagogique',
+  'conseiller-alpha',
+  // Établissement
+  'chef-etablissement',
+  'censeur',
+  'correspondant-fichier',
+  'educateur',
+  'conseiller-orientation',
   'enseignant',
   'alphabetiseur',
-  'referent-pedagogique',
-  'administrateur',
-  'chef-etablissement',
 ] as const;
+export type GrantableRole = (typeof GRANTABLE_ROLES)[number];
 
 /** Administrateurs (secours du superadministrateur) : trois au plus sur la plateforme. */
 export const MAX_ADMINISTRATORS = 3;
 
 export const TEAM_ROLE_LABELS: Record<string, string> = {
-  gestionnaire: 'Gestionnaire',
+  superadministrateur: 'Superadministrateur',
+  administrateur: 'Administrateur',
+  cabinet: 'Cabinet',
+  'direction-centrale': 'Direction centrale',
+  partenaire: 'Partenaire technique et financier',
+  technopedagogue: 'Technopédagogue',
+  'referent-pedagogique': 'Référent pédagogique',
+  gestionnaire: 'DRENA',
+  apfc: 'APFC',
+  iepp: 'IEPP (inspection)',
+  'conseiller-pedagogique': 'Conseiller pédagogique',
+  'conseiller-alpha': 'Conseiller Alpha',
+  'chef-etablissement': 'Chef d’établissement (directeur, principal, proviseur)',
+  censeur: 'Censeur',
+  'correspondant-fichier': 'Correspondant fichier',
+  educateur: 'Éducateur',
+  'conseiller-orientation': 'Conseiller d’orientation',
   enseignant: 'Enseignant ou formateur',
   alphabetiseur: 'Alphabétiseur',
-  'referent-pedagogique': 'Référent pédagogique',
-  administrateur: 'Administrateur',
-  'chef-etablissement': 'Direction de l’établissement',
-  superadministrateur: 'Superadministrateur',
 };
+
+const SCHOOLS = [
+  'preschool',
+  'primary',
+  'college',
+  'lycee',
+  'literacy_center',
+  'technical_center',
+] as const;
+const SECONDARY = ['college', 'lycee', 'technical_center'] as const;
+
+/**
+ * Structures où chaque rôle peut être donné. `null` : partout (le technopédagogue et le référent
+ * se rattachent à la structure qui les emploie).
+ */
+export const ROLE_STRUCTURES: Record<GrantableRole, readonly string[] | null> = {
+  administrateur: null,
+  cabinet: ['ministry'],
+  'direction-centrale': ['central_direction'],
+  partenaire: ['partner'],
+  technopedagogue: null,
+  'referent-pedagogique': null,
+  gestionnaire: ['authority'],
+  apfc: ['apfc'],
+  iepp: ['iepp'],
+  'conseiller-pedagogique': ['iepp'],
+  'conseiller-alpha': ['authority'],
+  'chef-etablissement': SCHOOLS,
+  censeur: SECONDARY,
+  'correspondant-fichier': SCHOOLS,
+  educateur: SECONDARY,
+  'conseiller-orientation': [...SECONDARY, 'authority'],
+  enseignant: SCHOOLS,
+  alphabetiseur: SCHOOLS,
+};
+
+/** Le rôle se donne-t-il dans ce type de structure ? */
+export function roleFitsStructure(role: string, type: string): boolean {
+  const allowed = ROLE_STRUCTURES[role as GrantableRole];
+  if (allowed === undefined) return false;
+  return allowed === null || allowed.includes(type);
+}
+
+/**
+ * Qui nomme qui. Le superadministrateur nomme tout le monde ; l'administrateur tout le monde sauf
+ * un administrateur. Les autres, seulement dans leur structure (et ce qui en dépend).
+ */
+export const NAMES_BY_ROLE: Record<string, readonly GrantableRole[]> = {
+  gestionnaire: [
+    'chef-etablissement',
+    'apfc',
+    'iepp',
+    'conseiller-alpha',
+    'conseiller-orientation',
+    'enseignant',
+    'alphabetiseur',
+    'referent-pedagogique',
+  ],
+  iepp: ['chef-etablissement', 'conseiller-pedagogique'],
+  'conseiller-alpha': ['alphabetiseur'],
+  'chef-etablissement': [
+    'censeur',
+    'correspondant-fichier',
+    'educateur',
+    'conseiller-orientation',
+    'enseignant',
+    'alphabetiseur',
+  ],
+};
+
+/** Rôles qui nomment d'autres personnes (en plus du superadministrateur et de l'administrateur). */
+export const NAMING_ROLES = Object.keys(NAMES_BY_ROLE);
+
+/**
+ * Titre affiché pour un rôle dans une structure : le chef d'établissement s'appelle directeur
+ * d'école, principal ou proviseur selon l'établissement.
+ */
+export function roleTitle(role: string, organizationType?: string | null): string {
+  if (role === 'chef-etablissement') {
+    switch (organizationType) {
+      case 'preschool':
+      case 'primary':
+        return 'Directeur d’école';
+      case 'college':
+        return 'Principal';
+      case 'lycee':
+      case 'technical_center':
+        return 'Proviseur';
+      case 'literacy_center':
+        return 'Responsable du centre';
+    }
+  }
+  return TEAM_ROLE_LABELS[role] ?? role;
+}
 
 const Branches = z.array(z.enum(BRANCH_CODES)).min(1, 'Choisissez au moins un cycle.').nullable();
 
@@ -224,7 +349,8 @@ export interface TeamMember {
   id: string;
   userName: string | null;
   role: string;
-  organization: { id: string; name: string };
+  /** `type` : pour le titre (directeur d'école, principal, proviseur). */
+  organization: { id: string; name: string; type?: string };
   /** Cycles accordés ; null = tous. */
   branches: string[] | null;
   /** Niveaux et matières validés par la direction (null : pas encore précisés). */

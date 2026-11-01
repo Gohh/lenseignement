@@ -47,7 +47,8 @@ test.describe('Statistiques anonymes (ticket 20)', () => {
       Number(await figure(workshop, 'Apprenants qui ont essayé').textContent()),
     ).toBeGreaterThanOrEqual(8);
     // Un cours sans inscrits de l'école affiche 0 ; un tout petit groupe, « moins de 5 ».
-    await expect(page.getByText('moins de 5').first()).toBeVisible();
+    // (Le rapport imprimé, caché à l'écran, contient aussi ce texte : on regarde le tableau affiché.)
+    await expect(page.getByTestId('pilotage').getByText('moins de 5').first()).toBeVisible();
 
     const text = await page.locator('main').innerText();
     for (const name of ['Élève fictif', 'Awa', 'Koffi', 'Kouamé']) {

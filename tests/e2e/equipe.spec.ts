@@ -33,7 +33,7 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     const code = (await page.getByTestId('invitation-code').textContent())!.trim();
     expect(code).toMatch(/^[A-Z2-9]{8}$/);
     const row = page.getByTestId('invitations').locator('tr', { hasText: code });
-    await expect(row).toContainText('Active');
+    await expect(row).toContainText('Pas encore');
 
     // Un second code est révoqué : il disparaît des codes actifs et ne marche plus.
     // (Sur mobile, la page bouge encore après l'affichage du code : on attend qu'elle soit posée.)
@@ -51,8 +51,9 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
       .getByRole('button', { name: 'Révoquer' })
       .dispatchEvent('click');
     await expect(page.getByText('Invitation révoquée')).toBeVisible();
-    await expect(page.getByTestId('invitations').locator('tr', { hasText: revoked })).toContainText(
-      'Révoquée',
+    // Un code révoqué n'est plus attendu : il quitte la liste.
+    await expect(page.getByTestId('invitations').locator('tr', { hasText: revoked })).toHaveCount(
+      0,
     );
 
     const other = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
@@ -67,6 +68,9 @@ test.describe('Équipe et rôles (étape 3, ADR-021)', () => {
     await member.getByLabel('Code d’invitation').fill(code);
     await member.getByRole('button', { name: 'Rejoindre l’équipe' }).click();
     await expect(member.getByText(/Bienvenue dans l’équipe de/)).toBeVisible();
+    // Code reçu et utilisé : il n'est plus attendu, la direction ne le voit plus.
+    await page.reload();
+    await expect(page.getByTestId('invitations').locator('tr', { hasText: code })).toHaveCount(0);
 
     // Le correspondant fichier ne gère pas l'équipe : pas de rôle à donner.
     await member.goto('/mon-espace/equipe');

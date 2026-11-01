@@ -21,7 +21,8 @@ import {
 } from '../db/schema.js';
 import { issueParentCode, parentCounts } from '../family/family.js';
 import { IdentityError, temporaryPassword, type IdentityAdmin } from '../team/identity-admin.js';
-import { assertManages, audit, TeamError } from '../team/team.js';
+import { classKeeperOrganizationIds } from '../access/access.service.js';
+import { audit, TeamError } from '../team/team.js';
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const newCode = () =>
@@ -53,10 +54,18 @@ async function loadOrganization(db: Database, organizationId: string) {
   return org;
 }
 
+/** Tient les classes de cet établissement : son équipe, le censeur ou le correspondant fichier. */
+async function assertKeepsClasses(db: Database, userId: string, organizationId: string) {
+  const { rows } = await db.execute(
+    sql`select 1 from ${classKeeperOrganizationIds(userId)} k where k.id = ${organizationId}`,
+  );
+  if (rows.length === 0) throw new TeamError('forbidden', 'Accès refusé.');
+}
+
 async function managedCohort(db: Database, userId: string, cohortId: string) {
   const [cohort] = await db.select().from(cohorts).where(eq(cohorts.id, cohortId));
   if (!cohort) throw new TeamError('not_found', 'Classe introuvable.');
-  await assertManages(db, userId, cohort.organizationId).catch(() => {
+  await assertKeepsClasses(db, userId, cohort.organizationId).catch(() => {
     throw new TeamError('not_found', 'Classe introuvable.');
   });
   return cohort;
@@ -85,7 +94,7 @@ export async function organizationCohorts(
   userId: string,
   organizationId: string,
 ): Promise<OrganizationCohorts> {
-  await assertManages(db, userId, organizationId).catch(() => {
+  await assertKeepsClasses(db, userId, organizationId).catch(() => {
     throw new TeamError('not_found', 'Établissement introuvable.');
   });
   const org = await loadOrganization(db, organizationId);
@@ -135,7 +144,7 @@ export async function createCohort(
   input: { organizationId: string; level: string; name: string; schoolYear: string },
   traceId?: string,
 ): Promise<{ id: string }> {
-  await assertManages(db, userId, input.organizationId);
+  await assertKeepsClasses(db, userId, input.organizationId);
   const org = await loadOrganization(db, input.organizationId);
   if (org.archivedAt) throw new TeamError('invalid', 'Cet établissement est archivé.');
   const allowed = levelsForOrganizationType(org.type).map((l) => l.code as string);

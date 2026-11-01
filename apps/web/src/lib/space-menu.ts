@@ -1,6 +1,6 @@
 import type { Me } from './api';
 import type { MenuIconName } from '@/components/MenuIcon';
-import { AUTHOR_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from './roles';
+import { AUTHOR_ROLES, STAFF_ROLES, TEAM_ROLES, VALIDATOR_ROLES } from './roles';
 
 export interface SpaceMenuItem {
   href: string;
@@ -75,16 +75,19 @@ export interface StaffMenuItem extends SpaceMenuItem {
 export interface StaffMenu {
   main: StaffMenuItem[];
   groups: StaffMenuGroup[];
+  /** Gère une équipe, rédige ou relit : sinon le tableau de bord ne montre que des chiffres. */
+  manages: boolean;
 }
 
 /** Rôles qui suivent plusieurs structures : ils voient les DRENA, services et partenaires. */
 const NETWORK_ROLES = new Set(['gestionnaire', 'iepp', 'conseiller-alpha']);
 
 /**
- * Menu de l'espace d'administration (direction, DRENA, relecteurs, administrateurs) : le tableau
- * de bord, puis des rubriques par intention (piloter, enseigner, contenus, réseau scolaire,
- * personnes, administration). Renvoie null pour les apprenants, parents, etc., qui gardent le
- * menu simple.
+ * Menu de l'espace d'administration (tous les rôles d'équipe : cabinet, DRENA, APFC, IEPP,
+ * direction, censeur, relecteurs, administrateurs…) : le tableau de bord, puis des rubriques par
+ * intention (piloter, enseigner, contenus, réseau scolaire, personnes, administration). Chaque
+ * entrée suit les droits réglés dans l'écran « Droits ». Renvoie null pour les apprenants,
+ * parents, etc., qui gardent le menu simple.
  */
 export function staffMenu(sessionRoles: readonly string[], me: Me | null): StaffMenu | null {
   const memberRoles = new Set(me ? me.memberships.map((m) => m.role) : []);
@@ -103,7 +106,8 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
   const programmes =
     right('programmes-importer', admin) ||
     right('programmes-publier', memberRoles.has('referent-pedagogique'));
-  if (!team && !author && !validator) return null;
+  const staff = [...roles].some((role) => STAFF_ROLES.has(role));
+  if (!staff && !team && !author && !validator) return null;
   const when = <T>(condition: boolean, items: T[]): T[] => (condition ? items : []);
 
   const main: StaffMenuItem[] = [
@@ -113,10 +117,10 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
     {
       title: 'Piloter',
       items: [
-        ...when(team && right('suivi', true), [
+        ...when(right('suivi', team), [
           { href: '/mon-espace/suivi', label: 'Suivi de l’établissement', icon: 'suivi' as const },
         ]),
-        ...when((validator || team) && right('statistiques', true), [
+        ...when(right('statistiques', validator || team), [
           {
             href: '/mon-espace/statistiques',
             label: 'Statistiques',
@@ -234,5 +238,9 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
       ]),
     },
   ];
-  return { main, groups: groups.filter((g) => g.items.length > 0) };
+  return {
+    main,
+    groups: groups.filter((g) => g.items.length > 0),
+    manages: team || author || validator,
+  };
 }

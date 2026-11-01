@@ -37,6 +37,7 @@ export const AUTHOR_ROLES = [
   'referent-pedagogique',
   'chef-etablissement',
   'gestionnaire',
+  'technopedagogue',
 ] as const;
 
 /** Circuit de validation (ADR-006) : qui approuve, et qui publie ou retire. */
@@ -71,24 +72,60 @@ export function teamOrganizationIds(userId: string): SQL {
 /**
  * Ce que suivent l'IEPP et le conseiller Alpha : l'IEPP, sa structure et les écoles maternelles et
  * primaires de sa DRENA qui la citent dans leur fiche (champ « IEPP ») ; le conseiller Alpha, sa
- * DRENA et ses centres d'alphabétisation. Renvoie une sous-requête entre parenthèses.
+ * DRENA et ses centres d'alphabétisation. Avec `withAdvisers`, le conseiller pédagogique suit les
+ * mêmes écoles que son IEPP (pour regarder, jamais pour gérer l'équipe).
+ * Renvoie une sous-requête entre parenthèses.
  */
-export function inspectionOrganizationIds(userId: string): SQL {
+export function inspectionOrganizationIds(userId: string, withAdvisers = false): SQL {
+  const roles = withAdvisers
+    ? sql`('iepp', 'conseiller-alpha', 'conseiller-pedagogique')`
+    : sql`('iepp', 'conseiller-alpha')`;
   return sql`(
     with mine as (
       select m.organization_id as id, m.role from memberships m
-       where m.user_id = ${userId} and m.role in ('iepp', 'conseiller-alpha')
+       where m.user_id = ${userId} and m.role in ${roles}
          and (m.valid_until is null or m.valid_until > now()))
     select mine.id from mine
     union
     select s.id from mine
-      join organizations i on i.id = mine.id and mine.role = 'iepp' and i.type = 'iepp'
+      join organizations i on i.id = mine.id and mine.role <> 'conseiller-alpha' and i.type = 'iepp'
       join organizations s on s.parent_id = i.parent_id and s.type in ('preschool', 'primary')
      where lower(trim(s.details->>'iepp')) = lower(trim(i.name))
     union
     select c.id from mine
       join organizations c on c.parent_id = mine.id and c.type = 'literacy_center'
      where mine.role = 'conseiller-alpha')`;
+}
+
+/** Équipe d'un établissement qui suit les classes et les élèves sans diriger l'établissement. */
+export const SCHOOL_STAFF_ROLES = [
+  'censeur',
+  'correspondant-fichier',
+  'educateur',
+  'conseiller-orientation',
+] as const;
+
+/** Qui tient les classes et les listes d'élèves, en plus de ceux qui gèrent l'équipe. */
+export const CLASS_KEEPER_ROLES = ['censeur', 'correspondant-fichier'] as const;
+
+/**
+ * Établissements dont la personne voit le suivi (classes, élèves à suivre) : ceux dont elle gère
+ * l'équipe, et ceux où elle est censeur, correspondant fichier, éducateur ou conseiller
+ * d'orientation. Renvoie une sous-requête entre parenthèses.
+ */
+export function followOrganizationIds(userId: string): SQL {
+  return sql`(
+    select t.id from ${teamOrganizationIds(userId)} t
+    union
+    select s.id from ${organizationIdsWithRoles(userId, SCHOOL_STAFF_ROLES)} s)`;
+}
+
+/** Établissements dont la personne tient les classes : son équipe, ou censeur et correspondant fichier. */
+export function classKeeperOrganizationIds(userId: string): SQL {
+  return sql`(
+    select t.id from ${teamOrganizationIds(userId)} t
+    union
+    select k.id from ${organizationIdsWithRoles(userId, CLASS_KEEPER_ROLES)} k)`;
 }
 
 /**
@@ -108,12 +145,67 @@ export function everywhereOrganizationIds(userId: string): SQL {
 /** Tableau de chiffres anonymes (ADR-016) : direction d'établissement et référents. */
 export const STATS_ROLES = ['chef-etablissement', 'referent-pedagogique'] as const;
 
-/** Qui peut ouvrir ce tableau : en plus, le superadministrateur et l'administrateur (tout le pays). */
-export const STATS_READER_ROLES = [
-  ...STATS_ROLES,
+/** Rôles qui voient les chiffres de tout le pays (le partenaire, s'il n'est rattaché à aucune DRENA). */
+const NATIONAL_STATS_ROLES = [
   'superadministrateur',
   'administrateur',
+  'cabinet',
+  'direction-centrale',
+];
+
+/** Rôles qui voient les chiffres de leur structure et de ce qui en dépend. */
+const LOCAL_STATS_ROLES = [...STATS_ROLES, 'gestionnaire', 'censeur', 'conseiller-orientation'];
+
+/** Qui peut ouvrir le tableau de chiffres anonymes ; l'écran « Droits » peut encore le retirer. */
+export const STATS_READER_ROLES = [
+  ...NATIONAL_STATS_ROLES,
+  ...LOCAL_STATS_ROLES,
+  'partenaire',
+  'apfc',
+  'iepp',
+  'conseiller-pedagogique',
+  'conseiller-alpha',
 ] as const;
+
+/**
+ * Structures couvertes par le tableau de chiffres anonymes :
+ * - tout le pays pour le superadministrateur, l'administrateur, le cabinet, les directions
+ *   centrales et le partenaire rattaché à aucune DRENA ;
+ * - la DRENA de l'APFC et du partenaire régional, avec ses établissements ;
+ * - la structure (et ce qui en dépend) de la DRENA, de la direction, du censeur, du conseiller
+ *   d'orientation et du référent ;
+ * - les écoles suivies par l'IEPP, son conseiller pédagogique et le conseiller Alpha.
+ * Renvoie une sous-requête entre parenthèses.
+ */
+export function statsOrganizationIds(userId: string): SQL {
+  const list = (roles: readonly string[]) =>
+    sql.join(
+      roles.map((role) => sql`${role}`),
+      sql`, `,
+    );
+  return sql`(
+    with recursive mine as (
+      select m.role, o.id, o.parent_id from memberships m
+        join organizations o on o.id = m.organization_id
+       where m.user_id = ${userId} and (m.valid_until is null or m.valid_until > now())
+    ),
+    tree as (
+      select id from mine where role in (${list(LOCAL_STATS_ROLES)})
+      union
+      select parent_id from mine where role in ('apfc', 'partenaire') and parent_id is not null
+      union
+      select o.id from organizations o join tree t on o.parent_id = t.id
+    )
+    select id from tree
+    union
+    select o.id from organizations o
+     where not o.internal and exists (
+       select 1 from mine
+        where mine.role in (${list(NATIONAL_STATS_ROLES)})
+           or (mine.role = 'partenaire' and mine.parent_id is null))
+    union
+    select x.id from ${inspectionOrganizationIds(userId, true)} x)`;
+}
 
 /**
  * Structures où une personne a l'un des rôles donnés, sous-structures comprises (un référent
@@ -151,7 +243,9 @@ export function authoringOrganizationIds(userId: string, branch?: string | SQL):
 /**
  * Classes visibles par une personne :
  * - celles où elle enseigne, tant que son rattachement « enseignant » à la structure est valide ;
- * - toutes celles d'une structure qu'elle dirige ou suit comme référent, sous-structures comprises.
+ * - toutes celles d'une structure qu'elle dirige ou suit comme référent, sous-structures comprises ;
+ * - toutes celles de l'établissement où elle est censeur, correspondant fichier, éducateur ou
+ *   conseiller d'orientation.
  * Renvoie une sous-requête entre parenthèses, utilisable dans `in (...)`.
  */
 export function visibleCohortIds(userId: string): SQL {
@@ -160,7 +254,8 @@ export function visibleCohortIds(userId: string): SQL {
       select m.organization_id as id
         from memberships m
        where m.user_id = ${userId}
-         and m.role in ('chef-etablissement', 'referent-pedagogique')
+         and m.role in ('chef-etablissement', 'referent-pedagogique', 'censeur',
+                        'correspondant-fichier', 'educateur', 'conseiller-orientation')
          and (m.valid_until is null or m.valid_until > now())
       union
       select o.id from organizations o join scope_orgs s on o.parent_id = s.id

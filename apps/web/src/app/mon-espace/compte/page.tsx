@@ -1,4 +1,4 @@
-import { levelLabel, type LevelPromotion } from '@lenseignement/types';
+import { levelLabel, TEAM_ROLE_LABELS, type LevelPromotion } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { DeviceDataPanel } from '@/components/DeviceDataPanel';
 import { LevelPicker } from '@/components/LevelPicker';
@@ -44,28 +44,64 @@ export default async function AccountPage({ searchParams }: Props) {
       <div className="rounded-big border border-line bg-surface p-5">
         <h2 className="text-xl font-extrabold">Mon nom</h2>
         <p className="mt-2 text-lg">{session.displayName}</p>
-        <a
-          href="/mon-espace/bienvenue"
-          className="mt-2 inline-flex min-h-[44px] items-center font-bold underline"
-        >
-          Changer mes profils (apprenant, parent, répétiteur)
-        </a>
+        {me.ok && me.data.profileLocked ? (
+          <p className="mt-2 text-ink-muted" data-testid="profile-locked">
+            Vous faites partie d’une équipe : votre profil est fixé par la direction.
+          </p>
+        ) : (
+          <a
+            href="/mon-espace/bienvenue"
+            className="mt-2 inline-flex min-h-[44px] items-center font-bold underline"
+          >
+            Changer mes profils (apprenant, parent, répétiteur)
+          </a>
+        )}
       </div>
-      <form
-        action={setLevelAction}
-        className="space-y-4 rounded-big border border-line bg-surface p-5"
-      >
-        <h2 className="text-xl font-extrabold">Mon cycle et mon niveau</h2>
-        <p className="text-ink-muted">
-          {level ? `Niveau actuel : ${levelLabel(level) ?? level}.` : 'Tu n’as pas encore choisi.'}{' '}
-          Les cours proposés s’adaptent à ton niveau.
-        </p>
-        {query.next && <input type="hidden" name="next" value={query.next} />}
-        <LevelPicker current={level} />
-        <button type="submit" className={buttonClass}>
-          Enregistrer
-        </button>
-      </form>
+      {me.ok && me.data.profileLocked ? (
+        <div className="rounded-big border border-line bg-surface p-5" data-testid="my-team">
+          <h2 className="text-xl font-extrabold">Mon équipe</h2>
+          <ul className="mt-2 space-y-2" role="list">
+            {me.data.memberships
+              .filter((m) => m.role in TEAM_ROLE_LABELS)
+              .map((m) => (
+                <li key={`${m.organizationId}-${m.role}`}>
+                  <p className="font-bold">
+                    {m.organizationName} : {TEAM_ROLE_LABELS[m.role]}
+                  </p>
+                  {m.levels && (
+                    <p className="text-ink-muted">
+                      Niveaux : {m.levels.map((l) => levelLabel(l) ?? l).join(', ')}
+                      {m.subjects &&
+                        m.subjects.length > 0 &&
+                        ` · Matières : ${m.subjects.join(', ')}`}
+                    </p>
+                  )}
+                </li>
+              ))}
+          </ul>
+          <p className="mt-2 text-ink-muted">
+            Pour changer vos niveaux ou vos matières, adressez-vous à la direction.
+          </p>
+        </div>
+      ) : (
+        <form
+          action={setLevelAction}
+          className="space-y-4 rounded-big border border-line bg-surface p-5"
+        >
+          <h2 className="text-xl font-extrabold">Mon cycle et mon niveau</h2>
+          <p className="text-ink-muted">
+            {level
+              ? `Niveau actuel : ${levelLabel(level) ?? level}.`
+              : 'Tu n’as pas encore choisi.'}{' '}
+            Les cours proposés s’adaptent à ton niveau.
+          </p>
+          {query.next && <input type="hidden" name="next" value={query.next} />}
+          <LevelPicker current={level} />
+          <button type="submit" className={buttonClass}>
+            Enregistrer
+          </button>
+        </form>
+      )}
       {promo && (promo.nextLevel || promo.pending) && (
         <div className="space-y-3 rounded-big border border-line bg-surface p-6 sm:p-8">
           <h2 className="text-2xl font-extrabold">Niveau supérieur</h2>

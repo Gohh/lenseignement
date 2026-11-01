@@ -40,6 +40,21 @@ export default async function WelcomePage({ searchParams }: Props) {
   const query = await searchParams;
   const me = await apiGet<Me>(session.accessToken, '/me');
   const current = new Set(me.ok ? me.data.profiles : []);
+  // Membre d'une équipe : le profil est fixé par la direction, on ne le change plus ici.
+  if (me.ok && me.data.profileLocked) {
+    return (
+      <section className="mx-auto max-w-2xl space-y-4">
+        <h1 className="text-4xl font-extrabold">Mon profil</h1>
+        <p className="text-lg" data-testid="profile-locked">
+          Vous faites partie d’une équipe : votre profil est fixé par la direction. Pour en changer,
+          adressez-vous à la direction de votre établissement.
+        </p>
+        <a href="/mon-espace" className="font-bold underline">
+          Retour à mon espace
+        </a>
+      </section>
+    );
+  }
 
   return (
     <section className="mx-auto max-w-2xl space-y-8">

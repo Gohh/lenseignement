@@ -59,5 +59,13 @@ test('un code d’enseignant : fiche niveaux et matières, puis validation par l
 
   await teacher.goto('/mon-espace/rejoindre');
   await expect(teacher.getByTestId('my-requests')).toContainText('Validée');
+
+  // Dans l'équipe : plus de « Changer mes profils ».
+  await teacher.goto('/mon-espace/compte');
+  await expect(teacher.getByTestId('profile-locked')).toBeVisible();
+  await expect(teacher.getByRole('link', { name: /Changer mes profils/ })).toHaveCount(0);
+  await expect(teacher.getByTestId('my-team')).toContainText('Primaire CP2');
+  await teacher.goto('/mon-espace/bienvenue');
+  await expect(teacher.getByTestId('profile-locked')).toBeVisible();
   await other.close();
 });

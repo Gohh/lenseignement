@@ -4,6 +4,8 @@
  *   copie gardée sur l'appareil ; sinon la page « Hors connexion ».
  * - Jamais mis de côté : l'espace personnel, la connexion, les envois (POST) et les données
  *   techniques de navigation (RSC). Aucun jeton : le cookie de session reste au navigateur.
+ * - Livres de la bibliothèque : seulement ceux que la personne a choisi de garder ; ils sont
+ *   servis depuis l'appareil, même sans réseau (avec lecture par morceaux pour l'audio et la vidéo).
  * - La déconnexion efface tout (en-tête Clear-Site-Data), comme le bouton « Effacer mes données
  *   sur cet appareil ».
  */
@@ -11,6 +13,9 @@
 const VERSION = 'v1';
 const PAGES = `lenseignement-pages-${VERSION}`;
 const ASSETS = `lenseignement-assets-${VERSION}`;
+/** Livres gardés avec « Garder hors ligne » (rempli par la page, jamais automatiquement). */
+const BOOKS = 'lenseignement-livres';
+const BOOK_FILES = '/mon-espace/bibliotheque/fichier/';
 const OFFLINE_URL = '/hors-ligne';
 const PRECACHE = ['/', '/catalogue', OFFLINE_URL];
 /** Au-delà, on montre la copie gardée plutôt que d'attendre un réseau très lent. */
@@ -83,7 +88,9 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith('lenseignement-') && ![PAGES, ASSETS].includes(key))
+            .filter(
+              (key) => key.startsWith('lenseignement-') && ![PAGES, ASSETS, BOOKS].includes(key),
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -141,12 +148,42 @@ async function asset(request) {
   }
 }
 
+/** Réponse partielle (« Range ») tirée d'un fichier gardé en entier : audio et vidéo. */
+async function partial(cached, rangeHeader) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+  const buffer = await cached.arrayBuffer();
+  const size = buffer.byteLength;
+  if (!match || (!match[1] && !match[2])) return new Response(buffer, { headers: cached.headers });
+  let start = match[1] ? Number(match[1]) : size - Number(match[2]);
+  let end = match[1] && match[2] ? Number(match[2]) : size - 1;
+  start = Math.max(0, start);
+  end = Math.min(end, size - 1);
+  if (start > end) {
+    return new Response(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
+  }
+  const headers = new Headers(cached.headers);
+  headers.set('content-range', `bytes ${start}-${end}/${size}`);
+  headers.set('content-length', String(end - start + 1));
+  return new Response(buffer.slice(start, end + 1), { status: 206, headers });
+}
+
+/** Fichier de livre : la copie gardée sur l'appareil d'abord (un fichier ne change jamais). */
+async function bookFile(request) {
+  const url = new URL(request.url);
+  const cached = await (await caches.open(BOOKS)).match(url.pathname);
+  if (!cached) return fetch(request);
+  const range = request.headers.get('range');
+  return range ? partial(cached, range) : cached;
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (request.mode === 'navigate') {
+  if (url.pathname.startsWith(BOOK_FILES)) {
+    event.respondWith(bookFile(request));
+  } else if (request.mode === 'navigate') {
     event.respondWith(navigate(request));
   } else if (isAsset(url)) {
     event.respondWith(asset(request));

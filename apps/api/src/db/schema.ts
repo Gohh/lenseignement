@@ -1307,8 +1307,17 @@ export const classResources = pgTable(
       .references(() => users.id),
     title: text('title').notNull(),
     description: text('description'),
-    url: text('url').notNull(),
+    /** Adresse internet : seulement pour le format « lien ». */
+    url: text('url'),
     kind: text('kind').notNull().default('lien'),
+    /** Format du livre : lien, pdf, epub, images, audio ou video. */
+    format: text('format').notNull().default('lien'),
+    /** Étagère (matière) où le livre est rangé. */
+    shelf: text('shelf').notNull().default('Autres'),
+    author: text('author'),
+    coverColor: text('cover_color').notNull().default('#146b46'),
+    /** L'enseignant propose (ou non) aux élèves de garder le livre sur l'appareil. */
+    offlineAllowed: boolean('offline_allowed').notNull().default(true),
     createdAt: createdAt(),
   },
   (t) => [
@@ -1317,6 +1326,33 @@ export const classResources = pgTable(
       'class_resources_kind_check',
       sql`${t.kind} in ('lien', 'document', 'video', 'exercice')`,
     ),
+    check(
+      'class_resources_format_check',
+      sql`${t.format} in ('lien', 'pdf', 'epub', 'images', 'audio', 'video')`,
+    ),
+  ],
+);
+
+/** Fichier d'un livre de la bibliothèque (contenu ou couverture), rangé sur le disque du serveur. */
+export const libraryFiles = pgTable(
+  'library_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    resourceId: uuid('resource_id')
+      .notNull()
+      .references(() => classResources.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    position: integer('position').notNull().default(0),
+    mime: text('mime').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    originalName: text('original_name'),
+    /** Nom du fichier dans le dossier de stockage (jamais un chemin fourni par la personne). */
+    storageKey: text('storage_key').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('library_files_resource_idx').on(t.resourceId, t.role, t.position),
+    check('library_files_role_check', sql`${t.role} in ('content', 'cover')`),
   ],
 );
 

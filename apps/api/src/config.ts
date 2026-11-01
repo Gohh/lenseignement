@@ -9,6 +9,8 @@ const EnvSchema = z.object({
   /** Client de service qui crée les comptes dans Keycloak (page « Créer un compte »). */
   KEYCLOAK_ADMIN_CLIENT_ID: z.string().min(1).default('lenseignement-admin'),
   KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().min(1).optional(),
+  /** Dossier où sont rangés les fichiers de la bibliothèque (par défaut : storage/bibliotheque). */
+  LIBRARY_STORAGE_DIR: z.string().min(1).optional(),
   DATABASE_URL: z
     .string()
     .min(1)

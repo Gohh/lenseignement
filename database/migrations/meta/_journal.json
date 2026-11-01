@@ -288,6 +288,13 @@
       "when": 1793498917904,
       "tag": "0040_equipe_demandes",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793503505075,
+      "tag": "0041_bibliotheque_livres",
+      "breakpoints": true
     }
   ]
 }

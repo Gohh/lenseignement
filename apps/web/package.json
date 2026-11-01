@@ -15,6 +15,7 @@
     "@lenseignement/types": "workspace:*",
     "@lenseignement/ui": "workspace:*",
     "epubjs": "0.3.93",
+    "exceljs": "4.4.0",
     "ioredis": "5.8.2",
     "next": "16.4.3",
     "openid-client": "6.8.8",

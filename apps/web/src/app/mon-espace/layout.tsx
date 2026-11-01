@@ -43,11 +43,13 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
   const single = items.length <= 1;
 
   return (
-    <div className={single ? undefined : 'pb-24 lg:flex lg:items-start lg:gap-6 lg:pb-0'}>
+    <div
+      className={single ? undefined : 'pb-24 print:pb-0 lg:flex lg:items-start lg:gap-6 lg:pb-0'}
+    >
       {!single && (
         <nav
           aria-label="Menu de mon espace"
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-2 pb-2 pt-1 lg:static lg:w-60 lg:flex-none lg:rounded-big lg:border lg:p-3"
+          className="fixed inset-x-0 bottom-0 z-40 print:hidden border-t border-line bg-surface px-2 pb-2 pt-1 lg:static lg:w-60 lg:flex-none lg:rounded-big lg:border lg:p-3"
         >
           <ul className="flex gap-1 overflow-x-auto lg:flex-col" role="list">
             {items.map((item) => (

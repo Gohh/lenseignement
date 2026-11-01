@@ -1,71 +1,46 @@
-import {
-  PILOT_CYCLE_LABELS,
-  PILOT_PERIOD_LABELS,
-  type MaskedPercent,
-  type PilotCycle,
-  type PilotOverview,
-  type PilotPeriod,
-} from '@lenseignement/types';
+import { PILOT_PERIOD_LABELS, type PilotOverview, type StatsOverview } from '@lenseignement/types';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
+import { pilotWorkbook } from './workbook';
 
-const STATE_LABELS = { alert: 'En alerte', watch: 'À surveiller', ok: 'Bon' } as const;
-
-/** Une cellule CSV (séparateur « ; », lu tel quel par Excel en français). */
-function cell(value: string | number | null): string {
-  const text = value === null ? '' : String(value);
-  return /[;"\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+/** Nom de fichier sans accent ni espace : « pilotage-drena-bouake-trimestre-2026-11-01.xlsx ». */
+function slug(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
-const pct = (p: MaskedPercent) => (p === null ? 'moins de 5' : p);
-
-/** Tableau de pilotage en tableur (CSV) : chiffres clés et sous-zones, sans aucun nom d'élève. */
+/**
+ * Tableau de pilotage pour Excel (.xlsx) : tout ce que montre la page, un onglet par section,
+ * avec les mêmes filtres (zone, cycle, période). Aucun nom d'élève ; les petits groupes restent
+ * masqués.
+ */
 export async function GET(request: Request): Promise<Response> {
   const session = await getSession();
   if (!session) return new Response('Connexion requise.', { status: 401 });
   const query = new URL(request.url).searchParams.toString();
-  const result = await apiGet<PilotOverview>(
-    session.accessToken,
-    `/stats/pilotage${query ? `?${query}` : ''}`,
-  );
-  if (!result.ok) return new Response('Accès refusé.', { status: 403 });
-  const d = result.data;
-  const lines: Array<Array<string | number | null>> = [
-    ['Tableau de pilotage', d.zone.name],
-    ['Période', PILOT_PERIOD_LABELS[d.period as PilotPeriod]],
-    ['Cycle', d.cycle ? PILOT_CYCLE_LABELS[d.cycle as PilotCycle] : 'Tous les cycles'],
-    ['Calculé le', new Date(d.generatedAt).toLocaleString('fr-FR')],
-    [],
-    ['Chiffre', 'Période', 'Période d’avant'],
-    ['Apprenants actifs', d.kpis.active.value, d.kpis.active.previous],
-    ['Cours terminés (%)', d.kpis.completionRate.value, d.kpis.completionRate.previous],
-    ['Devoirs rendus à temps (%)', d.kpis.assignmentsRate.value, d.kpis.assignmentsRate.previous],
-    ['Réussite aux quiz (%)', d.kpis.quizSuccess.value, d.kpis.quizSuccess.previous],
-    [],
-    [
-      'Zone',
-      'Établissements',
-      'Apprenants',
-      'Actifs (%)',
-      'Cours terminés (%)',
-      'Devoirs rendus (%)',
-      'État',
-    ],
-    ...d.rows.map((r) => [
-      r.name,
-      r.establishments,
-      r.learners === null ? 'moins de 5' : r.learners,
-      pct(r.activeRate),
-      pct(r.completionRate),
-      pct(r.assignmentsRate),
-      r.state ? STATE_LABELS[r.state] : '',
-    ]),
-  ];
-  const csv = '﻿' + lines.map((l) => l.map(cell).join(';')).join('\r\n') + '\r\n';
-  return new Response(csv, {
+  const [pilot, stats] = await Promise.all([
+    apiGet<PilotOverview>(session.accessToken, `/stats/pilotage${query ? `?${query}` : ''}`),
+    apiGet<StatsOverview>(session.accessToken, '/stats/overview'),
+  ]);
+  if (!pilot.ok || !stats.ok) return new Response('Accès refusé.', { status: 403 });
+  const d = pilot.data;
+  const generatedAt = new Date(d.generatedAt).toLocaleString('fr-FR', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Africa/Abidjan',
+  });
+  const file = await pilotWorkbook(d, stats.data, { editor: session.displayName, generatedAt });
+  const day = d.generatedAt.slice(0, 10);
+  const name = `pilotage-${slug(d.zone.name)}-${slug(PILOT_PERIOD_LABELS[d.period])}-${day}.xlsx`;
+  return new Response(file, {
     headers: {
-      'content-type': 'text/csv; charset=utf-8',
-      'content-disposition': 'attachment; filename="tableau-de-pilotage.csv"',
+      'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'content-disposition': `attachment; filename="${name}"`,
+      'cache-control': 'no-store',
     },
   });
 }

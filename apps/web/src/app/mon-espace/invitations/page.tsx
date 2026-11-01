@@ -1,8 +1,4 @@
-import {
-  INVITATION_STATE_LABELS,
-  TEAM_ROLE_LABELS,
-  type InvitationList,
-} from '@lenseignement/types';
+import { TEAM_ROLE_LABELS, type InvitationList } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { buttonClass, inputClass, Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { apiGet } from '@/lib/api';
@@ -102,13 +98,19 @@ export default async function InvitationsPage({ searchParams }: Props) {
       </form>
 
       <div className={cardClass}>
-        <h2 className="text-xl font-bold">Invitations créées</h2>
+        <h2 className="text-xl font-bold">Invitations en attente</h2>
+        <p className="mt-1 text-ink-muted">
+          Codes pas encore utilisés. Dès qu’une personne a saisi son code, il disparaît d’ici et
+          elle apparaît dans <a href="/mon-espace/equipe">Équipe</a>. Un code expiré ou révoqué
+          disparaît aussi. Un code d’enseignant reste tant qu’il est valable : il sert à plusieurs
+          personnes.
+        </p>
         {data.items.length === 0 ? (
-          <p className="mt-3">Aucune invitation pour le moment.</p>
+          <p className="mt-3">Aucune invitation en attente.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table
-              className="w-full min-w-[50rem] border-collapse text-left"
+              className="w-full min-w-[44rem] border-collapse text-left"
               data-testid="invitations"
             >
               <thead>
@@ -118,8 +120,7 @@ export default async function InvitationsPage({ searchParams }: Props) {
                   <th className="p-2">Code</th>
                   <th className="p-2">Créée le</th>
                   <th className="p-2">Expire le</th>
-                  <th className="p-2">Utilisations</th>
-                  <th className="p-2">État</th>
+                  <th className="p-2">Déjà utilisé</th>
                   <th className="p-2">Action</th>
                 </tr>
               </thead>
@@ -132,24 +133,17 @@ export default async function InvitationsPage({ searchParams }: Props) {
                     <td className="p-2">{formatDate(i.createdAt)}</td>
                     <td className="p-2">{formatDate(i.expiresAt)}</td>
                     <td className="p-2">
-                      {i.uses}
-                      {i.maxUses === null ? ' (sans limite)' : ` sur ${i.maxUses}`}
+                      {i.maxUses === null
+                        ? `${i.uses} personne${i.uses > 1 ? 's' : ''} (sans limite)`
+                        : 'Pas encore'}
                     </td>
                     <td className="p-2">
-                      {INVITATION_STATE_LABELS[i.state]}
-                      {i.state === 'used' && i.usedByName ? ` par ${i.usedByName}` : ''}
-                    </td>
-                    <td className="p-2">
-                      {i.state === 'active' ? (
-                        <form action={revokeInvitationAction.bind(null, i.id)}>
-                          <button type="submit" className={secondaryButtonClass}>
-                            Révoquer
-                            <span className="sr-only"> le code {i.code}</span>
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="text-ink-muted">Aucune</span>
-                      )}
+                      <form action={revokeInvitationAction.bind(null, i.id)}>
+                        <button type="submit" className={secondaryButtonClass}>
+                          Révoquer
+                          <span className="sr-only"> le code {i.code}</span>
+                        </button>
+                      </form>
                     </td>
                   </tr>
                 ))}

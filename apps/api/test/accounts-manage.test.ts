@@ -106,7 +106,7 @@ test('modifier un compte : nom, profils et niveau', async () => {
   });
 });
 
-test('supprimer : seulement un compte jamais utilisé, et aussi dans Keycloak', async () => {
+test('supprimer : un compte sans travail rattaché, et aussi dans Keycloak', async () => {
   const [marie] = await ctx.db
     .select({ id: users.id, subject: users.oidcSubject })
     .from(users)
@@ -116,10 +116,21 @@ test('supprimer : seulement un compte jamais utilisé, et aussi dans Keycloak', 
   assert.deepEqual(deleted, [marie!.subject]);
   assert.equal((await ctx.db.select().from(users).where(eq(users.id, marie!.id))).length, 0);
 
-  // Koffi s'est déjà connecté : on le suspend, on ne le supprime pas.
+  // Koffi a des cours et des quiz : on le suspend, on ne le supprime pas.
   await call(SUB.koffi, 'get', '/me', 200);
   const used = (await call(SUB.yao, 'delete', `/admin/accounts/${ID.userKoffi}`, 400)).body;
-  assert.match(used.message, /déjà servi/);
+  assert.match(used.message, /Des données sont déjà rattachées/);
+  assert.equal((await ctx.db.select().from(users).where(eq(users.id, ID.userKoffi))).length, 1);
+
+  // Un compte resté « sans nom » qui s'est seulement connecté se supprime.
+  await call('compte-sans-nom', 'get', '/me', 200);
+  const [ghost] = await ctx.db
+    .select({ id: users.id, lastSeenAt: users.lastSeenAt })
+    .from(users)
+    .where(eq(users.oidcSubject, 'compte-sans-nom'));
+  assert.ok(ghost!.lastSeenAt);
+  await call(SUB.yao, 'delete', `/admin/accounts/${ghost!.id}`, 200);
+  assert.equal((await ctx.db.select().from(users).where(eq(users.id, ghost!.id))).length, 0);
   await call(SUB.yao, 'delete', `/admin/accounts/${ID.userYao}`, 400);
   await call(SUB.mariam, 'delete', `/admin/accounts/${ID.userYao}`, 403);
 });

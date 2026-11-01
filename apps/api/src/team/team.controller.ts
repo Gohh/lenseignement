@@ -36,6 +36,7 @@ import {
   previewInvitation,
   redeemTeamInvitation,
   removeMember,
+  restoreMember,
   revokeInvitation,
   TeamError,
   teamOverview,
@@ -200,6 +201,14 @@ export class TeamController {
   async remove(@Req() request: Request, @Param('id') id: string) {
     await guard(async () =>
       removeMember(this.db, await this.me(request), memberId(id), request.traceId),
+    );
+    return { ok: true };
+  }
+
+  @Post('members/:id/restore')
+  async restore(@Req() request: Request, @Param('id') id: string) {
+    await guard(async () =>
+      restoreMember(this.db, await this.me(request), memberId(id), request.traceId),
     );
     return { ok: true };
   }

@@ -41,6 +41,16 @@ export async function removeMemberAction(form: FormData): Promise<void> {
   back('message', 'Rôle retiré.');
 }
 
+export async function restoreMemberAction(form: FormData): Promise<void> {
+  const result = await apiSend(
+    await token(),
+    'POST',
+    `/team/members/${text(form, 'memberId')}/restore`,
+  );
+  if (!result.ok) back('erreur', result.message ?? 'Impossible de rendre ce rôle.');
+  back('message', 'Rôle rendu.');
+}
+
 export interface CreateAccountState {
   error?: string;
   created?: CreatedAccount;

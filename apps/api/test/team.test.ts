@@ -110,6 +110,24 @@ test('ADR-021 : la direction invite un correspondant fichier, règle ses cycles,
   await call(SUB.koffi, 'patch', `/team/members/${member.id}`, 404, { branches: null });
   await call(SUB.bamba, 'delete', `/team/members/${member.id}`, 200);
   assert.equal(await memberOf(), undefined);
+
+  // Le rôle retiré passe dans « Anciens membres » ; on peut le rendre, avec ses cycles.
+  const former = (await call(SUB.bamba, 'get', '/team', 200)).body.former.find(
+    (m: { id: string }) => m.id === member.id,
+  );
+  assert.equal(former.role, 'correspondant-fichier');
+  assert.ok(former.removedAt);
+  await call(SUB.koffi, 'post', `/team/members/${member.id}/restore`, 404);
+  await call(SUB.bamba, 'post', `/team/members/${member.id}/restore`, 201);
+  assert.deepEqual((await memberOf()).branches, ['alphabetisation']);
+  assert.ok(
+    !(await call(SUB.bamba, 'get', '/team', 200)).body.former.some(
+      (m: { id: string }) => m.id === member.id,
+    ),
+  );
+  const again = await call(SUB.bamba, 'post', `/team/members/${member.id}/restore`, 400);
+  assert.match(again.body.message, /déjà actif/);
+  await call(SUB.bamba, 'delete', `/team/members/${member.id}`, 200);
 });
 
 test('ADR-021 : le superadministrateur gère toutes les structures et les directions', async () => {

@@ -17,6 +17,7 @@ import {
   approveRequestAction,
   refuseRequestAction,
   removeMemberAction,
+  restoreMemberAction,
   updateBranchesAction,
 } from './actions';
 
@@ -63,6 +64,7 @@ export default async function TeamPage({ searchParams }: Props) {
     : {
         organizations: [],
         members: [],
+        former: [],
         grantable: [] as string[],
         canCreateOrganization: false,
         everywhere: false,
@@ -252,6 +254,57 @@ export default async function TeamPage({ searchParams }: Props) {
           })}
         </ul>
       </div>
+
+      {team.former.length > 0 && (
+        <div className={cardClass} data-testid="team-former">
+          <h2 className="text-xl font-bold">Anciens membres</h2>
+          <p className="mt-1 text-ink-muted">
+            Rôles retirés. Leur compte est resté actif : vous pouvez leur rendre le rôle.
+          </p>
+          <ul className="mt-3 divide-y divide-line" role="list">
+            {team.former.map((m) => {
+              const name = m.userName ?? 'Sans nom';
+              const role = roleTitle(m.role, m.organization.type);
+              return (
+                <li key={m.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                  <div className="min-w-0 flex-1 basis-64">
+                    <p className="font-bold">
+                      {name}
+                      <span className="font-normal text-ink-muted"> · {role}</span>
+                    </p>
+                    <p className="text-sm text-ink-muted">
+                      {m.organization.name} · retiré le{' '}
+                      {new Intl.DateTimeFormat('fr-FR', {
+                        dateStyle: 'medium',
+                        timeZone: 'UTC',
+                      }).format(new Date(m.removedAt))}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Dialog
+                      label={`Rendre le rôle de ${name}`}
+                      icon="rendreRole"
+                      tip="Rendre ce rôle (avec confirmation)"
+                      title={`Rendre le rôle à ${name} ?`}
+                    >
+                      <form action={restoreMemberAction} className="space-y-4">
+                        <input type="hidden" name="memberId" value={m.id} />
+                        <p>
+                          {name} redeviendra « {role} » à {m.organization.name}, avec les mêmes
+                          cycles qu’avant le retrait.
+                        </p>
+                        <button type="submit" className={buttonClass}>
+                          Oui, rendre ce rôle
+                        </button>
+                      </form>
+                    </Dialog>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

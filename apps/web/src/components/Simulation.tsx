@@ -82,11 +82,14 @@ export function SimulationForm({
   attemptId,
   action,
   hidden,
+  local = false,
 }: {
   steps: SimulationStep[];
   attemptId: string;
-  action: (form: FormData) => Promise<void>;
+  action: (form: FormData) => void | Promise<void>;
   hidden?: ReactNode;
+  /** Atelier gardé sur l'appareil, fait sans connexion. */
+  local?: boolean;
 }) {
   return (
     <form action={action} className="space-y-6">
@@ -130,6 +133,7 @@ export function SimulationForm({
               packageKey={step.packageKey}
               passPercent={step.passPercent}
               title={step.title}
+              local={local}
             />
           )}
           {step.kind === 'order' &&

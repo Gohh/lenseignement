@@ -7,9 +7,11 @@ import {
 } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { KeepWorkshopButton } from '@/components/KeepWorkshopButton';
 import { Notice, param } from '@/components/Notice';
 import { AttemptResult, PracticeCard, SimulationForm } from '@/components/Simulation';
 import { apiGet } from '@/lib/api';
+import { ownerOf } from '@/lib/device-owner';
 import { getSession } from '@/lib/session';
 import { requestPracticeAction, submitSimulationAction } from './actions';
 
@@ -77,6 +79,16 @@ export default async function WorkshopPage({
           .
         </p>
       )}
+      <KeepWorkshopButton
+        workshop={{
+          code,
+          title: simulation.title,
+          trade,
+          summary: simulation.summary ?? '',
+          steps,
+          owner: ownerOf(session.subject),
+        }}
+      />
       <p className="rounded-card border-2 border-line-strong bg-surface p-4 font-bold">
         Ici, tu t’entraînes sans danger. Dans un vrai atelier, ne touche jamais une installation ou
         une machine sans ton formateur.

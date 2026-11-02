@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix } from 'node:path';
 import { Transform, type Readable } from 'node:stream';
@@ -252,4 +252,36 @@ export async function h5pFile(
   } catch {
     return null;
   }
+}
+
+/**
+ * Liste des fichiers d'un paquet (chemins et poids), pour le garder sur l'appareil de l'élève :
+ * les mêmes fichiers que ceux que le lecteur peut demander, ni plus ni moins.
+ */
+export async function h5pFileList(
+  key: string,
+): Promise<{ files: Array<{ path: string; size: number }>; bytes: number } | null> {
+  if (!KEY.test(key)) return null;
+  const root = join(h5pDir(), key);
+  let entries;
+  try {
+    entries = await readdir(root, { recursive: true, withFileTypes: true });
+  } catch {
+    return null;
+  }
+  const files: Array<{ path: string; size: number }> = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const full = join(entry.parentPath, entry.name);
+    const path = full
+      .slice(root.length + 1)
+      .split(/[\\/]/)
+      .join('/');
+    const clean = safeEntryPath(path);
+    if (!clean || !H5P_TYPES[extension(clean)]) continue;
+    files.push({ path: clean, size: (await stat(full)).size });
+    if (files.length >= MAX_ENTRIES) break;
+  }
+  files.sort((a, b) => a.path.localeCompare(b.path));
+  return { files, bytes: files.reduce((sum, f) => sum + f.size, 0) };
 }

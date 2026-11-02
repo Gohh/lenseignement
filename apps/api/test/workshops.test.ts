@@ -270,6 +270,28 @@ test('exercice H5P : fichier vérifié, servi au lecteur, score compté dans l�
   await server.get(`/api/v1/h5p-files/${ok.key}/H5P.TestScore-1.0/ignore.exe`).expect(404);
   await server.get(`/api/v1/h5p-files/${ok.key}/..%2F..%2Fpackage.json`).expect(404);
   await server.get(`/api/v1/h5p-files/nimportequoi/h5p.json`).expect(404);
+  // Liste à garder sur l'appareil : les fichiers servis, ni plus ni moins (pas le .exe ignoré).
+  const list = (await server.get(`/api/v1/h5p-files/${ok.key}`).expect(200)).body as {
+    files: Array<{ path: string; size: number }>;
+    bytes: number;
+  };
+  assert.deepEqual(
+    list.files.map((f) => f.path),
+    [
+      'content/content.json',
+      'content/images/outil.png',
+      'H5P.TestScore-1.0/images/badge.png',
+      'H5P.TestScore-1.0/library.json',
+      'H5P.TestScore-1.0/score.css',
+      'H5P.TestScore-1.0/score.js',
+      'h5p.json',
+    ].sort((a, b) => a.localeCompare(b)),
+  );
+  assert.equal(
+    list.bytes,
+    list.files.reduce((sum, f) => sum + f.size, 0),
+  );
+  await server.get(`/api/v1/h5p-files/nimportequoi`).expect(404);
 
   // Une clé inconnue est refusée ; la bonne est gardée dans l'étape.
   const step = {

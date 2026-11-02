@@ -1,6 +1,10 @@
 'use client';
 
-import type { LearningEventInput, LearningEventResult } from '@lenseignement/types';
+import type {
+  LearningEventInput,
+  LearningEventResult,
+  WorkshopAttemptEvent,
+} from '@lenseignement/types';
 
 /**
  * File locale des actions faites sans réseau (cahier §5.4, ADR-012). Chaque action garde son
@@ -9,7 +13,8 @@ import type { LearningEventInput, LearningEventResult } from '@lenseignement/typ
  */
 
 export interface QueuedAction {
-  event: LearningEventInput;
+  /** Action d'un cours (leçon, quiz) ou essai d'atelier fait sans connexion. */
+  event: LearningEventInput | WorkshopAttemptEvent;
   /** Personne qui a fait l'action (empreinte, pas d'identifiant en clair) : voir `ownerOf`. */
   owner: string;
 }
@@ -132,6 +137,12 @@ export function syncActions(): Promise<SyncOutcome> {
 
 /** Bouton « Effacer mes données sur cet appareil » : file d'actions et pages gardées. */
 export async function clearDeviceData(): Promise<void> {
+  try {
+    window.localStorage.removeItem('lse-ateliers-gardes');
+    window.dispatchEvent(new Event('lse-ateliers'));
+  } catch {
+    // Rien à effacer.
+  }
   await new Promise<void>((resolve) => {
     const request = indexedDB.deleteDatabase(DB_NAME);
     request.onsuccess = request.onerror = request.onblocked = () => resolve();

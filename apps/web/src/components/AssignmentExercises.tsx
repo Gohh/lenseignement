@@ -20,6 +20,17 @@ export function AssignmentResults({
   score: number | null;
   maxScore: number;
 }) {
+  // Évaluation de zone en cours : la copie est rendue, la note s'ouvre à la clôture.
+  if (score === null && results.length === 0) {
+    return (
+      <p
+        className="rounded-card border-l-4 border-primary bg-primary-soft p-3 font-bold"
+        data-testid="results-hidden"
+      >
+        Copie rendue. Ta note sera visible à la fin de l’évaluation.
+      </p>
+    );
+  }
   return (
     <div className="space-y-3" data-testid="assignment-results">
       {score != null && (
@@ -79,7 +90,7 @@ export function AssignmentExercisesForm({
     return (
       <div className="space-y-3">
         <p role="status" className="font-bold">
-          ✓ Devoir rendu et corrigé.
+          {outcome.submission.score === null ? '✓ Devoir rendu.' : '✓ Devoir rendu et corrigé.'}
         </p>
         <AssignmentResults
           results={outcome.submission.results ?? []}

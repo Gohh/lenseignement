@@ -20,6 +20,7 @@ const PATHS = {
   // Crayon sur une feuille : on fabrique un exercice.
   fabrique: 'M5 3h9l5 5v13H5zM14 3v5h5M9 17l1-3 5-5 2 2-5 5z',
   // Chronomètre : une épreuve se passe en temps donné.
+  campagnes: 'M5 21V4M5 4h12l-2.5 4 2.5 4H5',
   epreuves: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16M12 9v4l2.5 2M10 2h4M19 6l1.5-1.5',
   programmes: 'M8 6h12M8 12h12M8 18h12M4 6h.5M4 12h.5M4 18h.5',
   etablissements: 'M3 21h18M5 21V10l7-5 7 5v11M10 21v-5h4v5M12 10v2',

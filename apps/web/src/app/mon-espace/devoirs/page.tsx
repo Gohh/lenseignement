@@ -21,6 +21,8 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'UTC',
 });
 
+const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
+
 export default async function AssignmentsPage({ searchParams }: Props) {
   const session = await getSession();
   if (!session) redirect('/auth/login?returnTo=/mon-espace/devoirs');
@@ -160,12 +162,20 @@ export default async function AssignmentsPage({ searchParams }: Props) {
                             Note : {a.mine.score}/{a.maxScore}
                           </p>
                         )}
+                        {a.mine && a.mine.score === null && a.resultsAt && (
+                          <p className="text-ink-muted" data-testid="grade-hidden">
+                            Copie rendue. Note visible à la fin de l’évaluation, dès le{' '}
+                            {dayFormat.format(new Date(a.resultsAt))}.
+                          </p>
+                        )}
                         <Link
                           href={`/mon-espace/devoirs/${a.id}/faire`}
                           className={a.mine ? secondaryButtonClass : buttonClass}
                         >
                           {a.mine
-                            ? 'Voir ma correction'
+                            ? a.mine.score === null
+                              ? 'Voir ma copie'
+                              : 'Voir ma correction'
                             : `Faire le devoir (${a.exerciseCount} exercice${a.exerciseCount > 1 ? 's' : ''})`}
                           <span className="sr-only"> « {a.title} »</span>
                         </Link>

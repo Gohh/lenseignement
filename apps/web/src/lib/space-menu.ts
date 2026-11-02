@@ -129,6 +129,14 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
             icon: 'statistiques' as const,
           },
         ]),
+        ...when(me?.campaigns ?? false, [
+          {
+            href: '/mon-espace/campagnes',
+            label: 'Campagnes d’évaluation',
+            section: true,
+            icon: 'campagnes' as const,
+          },
+        ]),
       ],
     },
     {

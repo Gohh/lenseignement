@@ -27,7 +27,7 @@ import {
   type SaveExamPaperInput,
   type UpdateExamInput,
 } from '@lenseignement/types';
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { createAssignment } from '../assignments/assignments.js';
 import type { Database, Executor } from '../db/database.js';
 import {
@@ -115,7 +115,7 @@ async function isGiven(db: Executor, examId: string): Promise<boolean> {
   const [row] = await db
     .select({ id: assignments.id })
     .from(assignments)
-    .where(eq(assignments.examId, examId))
+    .where(and(eq(assignments.examId, examId), isNull(assignments.campaignId)))
     .limit(1);
   return Boolean(row);
 }
@@ -382,7 +382,7 @@ export async function getExam(db: Database, userId: string, id: string): Promise
     plan,
     items: list,
     given: mine,
-    locked: givenTo.length > 0,
+    locked: await isGiven(db, id),
     canEdit: canEdit(row, p),
   };
 }
@@ -657,6 +657,15 @@ export function answerKey(content: ExerciseContent): string {
 /** Livret imprimé : les questions telles que l'élève les voit, avec le corrigé à part. */
 export async function examBooklet(db: Database, userId: string, id: string): Promise<ExamBooklet> {
   const { row } = await load(db, userId, id);
+  return bookletOf(db, row);
+}
+
+/** Livret sans contrôle d'accès : l'appelant a vérifié le droit (épreuve ou campagne). */
+export async function bookletOf(
+  db: Database,
+  row: typeof exams.$inferSelect,
+): Promise<ExamBooklet> {
+  const id = row.id;
   const [org] = await db
     .select({ name: organizations.name })
     .from(organizations)
@@ -690,13 +699,29 @@ export async function examBooklet(db: Database, userId: string, id: string): Pro
   };
 }
 
-async function paperAssignment(db: Database, userId: string, id: string, cohortId: string) {
-  const { row } = await load(db, userId, id);
+async function paperAssignment(
+  db: Database,
+  userId: string,
+  id: string,
+  cohortId: string,
+  campaignId?: string,
+) {
+  // Campagne de zone : l'équipe de l'école saisit sans voir l'épreuve dans sa banque.
+  const row = campaignId
+    ? (await db.select().from(exams).where(eq(exams.id, id)))[0]
+    : (await load(db, userId, id)).row;
+  if (!row) throw new ExerciseError('not_found', NOT_FOUND);
   const [a] = await db
     .select({ id: assignments.id, onPaper: assignments.onPaper, cohortName: cohorts.name })
     .from(assignments)
     .innerJoin(cohorts, eq(cohorts.id, assignments.cohortId))
-    .where(and(eq(assignments.examId, id), eq(assignments.cohortId, cohortId)));
+    .where(
+      and(
+        eq(assignments.examId, id),
+        eq(assignments.cohortId, cohortId),
+        campaignId ? eq(assignments.campaignId, campaignId) : isNull(assignments.campaignId),
+      ),
+    );
   if (!a || !(await canManageCohort(db, userId, cohortId))) {
     throw new ExerciseError('not_found', 'Cette classe n’a pas reçu l’épreuve.');
   }
@@ -709,8 +734,9 @@ export async function examPaperSheet(
   userId: string,
   id: string,
   cohortId: string,
+  campaignId?: string,
 ): Promise<ExamPaperSheet> {
-  const { row, assignment } = await paperAssignment(db, userId, id, cohortId);
+  const { row, assignment } = await paperAssignment(db, userId, id, cohortId, campaignId);
   const list = await items(db, id);
   const learners = await db
     .select({ id: users.id, name: users.displayName })
@@ -755,8 +781,9 @@ export async function saveExamPaper(
   id: string,
   input: SaveExamPaperInput,
   traceId?: string,
+  campaignId?: string,
 ): Promise<{ saved: number; removed: number }> {
-  const { assignment } = await paperAssignment(db, userId, id, input.cohortId);
+  const { assignment } = await paperAssignment(db, userId, id, input.cohortId, campaignId);
   const list = await items(db, id);
   const members = new Set(
     (
@@ -819,3 +846,5 @@ export async function saveExamPaper(
   await audit(db, userId, 'exam.paper', id, traceId);
   return { saved, removed };
 }
+
+export { items as examItemList };

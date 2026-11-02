@@ -3,6 +3,7 @@
 import { EXAM_MODELS, EXERCISE_DOMAINS } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
+import { paperRows } from '@/lib/paper-form';
 import { getSession } from '@/lib/session';
 
 // Épreuves : le navigateur n'a jamais le jeton, et l'API décide des droits.
@@ -133,18 +134,7 @@ export async function saveExamPaperAction(form: FormData): Promise<void> {
   const cohortId = text(form, 'cohortId');
   if (!ID.test(cohortId)) redirect(`${HOME}/${id}`);
   const path = `${HOME}/${id}/saisie?classe=${cohortId}`;
-  const count = Math.min(Math.max(int(form, 'count'), 0), 40);
-  const rows = form
-    .getAll('learners')
-    .map(String)
-    .filter((l) => ID.test(l))
-    .map((learnerId) => {
-      const marks = Array.from({ length: count }, (_, i) =>
-        form.get(`m:${learnerId}:${i}`) ? 1 : 0,
-      );
-      const handedIn = Boolean(form.get(`copie:${learnerId}`)) || marks.some((m) => m === 1);
-      return { learnerId, marks: handedIn ? marks : null };
-    });
+  const rows = paperRows(form);
   const result = await apiSend<{ saved: number; removed: number }>(
     await token(path),
     'PUT',

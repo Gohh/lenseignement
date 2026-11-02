@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   BRANCH_CODES,
   LEVEL_CODES,
+  type AssignmentExerciseResult,
   type ExerciseContent,
   type WorkshopStepInput,
 } from '@lenseignement/types';
@@ -1410,6 +1411,10 @@ export const assignmentSubmissions = pgTable(
       .notNull()
       .references(() => users.id),
     body: text('body').notNull(),
+    /** Devoir fait d'exercices : correction de chacun (null pour une copie rédigée). */
+    results: jsonb('results').$type<AssignmentExerciseResult[]>(),
+    /** Identifiant de l'envoi des réponses : un renvoi (hors ligne) n'est compté qu'une fois. */
+    attemptId: uuid('attempt_id'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
     score: integer('score'),
     comment: text('comment'),
@@ -1417,6 +1422,24 @@ export const assignmentSubmissions = pgTable(
     gradedAt: timestamp('graded_at', { withTimezone: true }),
   },
   (t) => [unique('assignment_submissions_once').on(t.assignmentId, t.learnerUserId)],
+);
+
+/** Exercices publiés de la Fabrique donnés dans un devoir, dans l'ordre. */
+export const assignmentExercises = pgTable(
+  'assignment_exercises',
+  {
+    assignmentId: uuid('assignment_id')
+      .notNull()
+      .references(() => assignments.id, { onDelete: 'cascade' }),
+    exerciseId: uuid('exercise_id')
+      .notNull()
+      .references(() => exercises.id),
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.assignmentId, t.exerciseId] }),
+    index('assignment_exercises_exercise_idx').on(t.exerciseId),
+  ],
 );
 
 /** Ressource de la bibliothèque, partagée avec une classe par son enseignant. */

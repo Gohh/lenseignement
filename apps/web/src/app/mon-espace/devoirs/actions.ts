@@ -1,5 +1,10 @@
 'use server';
 
+import {
+  AssignmentAnswersSchema,
+  type ExerciseAnswer,
+  type MySubmission,
+} from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
 import { getSession } from '@/lib/session';
@@ -64,4 +69,44 @@ export async function gradeSubmissionAction(form: FormData): Promise<void> {
   );
   if (!result.ok) back('erreur', result.message ?? 'Correction impossible.', path);
   back('message', 'Correction enregistrée.', path);
+}
+
+const UUID = /^[0-9a-f-]{36}$/i;
+
+/** Ajoute ou retire un exercice de la banque (devoir sans copie rendue). */
+export async function assignmentExerciseAction(form: FormData): Promise<void> {
+  const id = text(form, 'assignmentId');
+  const exerciseId = text(form, 'exerciseId');
+  if (!UUID.test(id) || !UUID.test(exerciseId)) redirect(PATH);
+  const path = `${PATH}/${id}`;
+  const add = text(form, 'op') === 'add';
+  const result = add
+    ? await apiSend(await token(), 'POST', `/assignments/${id}/exercises`, { exerciseId })
+    : await apiSend(await token(), 'DELETE', `/assignments/${id}/exercises/${exerciseId}`);
+  // La recherche reste ouverte pour ajouter les exercices suivants.
+  const keep = new URLSearchParams();
+  for (const name of ['q', 'domaine']) if (text(form, name)) keep.set(name, text(form, name));
+  const suffix = keep.toString() ? `&${keep.toString()}` : '';
+  if (!result.ok) back('erreur', result.message ?? 'Action impossible.', path, suffix);
+  back('message', add ? 'Exercice ajouté au devoir.' : 'Exercice retiré du devoir.', path, suffix);
+}
+
+/** L'élève rend ses réponses aux exercices : la plateforme corrige et note. */
+export async function answerAssignmentAction(
+  id: string,
+  answers: ExerciseAnswer[],
+  attemptId: string,
+): Promise<{ submission: MySubmission } | { error: string }> {
+  if (!UUID.test(id)) return { error: 'Devoir introuvable.' };
+  const parsed = AssignmentAnswersSchema.safeParse({ attemptId, answers });
+  if (!parsed.success) return { error: 'Réponses illisibles.' };
+  const session = await getSession();
+  if (!session) return { error: 'Connecte-toi de nouveau.' };
+  const result = await apiSend<MySubmission>(
+    session.accessToken,
+    'POST',
+    `/assignments/${id}/answers`,
+    parsed.data,
+  );
+  return result.ok ? { submission: result.data } : { error: result.message ?? 'Envoi impossible.' };
 }

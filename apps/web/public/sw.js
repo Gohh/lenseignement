@@ -8,6 +8,8 @@
  *   servis depuis l'appareil, même sans réseau (avec lecture par morceaux pour l'audio et la vidéo).
  * - Ateliers gardés : leurs exercices H5P sont rangés par la page dans `lenseignement-ateliers` ;
  *   le lecteur isolé ne passe pas par ce service worker, la page lui donne elle-même ses fichiers.
+ * - Devoirs gardés : les images et sons de leurs exercices sont rangés par la page dans
+ *   `lenseignement-devoirs` et servis depuis l'appareil.
  * - La déconnexion efface tout (en-tête Clear-Site-Data), comme le bouton « Effacer mes données
  *   sur cet appareil ».
  */
@@ -19,7 +21,10 @@ const ASSETS = `lenseignement-assets-${VERSION}`;
 const BOOKS = 'lenseignement-livres';
 /** Exercices H5P des ateliers gardés (rempli par la page, jamais automatiquement). */
 const WORKSHOPS = 'lenseignement-ateliers';
+/** Images et sons des exercices des devoirs gardés (rempli par la page). */
+const ASSIGNMENTS = 'lenseignement-devoirs';
 const BOOK_FILES = '/mon-espace/bibliotheque/fichier/';
+const EXERCISE_FILES = '/exercices/fichiers/';
 const OFFLINE_URL = '/hors-ligne';
 const PRECACHE = ['/', '/catalogue', OFFLINE_URL];
 /** Au-delà, on montre la copie gardée plutôt que d'attendre un réseau très lent. */
@@ -95,7 +100,7 @@ self.addEventListener('activate', (event) => {
             .filter(
               (key) =>
                 key.startsWith('lenseignement-') &&
-                ![PAGES, ASSETS, BOOKS, WORKSHOPS].includes(key),
+                ![PAGES, ASSETS, BOOKS, WORKSHOPS, ASSIGNMENTS].includes(key),
             )
             .map((key) => caches.delete(key)),
         ),
@@ -182,6 +187,15 @@ async function bookFile(request) {
   return range ? partial(cached, range) : cached;
 }
 
+/** Image ou son d'exercice : la copie gardée d'abord (un fichier ne change jamais). */
+async function exerciseFile(request) {
+  const url = new URL(request.url);
+  const cached = await (await caches.open(ASSIGNMENTS)).match(url.pathname);
+  if (!cached) return fetch(request);
+  const range = request.headers.get('range');
+  return range ? partial(cached, range) : cached;
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -189,6 +203,8 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith(BOOK_FILES)) {
     event.respondWith(bookFile(request));
+  } else if (url.pathname.startsWith(EXERCISE_FILES)) {
+    event.respondWith(exerciseFile(request));
   } else if (request.mode === 'navigate') {
     event.respondWith(navigate(request));
   } else if (isAsset(url)) {

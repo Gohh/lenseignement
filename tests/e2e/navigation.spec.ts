@@ -33,6 +33,7 @@ test.describe('Navigation', () => {
       'Cours',
       'Relecture',
       'Ateliers',
+      'Fabrique d’exercices',
       'Établissements',
       'Équipe',
       'Invitations',

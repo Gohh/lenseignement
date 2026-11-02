@@ -103,6 +103,8 @@ export interface Me {
   workshopLearner?: boolean;
   /** Peut rédiger ou publier des ateliers. */
   workshopAuthor?: boolean;
+  /** Peut rédiger ou relire des exercices (Fabrique). */
+  exerciseAuthor?: boolean;
 }
 
 export interface CohortSummary {

@@ -1,5 +1,10 @@
 import { sql } from 'drizzle-orm';
-import { BRANCH_CODES, LEVEL_CODES, type WorkshopStepInput } from '@lenseignement/types';
+import {
+  BRANCH_CODES,
+  LEVEL_CODES,
+  type ExerciseContent,
+  type WorkshopStepInput,
+} from '@lenseignement/types';
 import {
   boolean,
   customType,
@@ -1187,6 +1192,59 @@ export const workshops = pgTable(
     check('workshops_status_check', sql`${t.status} in ('draft','review','published','archived')`),
   ],
 );
+
+/**
+ * Exercice de la Fabrique (étape 2 du plan validé le 02/11/2026) : rattaché à une compétence
+ * d'un programme publié et rangé dans un domaine. Publié, son contenu ne change plus (déclencheur
+ * PostgreSQL) : « Modifier » crée un brouillon qui le remplacera (`replaces_id`).
+ */
+export const exercises = pgTable(
+  'exercises',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    competencyId: uuid('competency_id')
+      .notNull()
+      .references(() => competencies.id),
+    domain: text('domain').notNull(),
+    difficulty: text('difficulty').notNull(),
+    skill: text('skill').notNull(),
+    kind: text('kind').notNull(),
+    title: text('title').notNull(),
+    /** Contenu avec son corrigé : jamais envoyé tel quel à l'élève. */
+    content: jsonb('content').$type<ExerciseContent>().notNull(),
+    status: text('status', { enum: WORKSHOP_STATUSES }).notNull().default('draft'),
+    reviewNote: text('review_note'),
+    authorId: uuid('author_id').references(() => users.id),
+    reviewedBy: uuid('reviewed_by').references(() => users.id),
+    replacesId: uuid('replaces_id').references((): AnyPgColumn => exercises.id),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('exercises_organization_idx').on(t.organizationId, t.status),
+    index('exercises_published_idx').on(t.status, t.domain),
+    check('exercises_status_check', sql`${t.status} in ('draft','review','published','archived')`),
+    check('exercises_difficulty_check', sql`${t.difficulty} in ('facile','moyen','difficile')`),
+    check('exercises_skill_check', sql`${t.skill} in ('connaitre','appliquer','raisonner')`),
+  ],
+);
+
+/** Image ou son d'un exercice, rangé sur le disque du serveur sous une clé aléatoire. */
+export const exerciseMedia = pgTable('exercise_media', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storageKey: text('storage_key').notNull().unique(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  mime: text('mime').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  uploadedBy: uuid('uploaded_by').references(() => users.id),
+  createdAt: createdAt(),
+});
 
 /** Essai de simulation : ajout seulement ; l'identifiant vient de l'appareil (pas de doublon). */
 export const simulationAttempts = pgTable(

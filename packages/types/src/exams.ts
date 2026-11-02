@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LEVEL_CODES, type LevelCode } from './levels.js';
 import {
   EXERCISE_DOMAINS,
   type ExerciseDifficulty,
@@ -254,3 +255,89 @@ export const SaveExamPaperSchema = z.object({
     .max(200),
 });
 export type SaveExamPaperInput = z.infer<typeof SaveExamPaperSchema>;
+
+// Campagnes de zone (étape 4c) : une même épreuve passée par toutes les classes d'un niveau dans
+// les écoles d'une zone, aux mêmes dates ; les notes restent cachées jusqu'à la clôture.
+
+export const CreateCampaignSchema = z
+  .object({
+    examId: z.uuid({ message: 'Choisissez l’épreuve.' }),
+    title: z.string().trim().min(1, 'Donnez un titre.').max(120),
+    /** null : tout le pays. */
+    zoneId: z.uuid().nullable(),
+    level: z.enum(LEVEL_CODES, { message: 'Choisissez le niveau.' }),
+    startsAt: z.iso.date({ message: 'Date de début invalide.' }),
+    endsAt: z.iso.date({ message: 'Date de fin invalide.' }),
+  })
+  .refine((c) => c.endsAt > c.startsAt, {
+    message: 'La fin doit venir après le début.',
+    path: ['endsAt'],
+  });
+export type CreateCampaignInput = z.infer<typeof CreateCampaignSchema>;
+
+export const CampaignModeSchema = z.object({ onPaper: z.boolean() });
+
+export type CampaignStatus = 'a-venir' | 'en-cours' | 'close';
+
+export interface CampaignZone {
+  /** null : tout le pays. */
+  id: string | null;
+  name: string;
+  kind: 'pays' | 'drena' | 'iepp';
+}
+
+export interface CampaignOptions {
+  zones: CampaignZone[];
+  exams: Array<{ id: string; title: string; itemCount: number; organization: string }>;
+}
+
+export interface CampaignPreview {
+  schools: number;
+  classes: number;
+  learners: number;
+}
+
+export interface CampaignSummary {
+  id: string;
+  title: string;
+  exam: { id: string; title: string; questionCount: number; threshold: number };
+  zone: CampaignZone;
+  level: LevelCode;
+  startsAt: string;
+  endsAt: string;
+  status: CampaignStatus;
+  classes: number;
+  learners: number;
+  submitted: number;
+  createdBy: string | null;
+}
+
+export interface CampaignSchoolRow {
+  id: string;
+  name: string;
+  group: string;
+  classes: number;
+  learners: number;
+  submitted: number;
+}
+
+export interface CampaignClass {
+  assignmentId: string;
+  cohortId: string;
+  cohortName: string;
+  school: string;
+  onPaper: boolean;
+  learners: number;
+  submitted: number;
+}
+
+export interface CampaignDetail extends CampaignSummary {
+  /** Celui qui a lancé, ou qui pilote la zone : suit la participation, clôt, supprime. */
+  canPilot: boolean;
+  /** Regroupement du suivi : DRENA (pays), IEPP (DRENA) ; vide pour une IEPP. */
+  groupLabel: string | null;
+  groups: Array<{ name: string; schools: number; learners: number; submitted: number }>;
+  schools: CampaignSchoolRow[];
+  /** Classes de la personne (enseignant ou direction de l'école). */
+  myClasses: CampaignClass[];
+}

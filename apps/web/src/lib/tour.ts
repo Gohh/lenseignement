@@ -14,7 +14,8 @@ const list = (labels: string[]) =>
   labels.length > 1 ? `${labels.slice(0, -1).join(', ')} et ${labels.at(-1)}` : (labels[0] ?? '');
 
 const GROUP_TEXTS: Record<string, string> = {
-  Piloter: 'Les chiffres et le suivi : qui avance, qui décroche, où agir en premier.',
+  Piloter:
+    'Les chiffres et le suivi : qui avance, qui décroche, où agir en premier ; les campagnes d’évaluation de zone.',
   Enseigner: 'Vos classes au quotidien : devoirs, évaluations, classe virtuelle et messages.',
   Contenus: 'Écrire, relire et publier les cours, les ateliers, les exercices et les épreuves.',
   'Réseau scolaire': 'Les établissements, les directions régionales, les services et partenaires.',

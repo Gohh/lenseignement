@@ -40,6 +40,7 @@ const homework = (score: number | null, max = 20): AssignmentItem => ({
   submittedCount: 0,
   gradedCount: 0,
   exerciseCount: 0,
+  resultsAt: null,
 });
 
 const earned = (plan: LearningPlanItem[], list: AssignmentItem[]) =>

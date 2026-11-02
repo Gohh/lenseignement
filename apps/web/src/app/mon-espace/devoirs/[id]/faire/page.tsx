@@ -72,7 +72,9 @@ export default async function DoAssignmentPage({ params }: { params: Promise<{ i
       ) : mine ? (
         <div className="space-y-3 rounded-big border border-line bg-surface p-5">
           <ForgetDoneAssignment id={a.id} />
-          <h2 className="text-xl font-bold">Ma correction</h2>
+          <h2 className="text-xl font-bold">
+            {mine.score === null ? 'Ma copie' : 'Ma correction'}
+          </h2>
           {mine.comment && <p className="whitespace-pre-line">{mine.comment}</p>}
           <AssignmentResults
             results={mine.results ?? []}

@@ -105,6 +105,8 @@ export interface Me {
   workshopAuthor?: boolean;
   /** Peut rédiger ou relire des exercices (Fabrique). */
   exerciseAuthor?: boolean;
+  /** Lance des campagnes d'évaluation, ou en a dans ses classes. */
+  campaigns?: boolean;
 }
 
 export interface CohortSummary {

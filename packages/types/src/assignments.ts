@@ -64,6 +64,8 @@ export interface AssignmentItem {
   gradedCount: number;
   /** Exercices de la Fabrique à faire (0 : devoir à rédiger). */
   exerciseCount: number;
+  /** Évaluation de zone : les notes restent cachées jusqu'à cette date (null : visibles). */
+  resultsAt: string | null;
 }
 
 export interface SubmissionRow {

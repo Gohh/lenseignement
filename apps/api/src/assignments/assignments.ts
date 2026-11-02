@@ -94,6 +94,16 @@ export const toSubmission = (s: {
   gradedAt: s.gradedAt?.toISOString() ?? null,
 });
 
+/** Évaluation de zone pas encore close : les notes ne se montrent pas. */
+export function resultsHidden(a: { resultsAt: Date | null }): boolean {
+  return Boolean(a.resultsAt && a.resultsAt.getTime() > Date.now());
+}
+
+/** Copie sans sa note ni sa correction (tant que l'évaluation de zone n'est pas close). */
+export function maskSubmission<T extends MySubmission>(s: T, hidden: boolean): T {
+  return hidden ? { ...s, score: null, comment: null, results: null } : s;
+}
+
 /** Devoirs des classes de la personne : ceux qu'elle doit rendre, ou ceux qu'elle corrige. */
 export async function myAssignments(db: Database, userId: string): Promise<AssignmentItem[]> {
   const mine = await db
@@ -120,6 +130,8 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
       dueAt: assignments.dueAt,
       maxScore: assignments.maxScore,
       onPaper: assignments.onPaper,
+      opensAt: assignments.opensAt,
+      resultsAt: assignments.resultsAt,
       createdAt: assignments.createdAt,
       teacherName: users.displayName,
       learnerCount: sql<number>`(select count(*)::int from cohort_members cm
@@ -157,6 +169,9 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
     const canManage = await canManageCohort(db, userId, r.cohortId);
     // Épreuve sur papier : l'élève ne la voit qu'une fois sa copie saisie (pour sa note).
     if (r.onPaper && !canManage && !sub) continue;
+    // Évaluation de zone : l'élève ne la voit qu'à partir de la date d'ouverture.
+    if (!canManage && r.opensAt && r.opensAt.getTime() > Date.now()) continue;
+    const hidden = resultsHidden(r);
     items.push({
       id: r.id,
       cohortId: r.cohortId,
@@ -168,11 +183,12 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
       createdAt: r.createdAt.toISOString(),
       teacherName: r.teacherName,
       canManage,
-      mine: sub ? toSubmission(sub) : null,
+      mine: sub ? maskSubmission(toSubmission(sub), hidden) : null,
       learnerCount: r.learnerCount,
       submittedCount: r.submittedCount,
       gradedCount: r.gradedCount,
       exerciseCount: r.exerciseCount,
+      resultsAt: hidden ? r.resultsAt!.toISOString() : null,
     });
   }
   return items;
@@ -251,7 +267,7 @@ export async function reviewAssignment(
       return {
         learnerId: l.id,
         learnerName: l.name ?? 'Élève',
-        submission: s ? toSubmission(s) : null,
+        submission: s ? maskSubmission(toSubmission(s), resultsHidden(assignment)) : null,
       };
     }),
   };
@@ -272,6 +288,9 @@ export async function gradeSubmission(
   const assignment = await managedAssignment(db, userId, submission.assignmentId).catch(() => {
     throw new TeamError('not_found', 'Copie introuvable.');
   });
+  if (assignment.campaignId) {
+    throw new TeamError('invalid', 'Une évaluation de zone est corrigée par la plateforme.');
+  }
   if (!Number.isInteger(input.score) || input.score > assignment.maxScore) {
     throw new TeamError('invalid', `La note est un nombre entier de 0 à ${assignment.maxScore}.`);
   }
@@ -294,6 +313,9 @@ export async function deleteAssignment(
   traceId?: string,
 ): Promise<void> {
   const assignment = await managedAssignment(db, userId, assignmentId);
+  if (assignment.campaignId) {
+    throw new TeamError('invalid', 'Une évaluation de zone ne se supprime pas depuis la classe.');
+  }
   await db.delete(assignments).where(eq(assignments.id, assignmentId));
   await audit(db, userId, 'assignment.delete', assignment.cohortId, traceId);
 }

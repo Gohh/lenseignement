@@ -24,8 +24,10 @@ import {
   isLearnerOf,
   loadAssignment,
   managedAssignment,
+  maskSubmission,
   myAssignments,
   notFound,
+  resultsHidden,
   toSubmission,
 } from './assignments.js';
 
@@ -66,6 +68,9 @@ async function hasSubmissions(db: Database, assignmentId: string): Promise<boole
 
 async function editable(db: Database, userId: string, assignmentId: string) {
   const assignment = await managedAssignment(db, userId, assignmentId);
+  if (assignment.examId) {
+    throw new TeamError('invalid', 'Les questions d’une épreuve ne changent pas depuis le devoir.');
+  }
   if (await hasSubmissions(db, assignmentId)) {
     throw new TeamError(
       'invalid',
@@ -179,7 +184,10 @@ export async function assignmentWork(
     (await isLearnerOf(db, userId, assignment.cohortId)) ||
     (await canManageCohort(db, userId, assignment.cohortId));
   if (!allowed) throw notFound();
-  if (assignment.onPaper && !(await canManageCohort(db, userId, assignment.cohortId))) {
+  if (
+    (assignment.onPaper || (assignment.opensAt && assignment.opensAt.getTime() > Date.now())) &&
+    !(await canManageCohort(db, userId, assignment.cohortId))
+  ) {
     throw notFound();
   }
   const item = (await myAssignments(db, userId)).find((a) => a.id === assignmentId);
@@ -209,6 +217,13 @@ export async function answerAssignment(
       'Cette épreuve se passe sur papier : ton enseignant saisit ta copie.',
     );
   }
+  if (assignment.opensAt && assignment.opensAt.getTime() > Date.now()) {
+    throw new TeamError('invalid', 'Cette évaluation n’a pas encore commencé.');
+  }
+  const hidden = resultsHidden(assignment);
+  if (assignment.campaignId && !hidden) {
+    throw new TeamError('invalid', 'Cette évaluation est terminée.');
+  }
   const [existing] = await db
     .select()
     .from(assignmentSubmissions)
@@ -219,7 +234,8 @@ export async function answerAssignment(
       ),
     );
   if (existing) {
-    if (existing.attemptId === input.attemptId) return toSubmission(existing);
+    if (existing.attemptId === input.attemptId)
+      return maskSubmission(toSubmission(existing), hidden);
     throw new TeamError('invalid', 'Tu as déjà rendu ce devoir.');
   }
   const rows = await contents(db, assignmentId);
@@ -258,8 +274,8 @@ export async function answerAssignment(
           eq(assignmentSubmissions.learnerUserId, userId),
         ),
       );
-    if (first?.attemptId === input.attemptId) return toSubmission(first);
+    if (first?.attemptId === input.attemptId) return maskSubmission(toSubmission(first), hidden);
     throw new TeamError('invalid', 'Tu as déjà rendu ce devoir.');
   }
-  return toSubmission(saved);
+  return maskSubmission(toSubmission(saved), hidden);
 }

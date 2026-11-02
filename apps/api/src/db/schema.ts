@@ -1426,6 +1426,35 @@ export const examItems = pgTable(
   ],
 );
 
+/**
+ * Campagne d'épreuve de zone (étape 4c) : une même épreuve, à la même période, pour toutes les
+ * classes d'un niveau dans les écoles d'une zone (tout le pays, une DRENA ou une IEPP). Les notes
+ * restent cachées jusqu'à la clôture.
+ */
+export const examCampaigns = pgTable(
+  'exam_campaigns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    examId: uuid('exam_id')
+      .notNull()
+      .references(() => exams.id),
+    title: text('title').notNull(),
+    /** DRENA ou IEPP ; null : tout le pays. */
+    zoneId: uuid('zone_id').references(() => organizations.id),
+    level: text('level').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    /** Clôture avancée par celui qui a lancé (sinon : à la date de fin). */
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('exam_campaigns_exam_idx').on(t.examId),
+    check('exam_campaigns_dates_check', sql`${t.endsAt} > ${t.startsAt}`),
+  ],
+);
+
 /** Devoir donné par un enseignant à une classe. */
 export const assignments = pgTable(
   'assignments',
@@ -1445,11 +1474,18 @@ export const assignments = pgTable(
     examId: uuid('exam_id').references(() => exams.id),
     /** Épreuve sur papier : l'élève ne la fait pas en ligne, l'enseignant saisit sa copie. */
     onPaper: boolean('on_paper').notNull().default(false),
+    /** Devoir d'une campagne de zone. */
+    campaignId: uuid('campaign_id').references(() => examCampaigns.id, { onDelete: 'cascade' }),
+    /** L'élève ne le voit pas avant cette date. */
+    opensAt: timestamp('opens_at', { withTimezone: true }),
+    /** Notes cachées (élève et enseignant) jusqu'à cette date. */
+    resultsAt: timestamp('results_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
     index('assignments_cohort_idx').on(t.cohortId),
     index('assignments_exam_idx').on(t.examId),
+    index('assignments_campaign_idx').on(t.campaignId),
     check('assignments_max_score_check', sql`${t.maxScore} between 1 and 100`),
   ],
 );

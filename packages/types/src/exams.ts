@@ -4,6 +4,7 @@ import {
   type ExerciseDifficulty,
   type ExerciseDomain,
   type ExerciseKind,
+  type ExercisePlay,
   type ExerciseSkill,
 } from './exercises.js';
 
@@ -120,6 +121,8 @@ export type UpdateExamInput = z.infer<typeof UpdateExamSchema>;
 export const GiveExamSchema = z.object({
   cohortIds: z.array(z.uuid()).min(1, 'Choisissez au moins une classe.').max(20),
   dueAt: z.iso.datetime({ offset: true }).optional(),
+  /** Sur papier : les élèves ne la voient pas en ligne ; l'enseignant saisit les copies. */
+  onPaper: z.boolean().default(false),
 });
 export type GiveExamInput = z.infer<typeof GiveExamSchema>;
 
@@ -165,6 +168,7 @@ export interface ExamGiven {
   dueAt: string | null;
   learnerCount: number;
   submissionCount: number;
+  onPaper: boolean;
 }
 
 export interface ExamDetail extends ExamSummary {
@@ -200,3 +204,53 @@ export interface ExamResults {
   /** Élèves sous le seuil, du plus bas au plus haut. */
   below: Array<{ learnerId: string; name: string; cohortName: string; rate: number }>;
 }
+
+/** Question du livret imprimé : l'énoncé tel que l'élève le voit, et la réponse attendue. */
+export interface ExamBookletItem {
+  exerciseId: string;
+  position: number;
+  title: string;
+  domain: ExerciseDomain;
+  play: ExercisePlay;
+  /** Réponse attendue, en clair (pour le corrigé de l'enseignant). */
+  answer: string;
+}
+
+export interface ExamBooklet {
+  exam: { id: string; title: string; durationMinutes: number; organization: string };
+  items: ExamBookletItem[];
+}
+
+/** Grille de saisie des copies papier d'une classe. */
+export interface ExamPaperSheet {
+  exam: { id: string; title: string };
+  cohort: { id: string; name: string };
+  assignmentId: string;
+  onPaper: boolean;
+  items: Array<{ exerciseId: string; position: number; title: string }>;
+  rows: Array<{
+    learnerId: string;
+    name: string;
+    /** 1 = juste, 0 = faux, pour chaque question ; null sans copie saisie. */
+    marks: number[] | null;
+    /** Copie faite en ligne : elle ne se modifie pas ici. */
+    online: boolean;
+  }>;
+}
+
+export const SaveExamPaperSchema = z.object({
+  cohortId: z.uuid(),
+  rows: z
+    .array(
+      z.object({
+        learnerId: z.uuid(),
+        /** null : pas de copie (absent) ; sinon 0 ou 1 par question. */
+        marks: z
+          .array(z.union([z.literal(0), z.literal(1)]))
+          .max(EXAM_MAX_QUESTIONS)
+          .nullable(),
+      }),
+    )
+    .max(200),
+});
+export type SaveExamPaperInput = z.infer<typeof SaveExamPaperSchema>;

@@ -119,6 +119,7 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
       instructions: assignments.instructions,
       dueAt: assignments.dueAt,
       maxScore: assignments.maxScore,
+      onPaper: assignments.onPaper,
       createdAt: assignments.createdAt,
       teacherName: users.displayName,
       learnerCount: sql<number>`(select count(*)::int from cohort_members cm
@@ -153,6 +154,9 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
   const items: AssignmentItem[] = [];
   for (const r of rows) {
     const sub = submissions.find((s) => s.assignmentId === r.id);
+    const canManage = await canManageCohort(db, userId, r.cohortId);
+    // Épreuve sur papier : l'élève ne la voit qu'une fois sa copie saisie (pour sa note).
+    if (r.onPaper && !canManage && !sub) continue;
     items.push({
       id: r.id,
       cohortId: r.cohortId,
@@ -163,7 +167,7 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
       maxScore: r.maxScore,
       createdAt: r.createdAt.toISOString(),
       teacherName: r.teacherName,
-      canManage: await canManageCohort(db, userId, r.cohortId),
+      canManage,
       mine: sub ? toSubmission(sub) : null,
       learnerCount: r.learnerCount,
       submittedCount: r.submittedCount,

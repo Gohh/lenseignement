@@ -213,3 +213,92 @@ test('épreuve : composée depuis la banque, donnée à une classe, lue par doma
   await call(SUB.koffi, 'delete', `/authoring/exams/${other.id}`, 204);
   await call(SUB.koffi, 'get', `/authoring/exams/${other.id}`, 404);
 });
+
+test('épreuve sur papier : livret, corrigé, grille de saisie, invisible en ligne pour l’élève', async () => {
+  for (const [i, level] of ['facile', 'moyen', 'difficile', 'moyen'].entries()) {
+    await published(`Science papier ${i} (test épreuve)`, 'sciences', level);
+  }
+  const comp = await competency();
+  const { id } = (
+    await call(SUB.koffi, 'post', '/authoring/exams', 201, {
+      organizationId: ID.orgManguiers,
+      curriculumVersionId: comp.curriculumId,
+      model: 'libre',
+      title: 'Sciences sur papier (test épreuve)',
+      shares: { sciences: 100 },
+      questionCount: 4,
+      durationMinutes: 30,
+      threshold: 50,
+    })
+  ).body;
+
+  // Livret et corrigé : pour l'équipe seulement.
+  const booklet = (await call(SUB.koffi, 'get', `/authoring/exams/${id}/booklet`, 200)).body;
+  assert.equal(booklet.items.length, 4);
+  assert.equal(booklet.items[0].play.kind, 'truefalse');
+  assert.equal(booklet.items[0].play.correct, undefined);
+  assert.equal(booklet.items[0].answer, 'Vrai');
+  await call(SUB.awa, 'get', `/authoring/exams/${id}/booklet`, 404);
+
+  await call(SUB.koffi, 'post', `/authoring/exams/${id}/give`, 200, {
+    cohortIds: [ID.cohortCp1A],
+    onPaper: true,
+  });
+  const exam = (await call(SUB.koffi, 'get', `/authoring/exams/${id}`, 200)).body;
+  assert.equal(exam.given[0].onPaper, true);
+  const assignmentId = exam.given[0].assignmentId;
+
+  // L'élève ne la voit pas en ligne et ne peut pas la faire.
+  const mine = async () =>
+    (await call(SUB.awa, 'get', '/me/assignments', 200)).body.items.find(
+      (a: { id: string }) => a.id === assignmentId,
+    );
+  assert.equal(await mine(), undefined);
+  await call(SUB.awa, 'get', `/assignments/${assignmentId}/work`, 404);
+  await call(SUB.awa, 'post', `/assignments/${assignmentId}/answers`, 400, {
+    attemptId: randomUUID(),
+    answers: [{ choices: [0] }, { choices: [0] }, { choices: [0] }, { choices: [0] }],
+  });
+
+  // Grille de saisie : l'enseignant coche les réponses justes.
+  await call(SUB.awa, 'get', `/authoring/exams/${id}/paper?cohort=${ID.cohortCp1A}`, 404);
+  await call(SUB.koffi, 'get', `/authoring/exams/${id}/paper?cohort=${ID.cohortCp1B}`, 404);
+  const sheet = (
+    await call(SUB.koffi, 'get', `/authoring/exams/${id}/paper?cohort=${ID.cohortCp1A}`, 200)
+  ).body;
+  assert.equal(sheet.items.length, 4);
+  const awa = sheet.rows.find((r: { learnerId: string }) => r.learnerId === ID.userAwa);
+  assert.equal(awa.marks, null);
+  await call(SUB.koffi, 'put', `/authoring/exams/${id}/paper`, 400, {
+    cohortId: ID.cohortCp1A,
+    rows: [{ learnerId: ID.userAwa, marks: [1, 0] }],
+  });
+  const saved = (
+    await call(SUB.koffi, 'put', `/authoring/exams/${id}/paper`, 200, {
+      cohortId: ID.cohortCp1A,
+      rows: [{ learnerId: ID.userAwa, marks: [1, 1, 0, 1] }],
+    })
+  ).body;
+  assert.deepEqual(saved, { saved: 1, removed: 0 });
+  const after = (
+    await call(SUB.koffi, 'get', `/authoring/exams/${id}/paper?cohort=${ID.cohortCp1A}`, 200)
+  ).body.rows.find((r: { learnerId: string }) => r.learnerId === ID.userAwa);
+  assert.deepEqual(after.marks, [1, 1, 0, 1]);
+  assert.equal(after.online, false);
+
+  // Mêmes résultats qu'en ligne ; l'élève voit sa note.
+  const results = (await call(SUB.koffi, 'get', `/authoring/exams/${id}/results`, 200)).body;
+  assert.equal(results.participants, 1);
+  assert.equal(results.average, 75);
+  assert.equal((await mine()).mine.score, 75);
+
+  // Une ligne vidée efface la copie papier.
+  const removed = (
+    await call(SUB.koffi, 'put', `/authoring/exams/${id}/paper`, 200, {
+      cohortId: ID.cohortCp1A,
+      rows: [{ learnerId: ID.userAwa, marks: null }],
+    })
+  ).body;
+  assert.deepEqual(removed, { saved: 0, removed: 1 });
+  assert.equal(await mine(), undefined);
+});

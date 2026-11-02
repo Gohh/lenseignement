@@ -4,12 +4,16 @@ import {
   EXERCISE_DOMAINS,
   EXERCISE_SKILL_LABELS,
   EXERCISE_SKILLS,
+  exercisePlay,
+  GAP,
   type AssignmentExerciseResult,
   type CreateExamInput,
+  type ExamBooklet,
   type ExamDetail,
   type ExamGiven,
   type ExamItem,
   type ExamModel,
+  type ExamPaperSheet,
   type ExamPlanRow,
   type ExamRate,
   type ExamResults,
@@ -18,7 +22,9 @@ import {
   type ExerciseDomain,
   type ExerciseKind,
   type ExerciseSkill,
+  type ExerciseContent,
   type GiveExamInput,
+  type SaveExamPaperInput,
   type UpdateExamInput,
 } from '@lenseignement/types';
 import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
@@ -29,6 +35,7 @@ import {
   assignments,
   assignmentSubmissions,
   auditLogs,
+  cohortMembers,
   cohorts,
   competencies,
   curricula,
@@ -340,6 +347,7 @@ async function given(db: Executor, examId: string): Promise<ExamGiven[]> {
         where cm.cohort_id = ${cohorts.id} and cm.role = 'apprenant')`,
       submissionCount: sql<number>`(select count(*)::int from assignment_submissions s
         where s.assignment_id = ${assignments.id})`,
+      onPaper: assignments.onPaper,
     })
     .from(assignments)
     .innerJoin(cohorts, eq(cohorts.id, assignments.cohortId))
@@ -495,7 +503,9 @@ export async function giveExam(
       cohortId,
       {
         title: row.title,
-        instructions: `Épreuve de ${list.length} questions, environ ${row.durationMinutes} minutes. Réponds seul, sans aide : elle sert à voir ce qui est acquis.`,
+        instructions: input.onPaper
+          ? `Épreuve sur papier de ${list.length} questions, environ ${row.durationMinutes} minutes. Ton enseignant saisit ta copie.`
+          : `Épreuve de ${list.length} questions, environ ${row.durationMinutes} minutes. Réponds seul, sans aide : elle sert à voir ce qui est acquis.`,
         dueAt: input.dueAt,
         maxScore: 100,
       },
@@ -507,7 +517,10 @@ export async function giveExam(
     await db
       .insert(assignmentExercises)
       .values(list.map((i, position) => ({ assignmentId, exerciseId: i.exerciseId, position })));
-    await db.update(assignments).set({ examId: id }).where(eq(assignments.id, assignmentId));
+    await db
+      .update(assignments)
+      .set({ examId: id, onPaper: input.onPaper })
+      .where(eq(assignments.id, assignmentId));
     count++;
   }
   await audit(db, userId, 'exam.give', id, traceId);
@@ -610,4 +623,199 @@ export async function examResults(
     })),
     below: learners.filter((l) => l.rate < row.threshold).sort((a, b) => a.rate - b.rate),
   };
+}
+
+const LETTERS = 'ABCDEFGHIJKLMNOP';
+const letter = (i: number, choices: string[]) => `${LETTERS[i] ?? i + 1}. ${choices[i] ?? ''}`;
+
+/** Réponse attendue en clair, pour le corrigé imprimé. */
+export function answerKey(content: ExerciseContent): string {
+  switch (content.kind) {
+    case 'choice':
+    case 'media':
+    case 'table':
+      return letter(content.correct, content.choices);
+    case 'truefalse':
+      return content.correct ? 'Vrai' : 'Faux';
+    case 'gaps':
+      return [...content.text.matchAll(GAP)].map((m) => m[1]!.split('|')[0]!.trim()).join(' ; ');
+    case 'match':
+      return content.pairs.map((p) => `${p.left} → ${p.right}`).join(' ; ');
+    case 'order':
+      return content.items.join(' → ');
+    case 'number':
+      return `${content.answer}${content.unit ? ` ${content.unit}` : ''}${
+        content.tolerance ? ` (à ${content.tolerance} près)` : ''
+      }`;
+    case 'reading':
+      return content.questions
+        .map((q, i) => `${i + 1}) ${letter(q.correct, q.choices)}`)
+        .join(' ; ');
+  }
+}
+
+/** Livret imprimé : les questions telles que l'élève les voit, avec le corrigé à part. */
+export async function examBooklet(db: Database, userId: string, id: string): Promise<ExamBooklet> {
+  const { row } = await load(db, userId, id);
+  const [org] = await db
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, row.organizationId));
+  const rows = await db
+    .select({
+      exerciseId: exercises.id,
+      title: exercises.title,
+      domain: exercises.domain,
+      content: exercises.content,
+    })
+    .from(examItems)
+    .innerJoin(exercises, eq(exercises.id, examItems.exerciseId))
+    .where(eq(examItems.examId, id))
+    .orderBy(asc(examItems.position));
+  return {
+    exam: {
+      id: row.id,
+      title: row.title,
+      durationMinutes: row.durationMinutes,
+      organization: org?.name ?? '',
+    },
+    items: rows.map((r, i) => ({
+      exerciseId: r.exerciseId,
+      position: i + 1,
+      title: r.title,
+      domain: r.domain as ExerciseDomain,
+      play: exercisePlay(r.content),
+      answer: answerKey(r.content),
+    })),
+  };
+}
+
+async function paperAssignment(db: Database, userId: string, id: string, cohortId: string) {
+  const { row } = await load(db, userId, id);
+  const [a] = await db
+    .select({ id: assignments.id, onPaper: assignments.onPaper, cohortName: cohorts.name })
+    .from(assignments)
+    .innerJoin(cohorts, eq(cohorts.id, assignments.cohortId))
+    .where(and(eq(assignments.examId, id), eq(assignments.cohortId, cohortId)));
+  if (!a || !(await canManageCohort(db, userId, cohortId))) {
+    throw new ExerciseError('not_found', 'Cette classe n’a pas reçu l’épreuve.');
+  }
+  return { row, assignment: a };
+}
+
+/** Grille de saisie : chaque élève de la classe, et sa copie si elle est déjà saisie. */
+export async function examPaperSheet(
+  db: Database,
+  userId: string,
+  id: string,
+  cohortId: string,
+): Promise<ExamPaperSheet> {
+  const { row, assignment } = await paperAssignment(db, userId, id, cohortId);
+  const list = await items(db, id);
+  const learners = await db
+    .select({ id: users.id, name: users.displayName })
+    .from(cohortMembers)
+    .innerJoin(users, eq(users.id, cohortMembers.userId))
+    .where(and(eq(cohortMembers.cohortId, cohortId), eq(cohortMembers.role, 'apprenant')))
+    .orderBy(asc(users.displayName));
+  const subs = await db
+    .select()
+    .from(assignmentSubmissions)
+    .where(eq(assignmentSubmissions.assignmentId, assignment.id));
+  return {
+    exam: { id: row.id, title: row.title },
+    cohort: { id: cohortId, name: assignment.cohortName },
+    assignmentId: assignment.id,
+    onPaper: assignment.onPaper,
+    items: list.map((i) => ({ exerciseId: i.exerciseId, position: i.position, title: i.title })),
+    rows: learners.map((l) => {
+      const sub = subs.find((s) => s.learnerUserId === l.id);
+      const results = (sub?.results ?? []) as AssignmentExerciseResult[];
+      return {
+        learnerId: l.id,
+        name: l.name ?? 'Élève',
+        marks: sub
+          ? list.map((i) =>
+              (results.find((r) => r.exerciseId === i.exerciseId)?.score ?? 0) >= 1 ? 1 : 0,
+            )
+          : null,
+        online: Boolean(sub?.attemptId),
+      };
+    }),
+  };
+}
+
+/**
+ * Enregistre les copies papier d'une classe : 1 = juste, 0 = faux pour chaque question. Une copie
+ * faite en ligne ne se remplace pas ; une ligne sans copie efface la copie papier déjà saisie.
+ */
+export async function saveExamPaper(
+  db: Database,
+  userId: string,
+  id: string,
+  input: SaveExamPaperInput,
+  traceId?: string,
+): Promise<{ saved: number; removed: number }> {
+  const { assignment } = await paperAssignment(db, userId, id, input.cohortId);
+  const list = await items(db, id);
+  const members = new Set(
+    (
+      await db
+        .select({ id: cohortMembers.userId })
+        .from(cohortMembers)
+        .where(and(eq(cohortMembers.cohortId, input.cohortId), eq(cohortMembers.role, 'apprenant')))
+    ).map((m) => m.id),
+  );
+  const subs = await db
+    .select()
+    .from(assignmentSubmissions)
+    .where(eq(assignmentSubmissions.assignmentId, assignment.id));
+  let saved = 0;
+  let removed = 0;
+  for (const r of input.rows) {
+    if (!members.has(r.learnerId)) continue;
+    const existing = subs.find((s) => s.learnerUserId === r.learnerId);
+    if (existing?.attemptId) continue;
+    if (r.marks === null) {
+      if (existing) {
+        await db.delete(assignmentSubmissions).where(eq(assignmentSubmissions.id, existing.id));
+        removed++;
+      }
+      continue;
+    }
+    if (r.marks.length !== list.length) {
+      throw new ExerciseError(
+        'invalid',
+        'La grille ne correspond plus aux questions : rechargez la page.',
+      );
+    }
+    const results: AssignmentExerciseResult[] = list.map((item, i) => ({
+      exerciseId: item.exerciseId,
+      title: item.title,
+      correct: r.marks![i] === 1,
+      score: r.marks![i]!,
+      feedback: [],
+    }));
+    const good = results.filter((x) => x.correct).length;
+    const values = {
+      body: `Épreuve sur papier : ${good} réponse${good > 1 ? 's' : ''} juste${good > 1 ? 's' : ''} sur ${list.length}.`,
+      results,
+      score: Math.round((good / list.length) * 100),
+      gradedByUserId: userId,
+      gradedAt: sql`now()`,
+    };
+    if (existing) {
+      await db
+        .update(assignmentSubmissions)
+        .set(values)
+        .where(eq(assignmentSubmissions.id, existing.id));
+    } else {
+      await db
+        .insert(assignmentSubmissions)
+        .values({ assignmentId: assignment.id, learnerUserId: r.learnerId, ...values });
+    }
+    saved++;
+  }
+  await audit(db, userId, 'exam.paper', id, traceId);
+  return { saved, removed };
 }

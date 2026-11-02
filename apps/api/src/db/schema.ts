@@ -1443,6 +1443,8 @@ export const assignments = pgTable(
     maxScore: integer('max_score').notNull().default(20),
     /** Devoir né d'une épreuve : ses résultats se lisent aussi sur la page de l'épreuve. */
     examId: uuid('exam_id').references(() => exams.id),
+    /** Épreuve sur papier : l'élève ne la fait pas en ligne, l'enseignant saisit sa copie. */
+    onPaper: boolean('on_paper').notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [

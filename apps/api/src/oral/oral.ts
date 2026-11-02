@@ -36,6 +36,7 @@ import {
   powers,
   type Powers,
 } from '../exercises/exercises.js';
+import { closedCampaignOf, myOralCampaigns, openOralCampaign } from './campaigns.js';
 import { oralModel } from './models.js';
 
 /**
@@ -65,7 +66,7 @@ async function audit(db: Executor, userId: string, action: string, id: string, t
 }
 
 /** Classes que la personne enseigne ou dont elle tient l'école (sous-requête). */
-function managedCohorts(userId: string): SQL {
+export function managedCohorts(userId: string): SQL {
   return sql`(
     select cm.cohort_id from cohort_members cm
      where cm.user_id = ${userId} and cm.role = 'enseignant'
@@ -78,7 +79,7 @@ function managedCohorts(userId: string): SQL {
 }
 
 /** Classes où la personne fait passer une épreuve orale : les siennes, et en visite (sous-requête). */
-function runnableCohorts(userId: string): SQL {
+export function runnableCohorts(userId: string): SQL {
   return sql`(
     select x.cohort_id as id from ${managedCohorts(userId)} x
     union
@@ -228,6 +229,7 @@ export async function oralOverview(db: Database, userId: string): Promise<OralOv
      limit 100`);
   return {
     tests: tests.map((r) => toSummary(r, userId, p)),
+    campaigns: await myOralCampaigns(db, userId),
     classes,
     done: done.map((d): OralDone => ({
       testId: d.test_id,
@@ -451,6 +453,17 @@ export async function saveOralResult(
   if (input.parts.length !== parts.length) {
     throw new ExerciseError('invalid', 'Il manque des parties : recommencez la passation.');
   }
+  const [previous] = await db
+    .select({ campaignId: oralResults.campaignId })
+    .from(oralResults)
+    .where(and(eq(oralResults.testId, input.testId), eq(oralResults.learnerId, input.learnerId)));
+  if (previous && (await closedCampaignOf(db, previous.campaignId))) {
+    throw new ExerciseError(
+      'conflict',
+      'Cet élève a passé cette épreuve pendant une campagne close : son résultat reste. Pour l’évaluer à nouveau, faites une copie de l’épreuve.',
+    );
+  }
+  const campaignId = await openOralCampaign(db, input.testId, input.cohortId);
   const scores = parts.map((part, i) => scoreOralPart(part, input.parts[i]!));
   const takenAt = input.takenAt ? new Date(input.takenAt) : new Date();
   const values = {
@@ -459,6 +472,7 @@ export async function saveOralResult(
     learnerId: input.learnerId,
     assessorId: userId,
     operationId: input.operationId,
+    campaignId,
     takenAt: takenAt > new Date() ? new Date() : takenAt,
     parts: input.parts,
     scores,
@@ -536,6 +550,80 @@ function median(values: number[]): number | null {
 
 const percent = (n: number, total: number) => (total ? Math.round((n * 100) / total) : null);
 
+/**
+ * Chiffres d'un groupe d'élèves (classe, école, zone) : médiane sur la partie suivie, élèves à
+ * zéro, repère atteint, répartition et moyenne par partie.
+ */
+export function summarizeOral(
+  parts: OralPart[],
+  benchmark: OralBenchmark | null,
+  results: OralPartScore[][],
+) {
+  const reference = oralReferencePart(parts);
+  const timed = parts[reference]!.kind !== 'questions';
+  const value = (s: OralPartScore) => (timed ? (s.perMinute ?? 0) : s.correct);
+  const reached = (scores: OralPartScore[]): boolean | null => {
+    if (!benchmark) return null;
+    const s = scores[reference];
+    if (!s) return false;
+    if (value(s) < benchmark.perMinute) return false;
+    return benchmark.questions === null || s.questionsCorrect === null
+      ? true
+      : s.questionsCorrect >= benchmark.questions;
+  };
+  const refValues = results.map((r) => (r[reference] ? value(r[reference]) : 0));
+  const zero = refValues.filter((v) => v === 0).length;
+  const reachedCount = results.filter((r) => reached(r)).length;
+  const bands: OralClassResults['bands'] = benchmark
+    ? [
+        { key: 'zero', label: 'Aucun juste', count: zero },
+        {
+          key: 'debut',
+          label: 'Débute (moins de la moitié du repère)',
+          count: refValues.filter((v) => v > 0 && v < benchmark.perMinute / 2).length,
+        },
+        {
+          key: 'progres',
+          label: 'En progrès',
+          count: results.filter((r, i) => refValues[i]! >= benchmark.perMinute / 2 && !reached(r))
+            .length,
+        },
+        { key: 'repere', label: 'Repère atteint', count: reachedCount },
+      ]
+    : [
+        { key: 'zero', label: 'Aucun juste', count: zero },
+        { key: 'progres', label: 'Au moins un juste', count: results.length - zero },
+      ];
+  const byPart = parts.map((part, i) => {
+    const isTimed = part.kind !== 'questions';
+    const values = results.map((r) =>
+      r[i] ? (isTimed ? (r[i].perMinute ?? 0) : r[i].correct) : 0,
+    );
+    const average = values.length
+      ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+      : 0;
+    return {
+      title: part.title,
+      kind: part.kind,
+      average,
+      unit: isTimed ? 'par minute' : `sur ${part.questions.length}`,
+      max: isTimed
+        ? Math.max(1, Math.round((oralItems(part).length * 60) / part.seconds))
+        : part.questions.length,
+    };
+  });
+  return {
+    reference,
+    unit: timed ? 'par minute' : `sur ${parts[reference]!.questions.length}`,
+    reached,
+    median: median(refValues),
+    zeroRate: percent(zero, results.length),
+    benchmarkRate: benchmark ? percent(reachedCount, results.length) : null,
+    bands,
+    byPart,
+  };
+}
+
 /** Résultats d'une classe : médiane, élèves à zéro, repère atteint, détail par élève. */
 export async function oralClassResults(
   db: Database,
@@ -566,19 +654,11 @@ export async function oralClassResults(
   ]);
   const benchmark =
     benchmarks.find((b) => b.level === test.level && b.subject === test.subject) ?? null;
-  const reference = oralReferencePart(test.parts);
-  const refPart = test.parts[reference]!;
-  const timed = refPart.kind !== 'questions';
-  const value = (s: OralPartScore) => (timed ? (s.perMinute ?? 0) : s.correct);
-  const reached = (scores: OralPartScore[]): boolean | null => {
-    if (!benchmark) return null;
-    const s = scores[reference];
-    if (!s) return false;
-    if (value(s) < benchmark.perMinute) return false;
-    return benchmark.questions === null || s.questionsCorrect === null
-      ? true
-      : s.questionsCorrect >= benchmark.questions;
-  };
+  const sum = summarizeOral(
+    test.parts,
+    benchmark,
+    results.map((r) => r.scores),
+  );
   const byLearner = new Map(results.map((r) => [r.learnerId, r]));
   // Élèves partis de la classe : leur résultat reste compté.
   const everyone = [
@@ -587,60 +667,17 @@ export async function oralClassResults(
       .filter((r) => !learners.some((l) => l.id === r.learnerId))
       .map((r) => ({ id: r.learnerId, name: r.learnerName ?? 'Élève sans nom' })),
   ];
-  const refValues = results.map((r) => (r.scores[reference] ? value(r.scores[reference]) : 0));
-  const zero = refValues.filter((v) => v === 0).length;
-  const reachedCount = results.filter((r) => reached(r.scores)).length;
-  const bands: OralClassResults['bands'] = benchmark
-    ? [
-        { key: 'zero', label: 'Aucun juste', count: zero },
-        {
-          key: 'debut',
-          label: 'Débute (moins de la moitié du repère)',
-          count: refValues.filter((v) => v > 0 && v < benchmark.perMinute / 2).length,
-        },
-        {
-          key: 'progres',
-          label: 'En progrès',
-          count: results.filter((r, i) => {
-            const v = refValues[i]!;
-            return v >= benchmark.perMinute / 2 && !reached(r.scores);
-          }).length,
-        },
-        { key: 'repere', label: 'Repère atteint', count: reachedCount },
-      ]
-    : [
-        { key: 'zero', label: 'Aucun juste', count: zero },
-        { key: 'progres', label: 'Au moins un juste', count: results.length - zero },
-      ];
-  const byPart = test.parts.map((part, i) => {
-    const isTimed = part.kind !== 'questions';
-    const values = results.map((r) =>
-      r.scores[i] ? (isTimed ? (r.scores[i].perMinute ?? 0) : r.scores[i].correct) : 0,
-    );
-    const average = values.length
-      ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
-      : 0;
-    return {
-      title: part.title,
-      kind: part.kind,
-      average,
-      unit: isTimed ? 'par minute' : `sur ${part.questions.length}`,
-      max: isTimed
-        ? Math.max(1, Math.round((oralItems(part).length * 60) / part.seconds))
-        : part.questions.length,
-    };
-  });
   return {
     test,
     cohort,
     benchmark,
-    referencePart: reference,
+    referencePart: sum.reference,
     evaluated: results.length,
-    median: median(refValues),
-    zeroRate: percent(zero, results.length),
-    benchmarkRate: benchmark ? percent(reachedCount, results.length) : null,
-    byPart,
-    bands,
+    median: sum.median,
+    zeroRate: sum.zeroRate,
+    benchmarkRate: sum.benchmarkRate,
+    byPart: sum.byPart,
+    bands: sum.bands,
     learners: everyone.map((l) => {
       const r = byLearner.get(l.id);
       return {
@@ -649,7 +686,7 @@ export async function oralClassResults(
         takenAt: r ? r.takenAt.toISOString() : null,
         assessor: r?.assessor ?? null,
         scores: r?.scores ?? null,
-        reached: r ? reached(r.scores) : null,
+        reached: r ? sum.reached(r.scores) : null,
       };
     }),
   };

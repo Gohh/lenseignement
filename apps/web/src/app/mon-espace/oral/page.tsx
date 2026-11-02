@@ -55,7 +55,7 @@ export default async function OralPage({
   const res = await apiGet<OralOverview>(session.accessToken, '/oral');
   const data: OralOverview = res.ok
     ? res.data
-    : { tests: [], classes: [], done: [], organizations: [], superadmin: false };
+    : { tests: [], campaigns: [], classes: [], done: [], organizations: [], superadmin: false };
   const published = data.tests.filter((t) => t.status === 'publiee');
   const drafts = data.tests.filter((t) => t.status === 'brouillon');
   const canAuthor = data.organizations.length > 0;
@@ -85,6 +85,52 @@ export default async function OralPage({
         </div>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />
+
+      {data.campaigns.length > 0 && (
+        <div
+          className="space-y-3 rounded-big border-2 border-primary bg-primary-soft p-5"
+          data-testid="oral-campaigns"
+        >
+          <h2 className="font-display text-2xl font-bold">Campagnes en cours dans vos classes</h2>
+          <ul className="space-y-3">
+            {data.campaigns.map((c) => (
+              <li key={c.id} className="rounded-card bg-surface p-4">
+                <p className="font-bold">
+                  <Link href={`/mon-espace/campagnes/orale/${c.id}`} className="underline">
+                    {c.title}
+                  </Link>
+                </p>
+                <p className="text-sm text-ink-muted">
+                  « {c.test.title} » · jusqu’au{' '}
+                  {new Date(new Date(c.endsAt).getTime() - 86_400_000).toLocaleDateString('fr-FR', {
+                    timeZone: 'UTC',
+                    dateStyle: 'long',
+                  })}
+                  {c.status === 'a-venir' ? ' · pas encore commencée' : ''}
+                </p>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {c.myClasses.map((k) => (
+                    <li key={k.cohortId}>
+                      {c.status === 'en-cours' ? (
+                        <Link
+                          href={`${HOME}/passer?epreuve=${c.test.id}&classe=${k.cohortId}`}
+                          className={buttonClass}
+                        >
+                          Faire passer en {k.cohortName} ({k.evaluated}/{k.learners})
+                        </Link>
+                      ) : (
+                        <span className="text-sm">
+                          {k.cohortName} · {k.learners} élèves
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div
         className="space-y-3 rounded-big border border-line bg-surface p-5"

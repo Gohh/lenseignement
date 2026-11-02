@@ -1776,6 +1776,10 @@ export const oralResults = pgTable(
     assessorId: uuid('assessor_id').references(() => users.id),
     /** Identifiant de l'envoi : un renvoi (hors ligne) n'est compté qu'une fois. */
     operationId: uuid('operation_id').notNull(),
+    /** Passée pendant une campagne orale de zone. */
+    campaignId: uuid('campaign_id').references((): AnyPgColumn => oralCampaigns.id, {
+      onDelete: 'set null',
+    }),
     takenAt: timestamp('taken_at', { withTimezone: true }).notNull().defaultNow(),
     parts: jsonb('parts').$type<OralPartAnswer[]>().notNull(),
     scores: jsonb('scores').$type<OralPartScore[]>().notNull(),
@@ -1785,6 +1789,7 @@ export const oralResults = pgTable(
     unique('oral_results_once').on(t.testId, t.learnerId),
     uniqueIndex('oral_results_operation_idx').on(t.operationId),
     index('oral_results_cohort_idx').on(t.cohortId),
+    index('oral_results_campaign_idx').on(t.campaignId),
   ],
 );
 
@@ -1800,4 +1805,48 @@ export const oralBenchmarks = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.level, t.subject] })],
+);
+
+/**
+ * Campagne orale de zone (étape 5b) : une épreuve orale publiée, à la même période, dans toutes
+ * les classes d'un niveau des écoles d'une zone (tout le pays, une DRENA ou une IEPP).
+ */
+export const oralCampaigns = pgTable(
+  'oral_campaigns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    testId: uuid('test_id')
+      .notNull()
+      .references(() => oralTests.id),
+    title: text('title').notNull(),
+    /** DRENA ou IEPP ; null : tout le pays. */
+    zoneId: uuid('zone_id').references(() => organizations.id),
+    level: text('level').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('oral_campaigns_test_idx').on(t.testId),
+    check('oral_campaigns_dates_check', sql`${t.endsAt} > ${t.startsAt}`),
+  ],
+);
+
+/** Classes concernées, fixées au lancement. */
+export const oralCampaignClasses = pgTable(
+  'oral_campaign_classes',
+  {
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => oralCampaigns.id, { onDelete: 'cascade' }),
+    cohortId: uuid('cohort_id')
+      .notNull()
+      .references(() => cohorts.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.campaignId, t.cohortId] }),
+    index('oral_campaign_classes_cohort_idx').on(t.cohortId),
+  ],
 );

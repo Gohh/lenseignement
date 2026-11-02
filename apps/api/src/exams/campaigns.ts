@@ -52,7 +52,7 @@ async function audit(db: Executor, userId: string, action: string, id: string, t
   });
 }
 
-interface Reach {
+export interface Reach {
   national: boolean;
   zones: CampaignZone[];
 }
@@ -97,7 +97,7 @@ export async function isCampaignLauncher(db: Executor, userId: string): Promise<
 }
 
 /** Écoles d'une zone (sous-requête) : tout le pays, une DRENA (et ce qui en dépend) ou une IEPP. */
-function zoneSchools(zoneId: string | null): SQL {
+export function zoneSchools(zoneId: string | null): SQL {
   if (zoneId === null) {
     return sql`(select o.id from organizations o
       where o.type in ${SCHOOL_TYPES} and not o.internal and o.archived_at is null)`;
@@ -117,7 +117,7 @@ function zoneSchools(zoneId: string | null): SQL {
        and lower(trim(s.details->>'iepp')) = lower(trim(i.name)))`;
 }
 
-function zoneOf(reach: Reach, zoneId: string | null): CampaignZone | null {
+export function zoneOf(reach: Reach, zoneId: string | null): CampaignZone | null {
   if (zoneId === null)
     return reach.national ? { id: null, name: 'Tout le pays', kind: 'pays' } : null;
   return reach.zones.find((z) => z.id === zoneId) ?? null;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CampaignStatus, CampaignZone } from './exams.js';
 import { LEVEL_CODES, type LevelCode } from './levels.js';
 
 // Évaluations orales chronométrées (étape 5, à la manière d'EGRA et d'EGMA) : l'enseignant fait
@@ -150,6 +151,8 @@ export interface OralDone {
 /** Page « Évaluations orales ». */
 export interface OralOverview {
   tests: OralTestSummary[];
+  /** Campagnes orales en cours dans ses classes. */
+  campaigns: Array<OralCampaignSummary & { myClasses: OralCampaignClass[] }>;
   classes: OralClass[];
   done: OralDone[];
   /** Structures pour lesquelles la personne peut rédiger. */
@@ -327,4 +330,111 @@ export function scoreOralPart(part: OralPart, answer: OralPartAnswer): OralPartS
     questionsCorrect,
     stopped: false,
   };
+}
+
+// Campagnes orales de zone (étape 5b) : une épreuve orale publiée, passée à la même période dans
+// toutes les classes d'un niveau d'une zone ; résultats anonymes à la clôture.
+
+export const CreateOralCampaignSchema = z
+  .object({
+    testId: z.uuid({ message: 'Choisissez l’épreuve orale.' }),
+    title: z.string().trim().min(1, 'Donnez un titre.').max(120),
+    /** null : tout le pays. */
+    zoneId: z.uuid().nullable(),
+    level: z.enum(LEVEL_CODES, { message: 'Choisissez le niveau.' }),
+    startsAt: z.iso.date({ message: 'Date de début invalide.' }),
+    endsAt: z.iso.date({ message: 'Date de fin invalide.' }),
+  })
+  .refine((c) => c.endsAt >= c.startsAt, {
+    message: 'La fin doit venir après le début.',
+    path: ['endsAt'],
+  });
+export type CreateOralCampaignInput = z.infer<typeof CreateOralCampaignSchema>;
+
+export interface OralCampaignSummary {
+  id: string;
+  title: string;
+  test: { id: string; title: string; subject: OralSubject };
+  zone: CampaignZone;
+  level: LevelCode;
+  startsAt: string;
+  endsAt: string;
+  status: CampaignStatus;
+  classes: number;
+  learners: number;
+  /** Élèves déjà évalués pendant la campagne. */
+  evaluated: number;
+  createdBy: string | null;
+}
+
+export interface OralCampaignOptions {
+  zones: CampaignZone[];
+  tests: Array<{ id: string; title: string; level: LevelCode; organization: string }>;
+}
+
+/** Une classe de la campagne, pour celui qui fait passer. */
+export interface OralCampaignClass {
+  cohortId: string;
+  cohortName: string;
+  school: string;
+  learners: number;
+  evaluated: number;
+}
+
+export interface OralCampaignParticipation {
+  id: string;
+  name: string;
+  group: string;
+  classes: number;
+  learners: number;
+  evaluated: number;
+}
+
+export interface OralCampaignDetail extends OralCampaignSummary {
+  canPilot: boolean;
+  /** Regroupement du suivi : DRENA (pays), IEPP (DRENA) ; vide pour une IEPP. */
+  groupLabel: string | null;
+  groups: OralCampaignParticipation[];
+  schools: OralCampaignParticipation[];
+  /** Classes de la campagne où la personne fait passer. */
+  myClasses: OralCampaignClass[];
+}
+
+/** Campagnes orales : celles qu'on pilote, et celles en cours dans ses classes. */
+export interface OralCampaignList {
+  piloted: OralCampaignSummary[];
+  classes: Array<OralCampaignSummary & { myClasses: OralCampaignClass[] }>;
+  canLaunch: boolean;
+}
+
+/** Une ligne de résultats (zone ou école) : chiffres donnés seulement à partir de 5 élèves. */
+export interface OralCampaignResultRow {
+  id: string;
+  name: string;
+  group: string;
+  expected: number;
+  evaluated: number;
+  median: number | null;
+  zeroRate: number | null;
+  benchmarkRate: number | null;
+}
+
+export interface OralCampaignResults {
+  campaign: OralCampaignSummary;
+  /** campagne : toute la campagne (pilote) ; ma-zone : seulement ses structures. */
+  scope: 'campagne' | 'ma-zone';
+  groupLabel: string | null;
+  benchmark: OralBenchmark | null;
+  /** Partie suivie (repère, médiane, répartition) et son unité. */
+  reference: { title: string; unit: string };
+  expected: number;
+  evaluated: number;
+  median: number | null;
+  zeroRate: number | null;
+  benchmarkRate: number | null;
+  /** Répartition ; vide sous 5 élèves. */
+  bands: OralClassResults['bands'];
+  byPart: OralClassResults['byPart'];
+  groups: OralCampaignResultRow[];
+  schools: OralCampaignResultRow[];
 }

@@ -28,6 +28,7 @@ test.describe('Navigation', () => {
       'Évaluations',
       'Bibliothèque',
       'Messages',
+      'Évaluations orales',
       'Questions des élèves',
       'Mon travail',
       'Cours',

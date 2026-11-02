@@ -4,6 +4,9 @@ import {
   LEVEL_CODES,
   type AssignmentExerciseResult,
   type ExerciseContent,
+  type OralPart,
+  type OralPartAnswer,
+  type OralPartScore,
   type WorkshopStepInput,
 } from '@lenseignement/types';
 import {
@@ -1723,4 +1726,78 @@ export const aiSettings = pgTable(
       sql`${t.provider} in ('mistral','anthropic','openai','local')`,
     ),
   ],
+);
+
+/**
+ * Épreuve orale chronométrée (étape 5, à la manière d'EGRA et d'EGMA) : des parties à lire ou à
+ * compter à voix haute. Brouillon modifiable, puis publiée et figée.
+ */
+export const oralTests = pgTable(
+  'oral_tests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    authorId: uuid('author_id').references(() => users.id),
+    title: text('title').notNull(),
+    subject: text('subject').notNull(),
+    level: text('level').notNull(),
+    parts: jsonb('parts').$type<OralPart[]>().notNull(),
+    status: text('status').notNull().default('brouillon'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('oral_tests_organization_idx').on(t.organizationId),
+    check('oral_tests_status_check', sql`${t.status} in ('brouillon','publiee')`),
+    check('oral_tests_subject_check', sql`${t.subject} in ('lecture','maths')`),
+  ],
+);
+
+/**
+ * Résultat d'un élève à une épreuve orale : seulement les cases touchées par l'enseignant et les
+ * scores calculés, jamais la voix. Un seul résultat par élève et par épreuve (repasser remplace).
+ */
+export const oralResults = pgTable(
+  'oral_results',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    testId: uuid('test_id')
+      .notNull()
+      .references(() => oralTests.id),
+    cohortId: uuid('cohort_id')
+      .notNull()
+      .references(() => cohorts.id),
+    learnerId: uuid('learner_id')
+      .notNull()
+      .references(() => users.id),
+    assessorId: uuid('assessor_id').references(() => users.id),
+    /** Identifiant de l'envoi : un renvoi (hors ligne) n'est compté qu'une fois. */
+    operationId: uuid('operation_id').notNull(),
+    takenAt: timestamp('taken_at', { withTimezone: true }).notNull().defaultNow(),
+    parts: jsonb('parts').$type<OralPartAnswer[]>().notNull(),
+    scores: jsonb('scores').$type<OralPartScore[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('oral_results_once').on(t.testId, t.learnerId),
+    uniqueIndex('oral_results_operation_idx').on(t.operationId),
+    index('oral_results_cohort_idx').on(t.cohortId),
+  ],
+);
+
+/** Repères réglés par le superadministrateur : score par minute attendu, par niveau et matière. */
+export const oralBenchmarks = pgTable(
+  'oral_benchmarks',
+  {
+    level: text('level').notNull(),
+    subject: text('subject').notNull(),
+    perMinute: integer('per_minute').notNull(),
+    questions: integer('questions'),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.level, t.subject] })],
 );

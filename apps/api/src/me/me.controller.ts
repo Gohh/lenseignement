@@ -21,6 +21,7 @@ import { teamPowers } from '../team/team.js';
 import { UsersService } from '../users/users.service.js';
 import { isWorkshopAuthor, isWorkshopLearner } from '../workshops/workshops.js';
 import { hasCampaigns } from '../exams/campaigns.js';
+import { hasOral } from '../oral/oral.js';
 
 /** Identité et rattachements de la personne connectée. */
 /** Rôles d'équipe : une fois l'un d'eux reçu, la personne ne choisit plus son profil. */
@@ -78,6 +79,8 @@ export class MeController {
       exerciseAuthor: await isExerciseAuthor(this.db, user.id),
       /** Lance des campagnes d'évaluation, ou en a dans ses classes (menu « Campagnes »). */
       campaigns: await hasCampaigns(this.db, user.id),
+      /** Fait passer, rédige des évaluations orales ou règle les repères (menu « Évaluations orales »). */
+      oral: await hasOral(this.db, user.id),
     };
   }
 

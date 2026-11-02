@@ -35,6 +35,7 @@ import { loadConfig } from './config.js';
 import { TeamController } from './team/team.controller.js';
 import { StatsController } from './stats/stats.controller.js';
 import { CampaignsController } from './exams/campaigns.controller.js';
+import { OralController } from './oral/oral.controller.js';
 import { ExamsController } from './exams/exams.controller.js';
 import { ExerciseMediaController, ExercisesController } from './exercises/exercises.controller.js';
 import {
@@ -70,6 +71,7 @@ import {
     ExercisesController,
     ExamsController,
     CampaignsController,
+    OralController,
     AiController,
     ExerciseMediaController,
     StatsController,

@@ -1,10 +1,12 @@
 import {
   AssignmentAnswersEventSchema,
   LearningEventSchema,
+  OralResultEventSchema,
   WorkshopAttemptEventSchema,
   type AssignmentAnswersEvent,
   type LearningEventInput,
   type LearningEventResult,
+  type OralResultEvent,
   type WorkshopAttemptEvent,
 } from '@lenseignement/types';
 import { NextResponse, type NextRequest } from 'next/server';
@@ -25,6 +27,7 @@ const BodySchema = z.object({
           LearningEventSchema,
           WorkshopAttemptEventSchema,
           AssignmentAnswersEventSchema,
+          OralResultEventSchema,
         ]),
       }),
     )
@@ -60,8 +63,9 @@ export async function POST(request: NextRequest) {
   const mine = parsed.data.actions.filter((a) => a.owner === owner).map((a) => a.event);
   const events = mine.filter(
     (e): e is LearningEventInput =>
-      e.type !== 'workshop_attempt' && e.type !== 'assignment_answers',
+      e.type !== 'workshop_attempt' && e.type !== 'assignment_answers' && e.type !== 'oral_result',
   );
+  const orals = mine.filter((e): e is OralResultEvent => e.type === 'oral_result');
   const homework = mine.filter((e): e is AssignmentAnswersEvent => e.type === 'assignment_answers');
   const attempts = mine.filter((e): e is WorkshopAttemptEvent => e.type === 'workshop_attempt');
   const results: LearningEventResult[] = [];
@@ -98,6 +102,26 @@ export async function POST(request: NextRequest) {
         operationId: work.operationId,
         status: 'rejected',
         message: `Devoir : ${sent.message ?? 'réponses refusées.'}`,
+      });
+    } else break;
+  }
+  // Évaluations orales passées sans connexion : scores calculés par l'API, l'identifiant
+  // d'opération évite de compter deux fois le même élève.
+  for (const oral of orals) {
+    const sent = await apiSend(session.accessToken, 'POST', '/oral/results', {
+      operationId: oral.operationId,
+      testId: oral.testId,
+      cohortId: oral.cohortId,
+      learnerId: oral.learnerId,
+      takenAt: oral.takenAt ?? oral.occurredAt,
+      parts: oral.parts,
+    });
+    if (sent.ok) results.push({ operationId: oral.operationId, status: 'applied' });
+    else if (sent.status && sent.status >= 400 && sent.status < 500 && sent.status !== 401) {
+      results.push({
+        operationId: oral.operationId,
+        status: 'rejected',
+        message: `Évaluation orale : ${sent.message ?? 'résultat refusé.'}`,
       });
     } else break;
   }

@@ -221,6 +221,8 @@ async function blockers(db: Database, targetId: string): Promise<string[]> {
       union all select 'exercices de la Fabrique', (select count(*) from exercises where author_id = ${targetId})
       union all select 'épreuves', (select count(*) from exams where author_id = ${targetId})
       union all select 'campagnes d''évaluation', (select count(*) from exam_campaigns where created_by = ${targetId})
+      union all select 'évaluations orales', (select count(*) from oral_tests where author_id = ${targetId})
+        + (select count(*) from oral_results where learner_id = ${targetId} or assessor_id = ${targetId})
       union all select 'relectures de cours', (select count(*) from course_review_events where actor_user_id = ${targetId})
         + (select count(*) from course_versions where ${targetId} in (reviewer_user_id, submitted_by, approved_by, published_by))
       union all select 'traces d''apprentissage (leçons ouvertes, quiz, bilans)',

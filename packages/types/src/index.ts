@@ -33,3 +33,4 @@ export * from './establishments.js';
 export * from './exercises.js';
 export * from './ai.js';
 export * from './exams.js';
+export * from './oral.js';

@@ -341,3 +341,37 @@ export interface CampaignDetail extends CampaignSummary {
   /** Classes de la personne (enseignant ou direction de l'école). */
   myClasses: CampaignClass[];
 }
+
+// Résultats d'une campagne close (étape 4c-2), dans le tableau de pilotage : aucun nom d'élève,
+// et une moyenne n'est montrée que pour un groupe d'au moins 5 élèves.
+
+export interface CampaignResultRow {
+  id: string;
+  name: string;
+  /** DRENA ou IEPP de rattachement (vide au niveau des groupes). */
+  group: string;
+  expected: number;
+  participants: number;
+  /** Moyenne sur 100 ; null quand moins de 5 élèves ont composé. */
+  average: number | null;
+  /** Part des élèves au-dessus du seuil ; null sous 5 élèves. */
+  above: number | null;
+  /** Domaine le moins réussi ; null sous 5 élèves. */
+  weakest: { label: string; rate: number } | null;
+}
+
+export interface CampaignResults {
+  campaign: CampaignSummary;
+  /** Ce que la personne voit : toute la campagne (pilote) ou sa partie (statistiques). */
+  scope: 'campagne' | 'ma-zone';
+  groupLabel: string | null;
+  expected: number;
+  participants: number;
+  average: number | null;
+  above: number | null;
+  byDomain: ExamRate[];
+  bySkill: ExamRate[];
+  byQuestion: Array<ExamRate & { position: number; domain: ExerciseDomain }>;
+  groups: CampaignResultRow[];
+  schools: CampaignResultRow[];
+}

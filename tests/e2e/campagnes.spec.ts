@@ -176,6 +176,22 @@ test('campagne de zone : lancée, passée, suivie, close', async ({ browser, pag
   await expect(page.getByRole('status').filter({ hasText: 'Campagne close' })).toBeVisible();
   await expect(page.getByTestId('campaign-schools')).toContainText('Évaluée');
 
+  // Résultats dans le tableau de pilotage, sans nom d'élève ; une seule copie : moyenne masquée.
+  await page.getByRole('link', { name: 'Voir les résultats par domaine, zone et école' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: `Résultats · ${title}` })).toBeVisible();
+  await expect(page.getByTestId('campaign-results-kpis')).toContainText('1 élèves sur 1');
+  await expect(page.getByTestId('campaign-results-kpis')).toContainText('moins de 5 copies');
+  await expect(page.getByTestId('campaign-results-schools')).toContainText(
+    `EPP Les Flamboyants ${tag}`,
+  );
+  await expect(page.getByText('Fanta (fictive)')).toHaveCount(0);
+  await axe(page);
+  const excel = await page.request.get(`${new URL(page.url()).pathname}/export`);
+  expect(excel.status()).toBe(200);
+  expect(excel.headers()['content-type']).toContain('spreadsheetml');
+  await page.goto('/mon-espace/statistiques');
+  await expect(page.getByTestId('stats-campaigns')).toContainText(title);
+
   await learner.page.goto('/mon-espace/devoirs');
   await expect(
     learner.page.getByTestId('my-assignments').getByRole('listitem').filter({ hasText: title }),

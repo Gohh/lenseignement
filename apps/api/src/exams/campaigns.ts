@@ -282,20 +282,20 @@ export async function createCampaign(
   });
 }
 
-type CampaignRow = typeof examCampaigns.$inferSelect;
+export type CampaignRow = typeof examCampaigns.$inferSelect;
 
-function statusOf(c: CampaignRow): CampaignStatus {
+export function statusOf(c: CampaignRow): CampaignStatus {
   const now = Date.now();
   if (c.closedAt || c.endsAt.getTime() <= now) return 'close';
   return c.startsAt.getTime() > now ? 'a-venir' : 'en-cours';
 }
 
-function canPilot(c: CampaignRow, userId: string, reach: Reach): boolean {
+export function canPilot(c: CampaignRow, userId: string, reach: Reach): boolean {
   if (c.createdBy === userId || reach.national) return true;
   return c.zoneId !== null && reach.zones.some((z) => z.id === c.zoneId);
 }
 
-async function summaries(db: Executor, where: SQL): Promise<CampaignSummary[]> {
+export async function summaries(db: Executor, where: SQL): Promise<CampaignSummary[]> {
   const { rows } = await db.execute<{
     id: string;
     title: string;
@@ -403,7 +403,7 @@ function managedCohorts(userId: string): SQL {
          and (m.valid_until is null or m.valid_until > now())))`;
 }
 
-async function loadCampaign(db: Executor, id: string): Promise<CampaignRow> {
+export async function loadCampaign(db: Executor, id: string): Promise<CampaignRow> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ExerciseError('not_found', NOT_FOUND);
   const [row] = await db.select().from(examCampaigns).where(eq(examCampaigns.id, id));
   if (!row) throw new ExerciseError('not_found', NOT_FOUND);

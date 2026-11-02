@@ -89,7 +89,7 @@ export interface AssignmentReview {
 }
 
 /** Nombre maximal d'exercices dans un devoir. */
-export const ASSIGNMENT_MAX_EXERCISES = 20;
+export const ASSIGNMENT_MAX_EXERCISES = 40;
 
 export const AddAssignmentExerciseSchema = z.object({ exerciseId: z.uuid() });
 

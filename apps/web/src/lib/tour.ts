@@ -16,7 +16,7 @@ const list = (labels: string[]) =>
 const GROUP_TEXTS: Record<string, string> = {
   Piloter: 'Les chiffres et le suivi : qui avance, qui décroche, où agir en premier.',
   Enseigner: 'Vos classes au quotidien : devoirs, évaluations, classe virtuelle et messages.',
-  Contenus: 'Écrire, relire et publier les cours, les ateliers et les exercices.',
+  Contenus: 'Écrire, relire et publier les cours, les ateliers, les exercices et les épreuves.',
   'Réseau scolaire': 'Les établissements, les directions régionales, les services et partenaires.',
   Personnes: 'Votre équipe, les invitations et les comptes.',
   Administration: 'Les réglages de toute la plateforme et le journal des actions.',

@@ -32,3 +32,4 @@ export * from './rights.js';
 export * from './establishments.js';
 export * from './exercises.js';
 export * from './ai.js';
+export * from './exams.js';

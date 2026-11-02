@@ -75,13 +75,13 @@ function orgsWith(userId: string, roles: readonly string[]): SQL {
     select o.id from organizations o where ${platformAdmin(userId)})`;
 }
 
-interface Powers {
+export interface Powers {
   authorOrgIds: Set<string>;
   publisherOrgIds: Set<string>;
   superadmin: boolean;
 }
 
-async function powers(db: Executor, userId: string): Promise<Powers> {
+export async function powers(db: Executor, userId: string): Promise<Powers> {
   const [authors, publishers, superadmin] = await Promise.all([
     db.execute(sql`select id from ${orgsWith(userId, EXERCISE_AUTHOR_ROLES)} a`),
     db.execute(sql`select id from ${orgsWith(userId, EXERCISE_PUBLISHER_ROLES)} p`),

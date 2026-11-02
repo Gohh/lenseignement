@@ -260,3 +260,37 @@ test('chaque type d’exercice est corrigé par la plateforme', async () => {
   assert.equal((await tf.check({ choices: [0] })).correct, true);
   assert.equal((await tf.check({ choices: [1] })).correct, false);
 });
+
+test('import d’un fichier d’exercices : les valables partent en relecture', async () => {
+  const comps = (await call(SUB.koffi, 'get', '/authoring/exercises/competencies', 200)).body
+    .items as Array<{ code: string; curriculumId: string }>;
+  const { code, curriculumId } = comps[0]!;
+  const good = {
+    competencyCode: code.toLowerCase(),
+    domain: 'nombres-operations',
+    title: 'Importé (test API)',
+    content: { kind: 'truefalse', prompt: 'Deux et deux font quatre.', correct: true },
+  };
+  const body = {
+    organizationId: ID.orgManguiers,
+    curriculumVersionId: curriculumId,
+    items: [
+      good,
+      { ...good, competencyCode: 'INCONNU-99', title: 'Mauvais code (test API)' },
+      { ...good, content: { kind: 'choice', prompt: 'x', choices: ['a'], correct: 0 } },
+    ],
+  };
+  await call(SUB.awa, 'post', '/authoring/exercises/import', 403, body);
+  const result = (await call(SUB.koffi, 'post', '/authoring/exercises/import', 200, body)).body;
+  assert.equal(result.created, 1);
+  assert.deepEqual(
+    result.errors.map((e: { index: number }) => e.index),
+    [2, 3],
+  );
+  assert.match(result.errors[0].message, /INCONNU-99/);
+  assert.match(result.errors[1].message, /Au moins deux réponses/);
+  const list = (await call(SUB.bamba, 'get', '/authoring/exercises?status=review', 200)).body;
+  const imported = list.items.find((e: { title: string }) => e.title === 'Importé (test API)');
+  assert.equal(imported.status, 'review');
+  assert.equal(imported.difficulty, 'moyen');
+});

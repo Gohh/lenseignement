@@ -20,6 +20,7 @@ import { createReadStream } from 'node:fs';
 import {
   CreateExerciseSchema,
   ExerciseAnswerSchema,
+  ExerciseImportSchema,
   ExerciseReturnSchema,
   UpdateExerciseSchema,
   type ExerciseDomain,
@@ -38,6 +39,7 @@ import {
   deleteExercise,
   ExerciseError,
   getExercise,
+  importExercises,
   listExerciseCompetencies,
   listExerciseOrganizations,
   listExercises,
@@ -113,6 +115,18 @@ export class ExercisesController {
     const input = parse(CreateExerciseSchema, body);
     const userId = await this.userId(request);
     return run(() => createExercise(this.db, userId, input, request.traceId));
+  }
+
+  /** Import d'un fichier d'exercices : les exercices valables partent en relecture. */
+  @Post('import')
+  @HttpCode(200)
+  async import(@Req() request: Request, @Body() body: unknown) {
+    const input = parse(ExerciseImportSchema, body);
+    const userId = await this.userId(request);
+    const { created, errors } = await run(() =>
+      importExercises(this.db, userId, input, 'review', request.traceId),
+    );
+    return { created, errors };
   }
 
   @Get(':id')

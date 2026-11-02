@@ -3,7 +3,9 @@
 import {
   ExerciseAnswerSchema,
   type ExerciseAnswer,
+  type ExerciseImportResult,
   type ExerciseResult,
+  type GenerateExercisesResult,
 } from '@lenseignement/types';
 import { redirect } from 'next/navigation';
 import { apiSend } from '@/lib/api';
@@ -137,4 +139,86 @@ export async function checkExerciseAction(
     parsed.data,
   );
   return result.ok ? result.data : { error: result.message ?? 'Correction impossible.' };
+}
+
+export type ImportState =
+  | { kind: 'idle' }
+  | { kind: 'error'; message: string }
+  | { kind: 'done'; created: number; errors: ExerciseImportResult['errors'] };
+
+/** Import d'un fichier d'exercices (.json) : les exercices valables partent en relecture. */
+export async function importExercisesAction(
+  _previous: ImportState,
+  form: FormData,
+): Promise<ImportState> {
+  const file = form.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { kind: 'error', message: 'Choisissez le fichier à importer.' };
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    return { kind: 'error', message: 'Fichier trop lourd : 2 Mo au plus.' };
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    return { kind: 'error', message: 'Fichier illisible : il doit être au format du modèle.' };
+  }
+  const items = Array.isArray(data)
+    ? data
+    : data && typeof data === 'object'
+      ? ((data as { exercices?: unknown; items?: unknown }).exercices ??
+        (data as { items?: unknown }).items)
+      : null;
+  if (!Array.isArray(items)) {
+    return { kind: 'error', message: 'Aucune liste « exercices » dans ce fichier.' };
+  }
+  const session = await getSession();
+  if (!session) return { kind: 'error', message: 'Connectez-vous de nouveau.' };
+  const result = await apiSend<ExerciseImportResult>(
+    session.accessToken,
+    'POST',
+    '/authoring/exercises/import',
+    {
+      organizationId: text(form, 'organizationId'),
+      curriculumVersionId: text(form, 'curriculumVersionId'),
+      items,
+    },
+  );
+  if (!result.ok) return { kind: 'error', message: result.message ?? 'Import impossible.' };
+  return { kind: 'done', created: result.data.created, errors: result.data.errors };
+}
+
+/** « Proposer avec l'IA » : les exercices proposés arrivent en brouillon, à relire. */
+export async function generateExercisesAction(form: FormData): Promise<void> {
+  const path = `${HOME}/ia`;
+  const result = await apiSend<GenerateExercisesResult>(
+    await token(path),
+    'POST',
+    '/authoring/ai/exercises',
+    {
+      organizationId: text(form, 'organizationId'),
+      competencyId: text(form, 'competencyId'),
+      domain: text(form, 'domain'),
+      difficulty: text(form, 'difficulty'),
+      skill: text(form, 'skill'),
+      kind: text(form, 'kind'),
+      count: Number(text(form, 'count')) || 3,
+      notes: text(form, 'notes'),
+    },
+  );
+  if (!result.ok) back(path, 'erreur', result.message ?? 'Proposition impossible.');
+  const { created, ids, errors } = result.data;
+  if (created === 0) {
+    back(path, 'erreur', `Aucun exercice utilisable : ${errors[0]?.message ?? 'réessayez.'}`);
+  }
+  const refused =
+    errors.length > 0
+      ? ` (${errors.length} écarté${errors.length > 1 ? 's' : ''}, mal formé${errors.length > 1 ? 's' : ''})`
+      : '';
+  redirect(
+    `${path}?faits=${ids.join(',')}&message=${encodeURIComponent(
+      `${created} exercice${created > 1 ? 's' : ''} proposé${created > 1 ? 's' : ''} en brouillon${refused}. Relisez et corrigez chacun avant de l’envoyer en relecture.`,
+    )}`,
+  );
 }

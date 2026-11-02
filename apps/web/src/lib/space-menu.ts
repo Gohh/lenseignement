@@ -234,6 +234,11 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
       items: [
         ...when(superAdmin, [
           { href: '/mon-espace/droits', label: 'Droits', icon: 'droits' as const },
+          {
+            href: '/mon-espace/configuration/ia',
+            label: 'Intelligence artificielle',
+            icon: 'ia' as const,
+          },
         ]),
         ...when(team && right('journal', admin), [
           { href: '/mon-espace/journal', label: 'Journal des actions', icon: 'journal' as const },

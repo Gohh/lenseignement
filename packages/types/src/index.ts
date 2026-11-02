@@ -31,3 +31,4 @@ export * from './consult.js';
 export * from './rights.js';
 export * from './establishments.js';
 export * from './exercises.js';
+export * from './ai.js';

@@ -1,0 +1,131 @@
+{
+  "aide": "Modèle de fichier d'exercices pour la Fabrique. Chaque exercice donne le code de la compétence dans le programme choisi à l'import, le domaine, la difficulté (facile, moyen, difficile), ce que l'élève doit faire (connaitre, appliquer, raisonner), un titre et le contenu. Types : choice, truefalse, gaps, match, order, number, table, reading. Les exercices importés partent en relecture.",
+  "exercices": [
+    {
+      "competencyCode": "CALC-01",
+      "domain": "nombres-operations",
+      "difficulty": "facile",
+      "skill": "appliquer",
+      "title": "Partager des mangues",
+      "content": {
+        "kind": "number",
+        "prompt": "Awa partage 12 mangues entre 3 enfants. Combien de mangues reçoit chaque enfant ?",
+        "answer": 4,
+        "tolerance": 0,
+        "unit": "mangues",
+        "explanation": "12 divisé par 3 font 4."
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "nombres-operations",
+      "difficulty": "facile",
+      "skill": "connaitre",
+      "title": "Le plus grand nombre",
+      "content": {
+        "kind": "choice",
+        "prompt": "Quel est le plus grand nombre ?",
+        "choices": ["105", "150", "51"],
+        "correct": 1,
+        "explanation": "150 a 1 centaine et 5 dizaines."
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "geometrie-espace",
+      "difficulty": "facile",
+      "skill": "connaitre",
+      "title": "Le carré",
+      "content": {
+        "kind": "truefalse",
+        "prompt": "Un carré a quatre côtés de même longueur.",
+        "correct": true
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "comprehension-ecrit",
+      "difficulty": "moyen",
+      "skill": "appliquer",
+      "title": "Compléter la phrase",
+      "content": {
+        "kind": "gaps",
+        "prompt": "Écris le mot qui manque.",
+        "text": "Le [[chat]] boit du lait. Il a [[4|quatre]] pattes."
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "nombres-operations",
+      "difficulty": "facile",
+      "skill": "appliquer",
+      "title": "Ranger des nombres",
+      "content": {
+        "kind": "order",
+        "prompt": "Range du plus petit au plus grand.",
+        "items": ["12", "21", "102"]
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "comprehension-ecrit",
+      "difficulty": "facile",
+      "skill": "connaitre",
+      "title": "Les animaux et leurs cris",
+      "content": {
+        "kind": "match",
+        "prompt": "Relie chaque animal à son cri.",
+        "pairs": [
+          { "left": "Le chien", "right": "aboie" },
+          { "left": "Le chat", "right": "miaule" },
+          { "left": "La vache", "right": "meugle" }
+        ]
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "donnees",
+      "difficulty": "moyen",
+      "skill": "appliquer",
+      "title": "Lire un tableau",
+      "content": {
+        "kind": "table",
+        "prompt": "Quel jour a-t-on vendu le plus de mangues ?",
+        "table": {
+          "header": ["Jour", "Mangues vendues"],
+          "rows": [
+            ["Lundi", "12"],
+            ["Mardi", "20"],
+            ["Mercredi", "15"]
+          ]
+        },
+        "choices": ["Lundi", "Mardi", "Mercredi"],
+        "correct": 1
+      }
+    },
+    {
+      "competencyCode": "CALC-01",
+      "domain": "comprehension-ecrit",
+      "difficulty": "moyen",
+      "skill": "raisonner",
+      "title": "Koffi au marché",
+      "content": {
+        "kind": "reading",
+        "prompt": "Lis le texte, puis réponds aux questions.",
+        "passage": "Samedi, Koffi va au marché avec sa mère. Ils achètent des ignames et trois mangues.",
+        "questions": [
+          {
+            "prompt": "Avec qui Koffi va-t-il au marché ?",
+            "choices": ["Son père", "Sa mère"],
+            "correct": 1
+          },
+          {
+            "prompt": "Combien de mangues achètent-ils ?",
+            "choices": ["Deux", "Trois", "Cinq"],
+            "correct": 1
+          }
+        ]
+      }
+    }
+  ]
+}

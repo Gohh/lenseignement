@@ -1,6 +1,7 @@
 import {
   EXERCISE_DOMAINS,
   EXERCISE_STATUSES,
+  ExerciseImportItemSchema,
   exercisePlay,
   gradeExercise,
   type CreateExerciseInput,
@@ -10,6 +11,7 @@ import {
   type ExerciseDetail,
   type ExerciseDifficulty,
   type ExerciseDomain,
+  type ExerciseImportResult,
   type ExerciseKind,
   type ExerciseResult,
   type ExerciseSkill,
@@ -680,4 +682,82 @@ export async function checkExercise(
 ): Promise<ExerciseResult> {
   const { row } = await loadFor(db, userId, id);
   return gradeExercise(row.content, answer);
+}
+
+/**
+ * Import d'exercices (fichier préparé à l'avance, ou propositions de l'IA). Chaque exercice valable
+ * est créé ; les autres sont rendus avec leur numéro et la raison. `status` : « review » pour un
+ * fichier (relecture directe), « draft » pour l'IA (l'auteur relit et corrige d'abord).
+ */
+export async function importExercises(
+  db: Database,
+  userId: string,
+  input: { organizationId: string; curriculumVersionId: string; items: unknown[] },
+  status: 'draft' | 'review',
+  traceId?: string,
+): Promise<ExerciseImportResult & { ids: string[] }> {
+  const p = await powers(db, userId);
+  if (!p.authorOrgIds.has(input.organizationId)) {
+    throw new ExerciseError(
+      'forbidden',
+      'Vous ne pouvez pas créer d’exercice pour cette structure.',
+    );
+  }
+  const comps = await db
+    .select({ id: competencies.id, code: competencies.code })
+    .from(competencies)
+    .innerJoin(curriculumVersions, eq(curriculumVersions.id, competencies.versionId))
+    .where(
+      and(
+        eq(curriculumVersions.id, input.curriculumVersionId),
+        eq(curriculumVersions.status, 'published'),
+      ),
+    );
+  if (comps.length === 0) {
+    throw new ExerciseError('invalid', 'Choisissez un programme publié.');
+  }
+  const byCode = new Map(comps.map((c) => [c.code.trim().toUpperCase(), c.id]));
+  const errors: ExerciseImportResult['errors'] = [];
+  const rows: Array<typeof exercises.$inferInsert> = [];
+  input.items.forEach((raw, i) => {
+    const title =
+      raw && typeof raw === 'object' && typeof (raw as { title?: unknown }).title === 'string'
+        ? String((raw as { title: string }).title).slice(0, 120)
+        : '';
+    const parsed = ExerciseImportItemSchema.safeParse(raw);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const where = issue?.path.length ? ` (${issue.path.join('.')})` : '';
+      errors.push({ index: i + 1, title, message: `${issue?.message ?? 'Illisible.'}${where}` });
+      return;
+    }
+    const item = parsed.data;
+    const competencyId = byCode.get(item.competencyCode.trim().toUpperCase());
+    if (!competencyId) {
+      errors.push({
+        index: i + 1,
+        title,
+        message: `Compétence « ${item.competencyCode} » absente de ce programme.`,
+      });
+      return;
+    }
+    rows.push({
+      organizationId: input.organizationId,
+      competencyId,
+      domain: item.domain,
+      difficulty: item.difficulty,
+      skill: item.skill,
+      kind: item.content.kind,
+      title: item.title,
+      content: { ...item.content, media: null },
+      status,
+      authorId: userId,
+    });
+  });
+  const created =
+    rows.length > 0 ? await db.insert(exercises).values(rows).returning({ id: exercises.id }) : [];
+  if (created.length > 0) {
+    await audit(db, userId, 'exercise.import', input.organizationId, traceId);
+  }
+  return { created: created.length, errors, ids: created.map((r) => r.id) };
 }

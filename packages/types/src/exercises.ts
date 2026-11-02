@@ -209,6 +209,39 @@ export const UpdateExerciseSchema = z.object({
 });
 export type UpdateExerciseInput = z.infer<typeof UpdateExerciseSchema>;
 
+/**
+ * Exercice prêt à importer (fichier préparé à l'avance, ou proposé par l'IA) : la compétence est
+ * donnée par son code dans le programme choisi. Pas d'image ni de son : on les ajoute ensuite.
+ */
+export const ExerciseImportItemSchema = z.object({
+  competencyCode: z.string().trim().min(1, 'Code de compétence manquant.').max(40),
+  domain: z.enum(EXERCISE_DOMAINS),
+  difficulty: z.enum(EXERCISE_DIFFICULTIES).default('moyen'),
+  skill: z.enum(EXERCISE_SKILLS).default('appliquer'),
+  title: text(120),
+  content: ExerciseContentSchema,
+});
+export type ExerciseImportItem = z.infer<typeof ExerciseImportItemSchema>;
+
+/** Nombre maximal d'exercices dans un fichier d'import. */
+export const EXERCISE_IMPORT_MAX = 200;
+
+export const ExerciseImportSchema = z.object({
+  organizationId: z.uuid(),
+  /** Version publiée du programme dont les codes de compétence sont tirés. */
+  curriculumVersionId: z.uuid({ message: 'Choisissez le programme.' }),
+  items: z
+    .array(z.unknown())
+    .min(1, 'Le fichier ne contient aucun exercice.')
+    .max(EXERCISE_IMPORT_MAX),
+});
+
+export interface ExerciseImportResult {
+  created: number;
+  /** Exercices refusés, avec leur numéro dans le fichier (à partir de 1). */
+  errors: Array<{ index: number; title: string; message: string }>;
+}
+
 export const ExerciseReturnSchema = z.object({ note: text(600) });
 
 /** Réponse de l'élève : numéros choisis, ou textes saisis (trous, calcul). */

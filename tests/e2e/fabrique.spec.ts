@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { closeDb } from './support/db';
+import { closeDb, sql } from './support/db';
 
 // Fabrique d'exercices : l'enseignant écrit un exercice sur une compétence du programme, vérifie
 // l'aperçu élève, le référent relit et publie, puis l'enseignant en fait une nouvelle version.
@@ -81,4 +81,44 @@ test('un exercice écrit, essayé, relu et publié rejoint la banque', async ({
   await expect(page.getByRole('status').filter({ hasText: 'Brouillon ouvert' })).toBeVisible();
   await expect(page.getByTestId('exercise-status')).toContainText('Brouillon');
   await expect(page.getByTestId('exercise-editor')).toBeVisible();
+});
+
+test('un fichier d’exercices importé arrive en relecture', async ({ page }, testInfo) => {
+  const [comp] = await sql<{ code: string; version: string }>(
+    `select c.code, v.id as version from competencies c
+       join curriculum_versions v on v.id = c.version_id
+      where v.status = 'published' order by c.code limit 1`,
+  );
+  const title = `Importé ${testInfo.project.name} ${Date.now()}`;
+  const file = {
+    exercices: [
+      {
+        competencyCode: comp!.code,
+        domain: 'nombres-operations',
+        title,
+        content: { kind: 'truefalse', prompt: 'Deux et deux font quatre.', correct: true },
+      },
+      { competencyCode: 'INCONNU-99', domain: 'autre', title: 'Mauvais code', content: {} },
+    ],
+  };
+
+  await loginAs(page, 'enseignant.demo', '/mon-espace/fabrique');
+  await page.getByRole('link', { name: 'Importer', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Importer des exercices' }),
+  ).toBeVisible();
+  await page.getByLabel(/^Programme/).selectOption(comp!.version);
+  await page.getByLabel('Fichier d’exercices (.json)').setInputFiles({
+    name: 'exercices.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(file)),
+  });
+  await axe(page);
+  await page.getByRole('button', { name: 'Importer' }).click();
+  const result = page.getByTestId('import-result');
+  await expect(result).toContainText('1 exercice importé');
+  await expect(result).toContainText('n° 2 « Mauvais code »');
+
+  await page.goto('/mon-espace/fabrique?etat=review');
+  await expect(page.getByRole('link', { name: title })).toBeVisible();
 });

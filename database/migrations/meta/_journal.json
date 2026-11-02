@@ -344,6 +344,13 @@
       "when": 1793583686199,
       "tag": "0048_devoirs_exercices",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1793609596196,
+      "tag": "0049_ia_reglages",
+      "breakpoints": true
     }
   ]
 }

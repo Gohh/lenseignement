@@ -100,7 +100,7 @@ test('le superadministrateur branche un modèle libre, puis l’enseignant reço
   await expect(page.getByText('l’IA est allumée')).toBeVisible();
   await expect(page.getByTestId('ai-state')).toContainText('IA allumée');
   await page.getByRole('button', { name: 'Essayer la connexion' }).click();
-  await expect(page.getByText('Connexion réussie')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Connexion réussie' })).toBeVisible();
 
   const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
   const teacher = await context.newPage();

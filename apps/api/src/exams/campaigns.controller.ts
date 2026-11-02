@@ -40,6 +40,7 @@ import {
   saveCampaignPaper,
   setCampaignMode,
 } from './campaigns.js';
+import { campaignResults, statsCampaigns } from './campaign-results.js';
 
 function parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
   const result = schema.safeParse(body);
@@ -86,6 +87,12 @@ export class CampaignsController {
     return listCampaigns(this.db, await this.userId(request));
   }
 
+  /** Campagnes visibles dans le tableau de pilotage (statistiques). */
+  @Get('stats')
+  async stats(@Req() request: Request) {
+    return { items: await statsCampaigns(this.db, await this.userId(request)) };
+  }
+
   @Get('options')
   async options(@Req() request: Request) {
     return campaignOptions(this.db, await this.userId(request));
@@ -115,6 +122,13 @@ export class CampaignsController {
   async get(@Req() request: Request, @Param('id') id: string) {
     const userId = await this.userId(request);
     return run(() => getCampaign(this.db, userId, id));
+  }
+
+  /** Résultats d'une campagne close : par domaine, zone, école, question ; sans nom d'élève. */
+  @Get(':id/results')
+  async results(@Req() request: Request, @Param('id') id: string) {
+    const userId = await this.userId(request);
+    return run(() => campaignResults(this.db, userId, id));
   }
 
   @Get(':id/booklet')

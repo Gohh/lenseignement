@@ -78,7 +78,15 @@ export default async function CampaignPage({
       <p className="rounded-card border-l-4 border-primary bg-primary-soft p-3">
         {open
           ? 'Les notes restent cachées aux élèves et aux enseignants jusqu’à la clôture. Ici, on suit seulement qui a composé.'
-          : 'Campagne close : chaque élève et chaque enseignant voit maintenant les notes. Les résultats par domaine arriveront dans le tableau de pilotage.'}
+          : 'Campagne close : chaque élève et chaque enseignant voit maintenant les notes.'}
+        {!open && (
+          <>
+            {' '}
+            <Link href={`/mon-espace/statistiques/campagnes/${id}`} className="font-bold underline">
+              Voir les résultats par domaine, zone et école
+            </Link>
+          </>
+        )}
       </p>
 
       <ul className="grid gap-3 sm:grid-cols-3" data-testid="campaign-kpis">

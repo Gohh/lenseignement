@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, test } from 'node:test';
-import { and, eq, inArray, isNotNull, like } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, like, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
 import {
@@ -33,6 +33,10 @@ after(async () => {
   await ctx.db.delete(assignments).where(isNotNull(assignments.examId));
   await ctx.db.delete(exams).where(like(exams.title, '%(test campagne)%'));
   await ctx.db.delete(exercises).where(like(exercises.title, '%(test campagne)%'));
+  await ctx.db.execute(
+    sql`delete from cohort_members where user_id in (select id from users where oidc_subject like 'test-campagne-%')`,
+  );
+  await ctx.db.execute(sql`delete from users where oidc_subject like 'test-campagne-%'`);
   await ctx.db.update(cohorts).set({ level: null }).where(eq(cohorts.id, ID.cohortCp1A));
   await ctx.db
     .delete(memberships)
@@ -247,6 +251,35 @@ test('campagne : lancée dans la zone, passée par les élèves, notes cachées 
   );
   assert.equal((await call(SUB.koffi, 'get', '/me', 200)).body.campaigns, true);
 
+  // Résultats : rien avant la clôture. Cinq autres copies pour dépasser le seuil d'anonymat.
+  await call(SUB.yao, 'get', `/authoring/campaigns/${now.id}/results`, 400);
+  const items = (
+    await ctx.db.execute<{ exercise_id: string }>(
+      sql`select exercise_id from exam_items where exam_id = ${exam.id} order by position`,
+    )
+  ).rows;
+  for (let i = 0; i < 5; i++) {
+    const [u] = (
+      await ctx.db.execute<{ id: string }>(
+        sql`insert into users (oidc_subject, display_name) values (${`test-campagne-${randomUUID()}`}, 'Élève (test campagne)') returning id`,
+      )
+    ).rows;
+    await ctx.db.execute(
+      sql`insert into cohort_members (cohort_id, user_id, role) values (${ID.cohortCp1A}, ${u!.id}, 'apprenant')`,
+    );
+    const results = items.map((it, k) => ({
+      exerciseId: it.exercise_id,
+      title: '',
+      correct: k < 2,
+      score: k < 2 ? 1 : 0,
+      feedback: [],
+    }));
+    await ctx.db.execute(
+      sql`insert into assignment_submissions (assignment_id, learner_user_id, body, score, results)
+          values (${mineBefore.id}, ${u!.id}, '', 50, ${JSON.stringify(results)}::jsonb)`,
+    );
+  }
+
   // Avec des copies, elle ne se supprime plus ; clôturée, la note s'ouvre.
   await call(SUB.yao, 'delete', `/authoring/campaigns/${now.id}`, 409);
   await call(SUB.mariam, 'post', `/authoring/campaigns/${now.id}/close`, 404);
@@ -260,5 +293,31 @@ test('campagne : lancée dans la zone, passée par les élèves, notes cachées 
   assert.equal(
     (await call(SUB.yao, 'get', `/authoring/campaigns/${now.id}`, 200)).body.status,
     'close',
+  );
+
+  // Résultats sans nom d'élève : 6 copies (75 et 5 × 50) → moyenne 54, 6 sur 6 au seuil de 50 %.
+  const results = (await call(SUB.yao, 'get', `/authoring/campaigns/${now.id}/results`, 200)).body;
+  assert.equal(results.scope, 'campagne');
+  assert.equal(results.participants, 6);
+  assert.equal(results.average, 54);
+  assert.equal(results.above, 100);
+  assert.deepEqual(
+    results.byDomain.map((d: { key: string }) => d.key),
+    ['geometrie-espace'],
+  );
+  assert.equal(results.byQuestion.length, 4);
+  assert.equal(results.groupLabel, 'DRENA');
+  const school = results.schools.find((r: { participants: number }) => r.participants === 6);
+  assert.equal(school.average, 54);
+  assert.ok(!JSON.stringify(results).includes('Awa'));
+  // La DRENA lit sa partie ; l'élève, rien.
+  const regional = (await call(SUB.mariam, 'get', `/authoring/campaigns/${now.id}/results`, 200))
+    .body;
+  assert.equal(regional.scope, 'ma-zone');
+  await call(SUB.awa, 'get', `/authoring/campaigns/${now.id}/results`, 404);
+  assert.ok(
+    (await call(SUB.mariam, 'get', '/authoring/campaigns/stats', 200)).body.items.some(
+      (c: { id: string }) => c.id === now.id,
+    ),
   );
 });

@@ -1,4 +1,5 @@
 import {
+  type CampaignSummary,
   BRANCHES,
   PILOT_CYCLE_LABELS,
   PILOT_CYCLES,
@@ -16,6 +17,7 @@ import { getSession } from '@/lib/session';
 import { count, rate, shortDate, shortRate, STATE, StatePill, WeeklyChart } from './parts';
 import { PilotReport } from './PilotReport';
 import { PrintButton } from './PrintButton';
+import { lastDay, levelName, startDay, zoneLabel } from '../campagnes/parts';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Tableau de pilotage' };
@@ -90,10 +92,12 @@ export default async function StatsPage({ searchParams }: Props) {
   if (periode && (PILOT_PERIODS as readonly string[]).includes(periode))
     params.set('periode', periode);
   const qs = params.toString();
-  const [pilot, stats] = await Promise.all([
+  const [pilot, stats, campaignList] = await Promise.all([
     apiGet<PilotOverview>(session.accessToken, `/stats/pilotage${qs ? `?${qs}` : ''}`),
     apiGet<StatsOverview>(session.accessToken, '/stats/overview'),
+    apiGet<{ items: CampaignSummary[] }>(session.accessToken, '/authoring/campaigns/stats'),
   ]);
+  const campaigns = campaignList.ok ? campaignList.data.items : [];
 
   /** Lien vers le tableau avec un réglage changé. */
   const link = (changes: Record<string, string | null>) => {
@@ -596,6 +600,42 @@ export default async function StatsPage({ searchParams }: Props) {
             )}
           </section>
         </div>
+
+        {campaigns.length > 0 && (
+          <section className={cardClass} aria-labelledby="titre-campagnes">
+            <h2 id="titre-campagnes" className="text-xl font-bold">
+              Campagnes d’évaluation
+            </h2>
+            <p className="text-sm text-ink-muted">
+              Les résultats s’ouvrent à la clôture : par domaine, par zone, par école et par
+              question, sans aucun nom d’élève.
+            </p>
+            <ul className="mt-3 divide-y divide-line" data-testid="stats-campaigns">
+              {campaigns.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1 basis-60">
+                    <p className="font-bold">{c.title}</p>
+                    <p className="text-sm text-ink-muted">
+                      {zoneLabel(c)} · {levelName(c)} · du {startDay(c)} au {lastDay(c)}
+                    </p>
+                  </div>
+                  {c.status === 'close' ? (
+                    <Link
+                      href={`/mon-espace/statistiques/campagnes/${c.id}`}
+                      className={buttonOutline}
+                    >
+                      Voir les résultats<span className="sr-only"> de « {c.title} »</span>
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-ink-muted">
+                      {c.status === 'a-venir' ? 'À venir' : 'En cours'} · résultats à la clôture
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <h2 className="pt-2 text-2xl font-bold">Détail par cours</h2>
         <details className="text-ink-muted" data-testid="stats-scope">

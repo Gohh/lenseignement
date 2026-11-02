@@ -18,7 +18,8 @@ export const SimulationSubmissionSchema = z.object({
     .array(
       z.object({
         stepId: z.string().min(1).max(40),
-        choices: z.array(z.number().int().min(0).max(11)).max(12),
+        /** Numéros choisis ; pour un exercice H5P, le score obtenu en pourcentage (0 à 100). */
+        choices: z.array(z.number().int().min(0).max(100)).max(12),
       }),
     )
     .min(1)
@@ -36,7 +37,16 @@ export type SimulationStep =
       questions: Array<{ prompt: string; choices: string[] }>;
     }
   | { kind: 'equipment'; id: string; title: string; instructions: string; options: string[] }
-  | { kind: 'order'; id: string; title: string; instructions: string; gestures: string[] };
+  | { kind: 'order'; id: string; title: string; instructions: string; gestures: string[] }
+  | {
+      kind: 'h5p';
+      id: string;
+      title: string;
+      instructions: string;
+      /** Fichier H5P à jouer (lecteur : /h5p/lecteur/<clé>). */
+      packageKey: string;
+      passPercent: number;
+    };
 
 export interface SimulationStepResult {
   stepId: string;

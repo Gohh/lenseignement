@@ -260,6 +260,7 @@ export async function deleteAccount(
         sql`update audit_logs set actor_user_id = null where actor_user_id = ${id}`,
         sql`update membership_invitations set created_by_user_id = null where created_by_user_id = ${id}`,
         sql`update workshops set reviewed_by = null where reviewed_by = ${id}`,
+        sql`update h5p_packages set uploaded_by = null where uploaded_by = ${id}`,
         sql`update membership_invitations set used_by_user_id = null where used_by_user_id = ${id}`,
         sql`update organization_changes set changed_by = null where changed_by = ${id}`,
         sql`update withdrawn_rights set withdrawn_by = null where withdrawn_by = ${id}`,

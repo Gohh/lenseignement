@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { DEMO_IDS as ID, DEMO_SUBJECTS as SUB } from '../src/db/demo-data.js';
 import { workshops } from '../src/db/schema.js';
+import { repoRoot } from '../src/repo-root.js';
 import { displayOrder } from '../src/workshops/workshops.js';
 import { createTestApp, type TestContext } from './helpers.js';
 
@@ -218,4 +222,97 @@ test('un brouillon jamais publié se supprime ; une autre structure ne le voit p
   await call(SUB.yao, 'get', `/authoring/workshops/${id}`, 404);
   await call(SUB.koffi, 'delete', `/authoring/workshops/${id}`, 204);
   await call(SUB.koffi, 'get', `/authoring/workshops/${id}`, 404);
+});
+
+test('exercice H5P : fichier vérifié, servi au lecteur, score compté dans l’atelier', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'h5p-'));
+  process.env.H5P_STORAGE_DIR = dir;
+  const fixture = (name: string) => readFile(join(repoRoot(), 'tests', 'fixtures', name));
+  const { id } = (
+    await call(SUB.koffi, 'post', '/authoring/workshops', 201, {
+      organizationId: ID.orgManguiers,
+      trade: 'mecanique',
+      title: 'Exercice H5P (fictif)',
+    })
+  ).body;
+  const send = async (subject: string, name: string, status: number) =>
+    request(ctx.app.getHttpServer())
+      .post(`/api/v1/authoring/workshops/${id}/h5p`)
+      .set('authorization', `Bearer ${await ctx.sign({ sub: subject })}`)
+      .set('content-type', 'application/octet-stream')
+      .send(await fixture(name))
+      .expect(status);
+
+  await send(SUB.awa, 'exercice-test.h5p', 404);
+  const missing = await send(SUB.koffi, 'exercice-sans-bibliotheque.h5p', 400);
+  assert.match(missing.body.message, /ne contient pas ses bibliothèques \(H5P\.TestScore-1\.0\)/);
+  const evil = await send(SUB.koffi, 'exercice-dangereux.h5p', 400);
+  assert.equal(evil.body.message, 'Ce fichier H5P contient un chemin interdit.');
+  const bad = await request(ctx.app.getHttpServer())
+    .post(`/api/v1/authoring/workshops/${id}/h5p`)
+    .set('authorization', `Bearer ${await ctx.sign({ sub: SUB.koffi })}`)
+    .set('content-type', 'application/octet-stream')
+    .send(Buffer.from('pas un zip'))
+    .expect(400);
+  assert.match(bad.body.message, /zip illisible/);
+
+  const ok = (await send(SUB.koffi, 'exercice-test.h5p', 201)).body;
+  assert.match(ok.key, /^[a-f0-9]{32}$/);
+  assert.equal(ok.title, 'Quel outil desserre les écrous ? (fictif)');
+  assert.equal(ok.mainLibrary, 'H5P.TestScore');
+
+  // Fichiers servis sans session au lecteur isolé ; les types non permis ne sont pas gardés.
+  const server = request(ctx.app.getHttpServer());
+  const manifest = await server.get(`/api/v1/h5p-files/${ok.key}/h5p.json`).expect(200);
+  assert.equal(manifest.headers['access-control-allow-origin'], '*');
+  assert.equal(manifest.headers['content-security-policy'], 'sandbox allow-scripts');
+  await server.get(`/api/v1/h5p-files/${ok.key}/H5P.TestScore-1.0/score.js`).expect(200);
+  await server.get(`/api/v1/h5p-files/${ok.key}/H5P.TestScore-1.0/ignore.exe`).expect(404);
+  await server.get(`/api/v1/h5p-files/${ok.key}/..%2F..%2Fpackage.json`).expect(404);
+  await server.get(`/api/v1/h5p-files/nimportequoi/h5p.json`).expect(404);
+
+  // Une clé inconnue est refusée ; la bonne est gardée dans l'étape.
+  const step = {
+    kind: 'h5p',
+    title: 'Exercice interactif',
+    instructions: '',
+    packageKey: ok.key,
+    packageTitle: ok.title,
+    passPercent: 80,
+  };
+  const form = { ...FORM, title: 'Exercice H5P (fictif)', practice: false, steps: [step] };
+  await call(SUB.koffi, 'put', `/authoring/workshops/${id}`, 400, {
+    ...form,
+    steps: [{ ...step, packageKey: 'f'.repeat(32) }],
+  });
+  await call(SUB.koffi, 'put', `/authoring/workshops/${id}`, 200, form);
+  await call(SUB.koffi, 'post', `/authoring/workshops/${id}/submit`, 204);
+  await call(SUB.bamba, 'post', `/authoring/workshops/${id}/publish`, 204);
+  const code = (await call(SUB.koffi, 'get', `/authoring/workshops/${id}`, 200)).body.liveCode;
+
+  const learner = `apprenant-h5p-${randomUUID()}`;
+  const sim = (await call(learner, 'get', `/me/simulations/${code}`, 200)).body;
+  assert.deepEqual(sim.steps[0], {
+    kind: 'h5p',
+    id: 'etape-1',
+    title: 'Exercice interactif',
+    instructions: '',
+    packageKey: ok.key,
+    passPercent: 80,
+  });
+  const attempt = async (choices: number[]) =>
+    (
+      await call(learner, 'post', `/me/simulations/${code}/attempts`, 200, {
+        attemptId: randomUUID(),
+        steps: [{ stepId: 'etape-1', choices }],
+      })
+    ).body.lastAttempt;
+  assert.deepEqual((await attempt([])).steps[0].feedback, [
+    'Fais l’exercice jusqu’au bout pour obtenir ton score.',
+  ]);
+  assert.deepEqual((await attempt([50])).steps[0].feedback, [
+    'Ton score : 50 %. Il faut au moins 80 % : recommence.',
+  ]);
+  assert.equal((await attempt([100])).passed, true);
+  await rm(dir, { recursive: true, force: true });
 });

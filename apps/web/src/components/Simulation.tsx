@@ -1,5 +1,6 @@
 import type { PracticeStatus, SimulationAttemptResult, SimulationStep } from '@lenseignement/types';
 import type { ReactNode } from 'react';
+import { H5PStep } from './H5PStep';
 import { buttonClass, inputClass } from './Notice';
 
 const ordinal = (n: number) => (n === 1 ? '1er' : `${n}e`);
@@ -123,6 +124,14 @@ export function SimulationForm({
                 {option}
               </label>
             ))}
+          {step.kind === 'h5p' && (
+            <H5PStep
+              stepId={step.id}
+              packageKey={step.packageKey}
+              passPercent={step.passPercent}
+              title={step.title}
+            />
+          )}
           {step.kind === 'order' &&
             step.gestures.map((_, position) => (
               <label key={position} className="block font-bold">

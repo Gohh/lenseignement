@@ -84,6 +84,20 @@ function StepsPreview({ steps }: { steps: WorkshopStepInput[] }) {
               ))}
             </ul>
           )}
+          {step.kind === 'h5p' && (
+            <div className="mt-2 space-y-2">
+              <p>
+                Fichier : <strong>{step.packageTitle || 'Exercice H5P'}</strong> · score à atteindre
+                : {step.passPercent} %
+              </p>
+              <iframe
+                src={`/h5p/lecteur/${step.packageKey}`}
+                title={`Aperçu : ${step.packageTitle || 'exercice H5P'}`}
+                sandbox="allow-scripts"
+                className="h-[480px] w-full rounded-card border border-line"
+              />
+            </div>
+          )}
           {step.kind === 'order' && (
             <ol className="mt-2 list-decimal pl-6">
               {step.gestures.map((g, k) => (

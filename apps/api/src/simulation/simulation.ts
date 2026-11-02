@@ -63,6 +63,16 @@ function publicStep(step: SimulationStepDef): SimulationStep {
   if (step.kind === 'equipment') {
     return { kind: 'equipment', id, title, instructions, options: step.options };
   }
+  if (step.kind === 'h5p') {
+    return {
+      kind: 'h5p',
+      id,
+      title,
+      instructions,
+      packageKey: step.packageKey,
+      passPercent: step.passPercent,
+    };
+  }
   return { kind: 'order', id, title, instructions, gestures: step.gestures };
 }
 
@@ -91,6 +101,16 @@ export function gradeStep(step: SimulationStepDef, choices: number[]): Simulatio
       if (needed && !taken.has(i)) feedback.push(`Il manque : ${option}. ${step.explanations[i]}`);
       if (!needed && taken.has(i)) feedback.push(`À laisser : ${option}. ${step.explanations[i]}`);
     });
+  } else if (step.kind === 'h5p') {
+    const score = choices[0];
+    if (choices.length > 1 || (score !== undefined && score > 100)) {
+      throw invalid('Score de l’exercice illisible.');
+    }
+    if (score === undefined) {
+      feedback.push('Fais l’exercice jusqu’au bout pour obtenir ton score.');
+    } else if (score < step.passPercent) {
+      feedback.push(`Ton score : ${score} %. Il faut au moins ${step.passPercent} % : recommence.`);
+    }
   } else {
     const n = step.gestures.length;
     if (choices.length !== n || new Set(choices).size !== n || choices.some((c) => c >= n)) {

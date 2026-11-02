@@ -20,7 +20,15 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
     return [
-      { source: '/:path*', headers: securityHeaders },
+      // Le lecteur H5P s'affiche dans un cadre de nos pages ; tout le reste refuse d'être encadré.
+      { source: '/((?!h5p/).*)', headers: securityHeaders },
+      {
+        source: '/h5p/:path*',
+        headers: [
+          ...securityHeaders.filter((h) => h.key !== 'X-Frame-Options'),
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        ],
+      },
       // Le service worker est toujours revérifié : une nouvelle version s'installe sans attendre.
       {
         source: '/sw.js',

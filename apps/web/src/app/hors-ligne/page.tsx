@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { OfflineShelf } from '@/components/library/OfflineShelf';
+import { OfflineWorkshops } from '@/components/OfflineWorkshops';
 
 export const metadata: Metadata = { title: 'Hors connexion' };
 
@@ -16,8 +17,9 @@ export default function OfflinePage() {
         </p>
         <p>
           Les cours gardés avec le bouton « Garder ce cours sur cet appareil » et les pages déjà
-          ouvertes restent lisibles. Vos leçons terminées et vos réponses aux quiz sont gardées,
-          puis envoyées automatiquement au retour du réseau.
+          ouvertes restent lisibles, et les ateliers gardés se font sans connexion. Vos leçons
+          terminées, vos réponses aux quiz et vos essais d’atelier sont gardés, puis envoyés
+          automatiquement au retour du réseau.
         </p>
         <Link
           href="/catalogue"
@@ -26,6 +28,7 @@ export default function OfflinePage() {
           Aller au catalogue
         </Link>
       </div>
+      <OfflineWorkshops />
       <OfflineShelf />
     </section>
   );

@@ -88,3 +88,22 @@ export interface SimulationOverview {
   lastAttempt: SimulationAttemptResult | null;
   practice: { status: PracticeStatus; requestedAt: string | null };
 }
+
+/**
+ * Essai d'atelier fait sans réseau, gardé sur l'appareil puis envoyé au retour d'internet. Son
+ * identifiant d'opération sert d'identifiant d'essai : un renvoi n'est jamais compté deux fois.
+ */
+export const WorkshopAttemptEventSchema = z.object({
+  type: z.literal('workshop_attempt'),
+  operationId: z.uuid(),
+  occurredAt: z.iso.datetime({ offset: true }).optional(),
+  code: z.string().regex(/^[A-Z0-9-]{1,60}$/),
+  steps: SimulationSubmissionSchema.shape.steps,
+});
+export type WorkshopAttemptEvent = z.infer<typeof WorkshopAttemptEventSchema>;
+
+/** Liste des fichiers d'un exercice H5P à garder sur l'appareil (adresses du site). */
+export interface H5PKeepList {
+  files: Array<{ url: string; size: number }>;
+  bytes: number;
+}

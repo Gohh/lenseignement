@@ -1,4 +1,10 @@
-import { LearningEventSchema, type LearningEventResult } from '@lenseignement/types';
+import {
+  LearningEventSchema,
+  WorkshopAttemptEventSchema,
+  type LearningEventInput,
+  type LearningEventResult,
+  type WorkshopAttemptEvent,
+} from '@lenseignement/types';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiSend } from '@/lib/api';
@@ -10,7 +16,12 @@ export const dynamic = 'force-dynamic';
 
 const BodySchema = z.object({
   actions: z
-    .array(z.object({ owner: z.string().max(64), event: LearningEventSchema }))
+    .array(
+      z.object({
+        owner: z.string().max(64),
+        event: z.union([LearningEventSchema, WorkshopAttemptEventSchema]),
+      }),
+    )
     .min(1)
     .max(200),
 });
@@ -40,8 +51,28 @@ export async function POST(request: NextRequest) {
   }
 
   const owner = ownerOf(session.subject);
-  const events = parsed.data.actions.filter((a) => a.owner === owner).map((a) => a.event);
+  const mine = parsed.data.actions.filter((a) => a.owner === owner).map((a) => a.event);
+  const events = mine.filter((e): e is LearningEventInput => e.type !== 'workshop_attempt');
+  const attempts = mine.filter((e): e is WorkshopAttemptEvent => e.type === 'workshop_attempt');
   const results: LearningEventResult[] = [];
+  // Essais d'atelier : corrigés par l'API ; l'identifiant d'opération sert d'identifiant d'essai,
+  // un renvoi n'est donc jamais compté deux fois.
+  for (const attempt of attempts) {
+    const sent = await apiSend(
+      session.accessToken,
+      'POST',
+      `/me/simulations/${encodeURIComponent(attempt.code)}/attempts`,
+      { attemptId: attempt.operationId, steps: attempt.steps },
+    );
+    if (sent.ok) results.push({ operationId: attempt.operationId, status: 'applied' });
+    else if (sent.status && sent.status >= 400 && sent.status < 500 && sent.status !== 401) {
+      results.push({
+        operationId: attempt.operationId,
+        status: 'rejected',
+        message: `Atelier : ${sent.message ?? 'essai refusé.'}`,
+      });
+    } else break;
+  }
   for (let i = 0; i < events.length; i += BATCH) {
     const sent = await apiSend<{ results: LearningEventResult[] }>(
       session.accessToken,

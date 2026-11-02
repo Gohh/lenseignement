@@ -6,6 +6,8 @@
  *   techniques de navigation (RSC). Aucun jeton : le cookie de session reste au navigateur.
  * - Livres de la bibliothèque : seulement ceux que la personne a choisi de garder ; ils sont
  *   servis depuis l'appareil, même sans réseau (avec lecture par morceaux pour l'audio et la vidéo).
+ * - Ateliers gardés : leurs exercices H5P sont rangés par la page dans `lenseignement-ateliers` ;
+ *   le lecteur isolé ne passe pas par ce service worker, la page lui donne elle-même ses fichiers.
  * - La déconnexion efface tout (en-tête Clear-Site-Data), comme le bouton « Effacer mes données
  *   sur cet appareil ».
  */
@@ -15,6 +17,8 @@ const PAGES = `lenseignement-pages-${VERSION}`;
 const ASSETS = `lenseignement-assets-${VERSION}`;
 /** Livres gardés avec « Garder hors ligne » (rempli par la page, jamais automatiquement). */
 const BOOKS = 'lenseignement-livres';
+/** Exercices H5P des ateliers gardés (rempli par la page, jamais automatiquement). */
+const WORKSHOPS = 'lenseignement-ateliers';
 const BOOK_FILES = '/mon-espace/bibliotheque/fichier/';
 const OFFLINE_URL = '/hors-ligne';
 const PRECACHE = ['/', '/catalogue', OFFLINE_URL];
@@ -89,7 +93,9 @@ self.addEventListener('activate', (event) => {
         Promise.all(
           keys
             .filter(
-              (key) => key.startsWith('lenseignement-') && ![PAGES, ASSETS, BOOKS].includes(key),
+              (key) =>
+                key.startsWith('lenseignement-') &&
+                ![PAGES, ASSETS, BOOKS, WORKSHOPS].includes(key),
             )
             .map((key) => caches.delete(key)),
         ),

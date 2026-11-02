@@ -27,7 +27,7 @@ import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
-import { h5pFile, uploadH5P } from './h5p.js';
+import { h5pFile, h5pFileList, uploadH5P } from './h5p.js';
 import {
   createWorkshop,
   deleteWorkshop,
@@ -195,6 +195,14 @@ export class WorkshopsController {
 @Public()
 @Controller('h5p-files')
 export class H5PFilesController {
+  /** Liste des fichiers du paquet, pour « Garder cet atelier sur cet appareil ». */
+  @Get(':key')
+  async list(@Param('key') key: string) {
+    const list = await h5pFileList(key);
+    if (!list) throw new NotFoundException('Exercice introuvable.');
+    return list;
+  }
+
   @Get(':key/*path')
   async file(
     @Param('key') key: string,

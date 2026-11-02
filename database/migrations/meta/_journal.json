@@ -330,6 +330,13 @@
       "when": 1793577542372,
       "tag": "0046_exercices_h5p",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793581576042,
+      "tag": "0047_fabrique_exercices",
+      "breakpoints": true
     }
   ]
 }

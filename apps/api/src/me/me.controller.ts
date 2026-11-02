@@ -1,3 +1,4 @@
+import { isExerciseAuthor } from '../exercises/exercises.js';
 import {
   BadRequestException,
   Body,
@@ -73,6 +74,7 @@ export class MeController {
       workshopLearner: await isWorkshopLearner(this.db, user.id),
       /** Peut rédiger des ateliers (auteur d'une structure, ou administration). */
       workshopAuthor: await isWorkshopAuthor(this.db, user.id),
+      exerciseAuthor: await isExerciseAuthor(this.db, user.id),
     };
   }
 

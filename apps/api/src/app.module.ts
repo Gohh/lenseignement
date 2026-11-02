@@ -33,6 +33,7 @@ import { IDENTITY_ADMIN, KeycloakAdmin } from './team/identity-admin.js';
 import { loadConfig } from './config.js';
 import { TeamController } from './team/team.controller.js';
 import { StatsController } from './stats/stats.controller.js';
+import { ExerciseMediaController, ExercisesController } from './exercises/exercises.controller.js';
 import {
   H5PFilesController,
   MyWorkshopsController,
@@ -63,6 +64,8 @@ import {
     MyWorkshopsController,
     WorkshopsController,
     H5PFilesController,
+    ExercisesController,
+    ExerciseMediaController,
     StatsController,
     DirectionController,
     FamilyController,

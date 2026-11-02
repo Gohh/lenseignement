@@ -174,6 +174,14 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
             icon: 'ateliers' as const,
           },
         ]),
+        ...when(me?.exerciseAuthor ?? false, [
+          {
+            href: '/mon-espace/fabrique',
+            label: 'Fabrique d’exercices',
+            section: true,
+            icon: 'fabrique' as const,
+          },
+        ]),
         ...when(programmes, [
           {
             href: '/mon-espace/configuration/programmes',

@@ -108,10 +108,12 @@ export default async function AssignmentsPage({ searchParams }: Props) {
                 <p className="text-lg font-bold">{a.title}</p>
                 <p className="text-ink-muted">
                   {a.cohortName}
-                  {a.dueAt
-                    ? ` · à rendre avant le ${dateFormat.format(new Date(a.dueAt))}`
-                    : ''} · {a.submittedCount} copie{a.submittedCount > 1 ? 's' : ''} sur{' '}
-                  {a.learnerCount} · {a.gradedCount} corrigée{a.gradedCount > 1 ? 's' : ''}
+                  {a.exerciseCount > 0
+                    ? ` · ${a.exerciseCount} exercice${a.exerciseCount > 1 ? 's' : ''} de la Fabrique`
+                    : ''}
+                  {a.dueAt ? ` · à rendre avant le ${dateFormat.format(new Date(a.dueAt))}` : ''} ·{' '}
+                  {a.submittedCount} copie{a.submittedCount > 1 ? 's' : ''} sur {a.learnerCount} ·{' '}
+                  {a.gradedCount} corrigée{a.gradedCount > 1 ? 's' : ''}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <Link href={`/mon-espace/devoirs/${a.id}`} className={buttonClass}>
@@ -151,7 +153,24 @@ export default async function AssignmentsPage({ searchParams }: Props) {
                       {late ? ' · en retard' : ''}
                     </p>
                     <p className="mt-2 whitespace-pre-line">{a.instructions}</p>
-                    {a.mine?.score != null ? (
+                    {a.exerciseCount > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        {a.mine?.score != null && (
+                          <p className="text-lg font-bold" data-testid="grade">
+                            Note : {a.mine.score}/{a.maxScore}
+                          </p>
+                        )}
+                        <Link
+                          href={`/mon-espace/devoirs/${a.id}/faire`}
+                          className={a.mine ? secondaryButtonClass : buttonClass}
+                        >
+                          {a.mine
+                            ? 'Voir ma correction'
+                            : `Faire le devoir (${a.exerciseCount} exercice${a.exerciseCount > 1 ? 's' : ''})`}
+                          <span className="sr-only"> « {a.title} »</span>
+                        </Link>
+                      </div>
+                    ) : a.mine?.score != null ? (
                       <div className="mt-3 rounded-card border-l-4 border-primary bg-primary-soft p-3">
                         <p className="text-lg font-bold" data-testid="grade">
                           Note : {a.mine.score}/{a.maxScore}

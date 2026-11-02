@@ -2,13 +2,25 @@ import type { AssignmentItem, AssignmentReview, MySubmission } from '@lenseignem
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { teamOrganizationIds } from '../access/access.service.js';
 import type { Database } from '../db/database.js';
-import { assignments, assignmentSubmissions, cohortMembers, cohorts, users } from '../db/schema.js';
+import {
+  assignmentExercises,
+  assignments,
+  assignmentSubmissions,
+  cohortMembers,
+  cohorts,
+  users,
+} from '../db/schema.js';
 import { canManageCohort } from '../sessions/class-sessions.js';
 import { audit, TeamError } from '../team/team.js';
+import { assignmentExerciseList } from './assignment-exercises.js';
 
-const notFound = () => new TeamError('not_found', 'Devoir introuvable.');
+export const notFound = () => new TeamError('not_found', 'Devoir introuvable.');
 
-async function isLearnerOf(db: Database, userId: string, cohortId: string): Promise<boolean> {
+export async function isLearnerOf(
+  db: Database,
+  userId: string,
+  cohortId: string,
+): Promise<boolean> {
   const [row] = await db
     .select({ userId: cohortMembers.userId })
     .from(cohortMembers)
@@ -52,21 +64,22 @@ export async function createAssignment(
   return { id: row!.id };
 }
 
-async function loadAssignment(db: Database, id: string) {
+export async function loadAssignment(db: Database, id: string) {
   const [row] = await db.select().from(assignments).where(eq(assignments.id, id));
   if (!row) throw notFound();
   return row;
 }
 
-async function managedAssignment(db: Database, userId: string, id: string) {
+export async function managedAssignment(db: Database, userId: string, id: string) {
   const row = await loadAssignment(db, id);
   if (!(await canManageCohort(db, userId, row.cohortId))) throw notFound();
   return row;
 }
 
-const toSubmission = (s: {
+export const toSubmission = (s: {
   id: string;
   body: string;
+  results: MySubmission['results'];
   submittedAt: Date;
   score: number | null;
   comment: string | null;
@@ -74,6 +87,7 @@ const toSubmission = (s: {
 }): MySubmission & { id: string } => ({
   id: s.id,
   body: s.body,
+  results: s.results ?? null,
   submittedAt: s.submittedAt.toISOString(),
   score: s.score,
   comment: s.comment,
@@ -113,6 +127,8 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
         where s.assignment_id = ${assignments.id})`,
       gradedCount: sql<number>`(select count(*)::int from assignment_submissions s
         where s.assignment_id = ${assignments.id} and s.score is not null)`,
+      exerciseCount: sql<number>`(select count(*)::int from assignment_exercises ae
+        where ae.assignment_id = ${assignments.id})`,
     })
     .from(assignments)
     .innerJoin(cohorts, eq(cohorts.id, assignments.cohortId))
@@ -152,6 +168,7 @@ export async function myAssignments(db: Database, userId: string): Promise<Assig
       learnerCount: r.learnerCount,
       submittedCount: r.submittedCount,
       gradedCount: r.gradedCount,
+      exerciseCount: r.exerciseCount,
     });
   }
   return items;
@@ -166,6 +183,17 @@ export async function submitAssignment(
 ): Promise<void> {
   const assignment = await loadAssignment(db, assignmentId);
   if (!(await isLearnerOf(db, userId, assignment.cohortId))) throw notFound();
+  const [exercise] = await db
+    .select({ id: assignmentExercises.exerciseId })
+    .from(assignmentExercises)
+    .where(eq(assignmentExercises.assignmentId, assignmentId))
+    .limit(1);
+  if (exercise) {
+    throw new TeamError(
+      'invalid',
+      'Ce devoir se fait avec ses exercices : ouvre « Faire le devoir ».',
+    );
+  }
   const [existing] = await db
     .select({ id: assignmentSubmissions.id, score: assignmentSubmissions.score })
     .from(assignmentSubmissions)
@@ -209,8 +237,11 @@ export async function reviewAssignment(
     .select()
     .from(assignmentSubmissions)
     .where(eq(assignmentSubmissions.assignmentId, assignmentId));
+  const exercises = await assignmentExerciseList(db, assignmentId);
   return {
     assignment: item,
+    exercises,
+    exercisesLocked: subs.length > 0,
     rows: learners.map((l) => {
       const s = subs.find((x) => x.learnerUserId === l.id);
       return {

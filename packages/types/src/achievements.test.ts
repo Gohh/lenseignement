@@ -30,6 +30,7 @@ const homework = (score: number | null, max = 20): AssignmentItem => ({
   mine: {
     id: 's',
     body: 'x',
+    results: null,
     submittedAt: '2026-01-02T00:00:00Z',
     score,
     comment: null,
@@ -38,6 +39,7 @@ const homework = (score: number | null, max = 20): AssignmentItem => ({
   learnerCount: 0,
   submittedCount: 0,
   gradedCount: 0,
+  exerciseCount: 0,
 });
 
 const earned = (plan: LearningPlanItem[], list: AssignmentItem[]) =>

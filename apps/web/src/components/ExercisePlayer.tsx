@@ -55,58 +55,51 @@ function Choices({
 }
 
 /**
- * Un exercice tel que l'élève le voit (sans corrigé). La réponse est corrigée par la plateforme
- * (`check`), jamais dans le navigateur.
+ * Champs de réponse d'un exercice (sans corrigé). La réponse est tenue par le parent : un seul
+ * exercice (aperçu) ou tout un devoir.
  */
-export function ExercisePlayer({
+export function ExerciseInputs({
   play,
-  check,
+  answer,
+  onChange,
+  name,
 }: {
   play: ExercisePlay;
-  check: (answer: ExerciseAnswer) => Promise<ExerciseResult | { error: string }>;
+  answer: ExerciseAnswer;
+  onChange: (answer: ExerciseAnswer) => void;
+  /** Préfixe des boutons radio, unique dans la page. */
+  name: string;
 }) {
-  const [choices, setChoices] = useState<number[]>([]);
-  const [texts, setTexts] = useState<string[]>([]);
-  const [result, setResult] = useState<ExerciseResult | { error: string } | null>(null);
-  const [pending, start] = useTransition();
-  const pick = (i: number, v: number) =>
-    setChoices((list) => {
-      const next = [...list];
-      while (next.length <= i) next.push(-1);
-      next[i] = v;
-      return next;
-    });
-  const write = (i: number, v: string) =>
-    setTexts((list) => {
-      const next = [...list];
-      while (next.length <= i) next.push('');
-      next[i] = v;
-      return next;
-    });
-  const reset = () => {
-    setChoices([]);
-    setTexts([]);
-    setResult(null);
+  const { choices, texts } = answer;
+  const pick = (i: number, v: number) => {
+    const next = [...choices];
+    while (next.length <= i) next.push(-1);
+    next[i] = v;
+    onChange({ choices: next, texts });
+  };
+  const write = (i: number, v: string) => {
+    const next = [...texts];
+    while (next.length <= i) next.push('');
+    next[i] = v;
+    onChange({ choices, texts: next });
   };
 
   return (
-    <form
-      className="space-y-4"
-      data-testid="exercise-player"
-      onSubmit={(event) => {
-        event.preventDefault();
-        start(async () => setResult(await check({ choices, texts })));
-      }}
-    >
+    <div className="space-y-4">
       {play.kind !== 'gaps' && <p className="text-lg font-bold">{play.prompt}</p>}
       {play.media && <ExerciseMediaView media={play.media} />}
 
       {(play.kind === 'choice' || play.kind === 'media') && (
-        <Choices name="r0" choices={play.choices} value={choices[0]} onChange={(v) => pick(0, v)} />
+        <Choices
+          name={`${name}-0`}
+          choices={play.choices}
+          value={choices[0]}
+          onChange={(v) => pick(0, v)}
+        />
       )}
       {play.kind === 'truefalse' && (
         <Choices
-          name="r0"
+          name={`${name}-0`}
           choices={['Vrai', 'Faux']}
           value={choices[0]}
           onChange={(v) => pick(0, v)}
@@ -212,7 +205,7 @@ export function ExercisePlayer({
             </table>
           </div>
           <Choices
-            name="r0"
+            name={`${name}-0`}
             choices={play.choices}
             value={choices[0]}
             onChange={(v) => pick(0, v)}
@@ -230,7 +223,7 @@ export function ExercisePlayer({
                 {i + 1}. {q.prompt}
               </legend>
               <Choices
-                name={`r${i}`}
+                name={`${name}-${i}`}
                 choices={q.choices}
                 value={choices[i]}
                 onChange={(v) => pick(i, v)}
@@ -239,6 +232,39 @@ export function ExercisePlayer({
           ))}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Un exercice tel que l'élève le voit (sans corrigé). La réponse est corrigée par la plateforme
+ * (`check`), jamais dans le navigateur.
+ */
+export function ExercisePlayer({
+  play,
+  check,
+}: {
+  play: ExercisePlay;
+  check: (answer: ExerciseAnswer) => Promise<ExerciseResult | { error: string }>;
+}) {
+  const [answer, setAnswer] = useState<ExerciseAnswer>({ choices: [], texts: [] });
+  const [result, setResult] = useState<ExerciseResult | { error: string } | null>(null);
+  const [pending, start] = useTransition();
+  const reset = () => {
+    setAnswer({ choices: [], texts: [] });
+    setResult(null);
+  };
+
+  return (
+    <form
+      className="space-y-4"
+      data-testid="exercise-player"
+      onSubmit={(event) => {
+        event.preventDefault();
+        start(async () => setResult(await check(answer)));
+      }}
+    >
+      <ExerciseInputs play={play} answer={answer} onChange={setAnswer} name="apercu" />
 
       <div className="flex flex-wrap gap-3">
         <button type="submit" className={buttonClass} disabled={pending}>

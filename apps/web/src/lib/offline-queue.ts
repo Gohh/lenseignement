@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  AssignmentAnswersEvent,
   LearningEventInput,
   LearningEventResult,
   WorkshopAttemptEvent,
@@ -13,8 +14,8 @@ import type {
  */
 
 export interface QueuedAction {
-  /** Action d'un cours (leçon, quiz) ou essai d'atelier fait sans connexion. */
-  event: LearningEventInput | WorkshopAttemptEvent;
+  /** Action d'un cours (leçon, quiz), essai d'atelier ou devoir fait sans connexion. */
+  event: LearningEventInput | WorkshopAttemptEvent | AssignmentAnswersEvent;
   /** Personne qui a fait l'action (empreinte, pas d'identifiant en clair) : voir `ownerOf`. */
   owner: string;
 }
@@ -140,6 +141,8 @@ export async function clearDeviceData(): Promise<void> {
   try {
     window.localStorage.removeItem('lse-ateliers-gardes');
     window.dispatchEvent(new Event('lse-ateliers'));
+    window.localStorage.removeItem('lse-devoirs-gardes');
+    window.dispatchEvent(new Event('lse-devoirs'));
   } catch {
     // Rien à effacer.
   }

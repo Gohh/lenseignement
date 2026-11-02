@@ -1,5 +1,6 @@
 import {
   type CampaignSummary,
+  type OralCampaignSummary,
   BRANCHES,
   PILOT_CYCLE_LABELS,
   PILOT_CYCLES,
@@ -92,12 +93,25 @@ export default async function StatsPage({ searchParams }: Props) {
   if (periode && (PILOT_PERIODS as readonly string[]).includes(periode))
     params.set('periode', periode);
   const qs = params.toString();
-  const [pilot, stats, campaignList] = await Promise.all([
+  const [pilot, stats, campaignList, oralList] = await Promise.all([
     apiGet<PilotOverview>(session.accessToken, `/stats/pilotage${qs ? `?${qs}` : ''}`),
     apiGet<StatsOverview>(session.accessToken, '/stats/overview'),
     apiGet<{ items: CampaignSummary[] }>(session.accessToken, '/authoring/campaigns/stats'),
+    apiGet<{ items: OralCampaignSummary[] }>(session.accessToken, '/oral/campaigns/stats'),
   ]);
-  const campaigns = campaignList.ok ? campaignList.data.items : [];
+  // Campagnes écrites et orales, les plus récentes d'abord.
+  const campaigns = [
+    ...(campaignList.ok ? campaignList.data.items : []).map((c) => ({
+      ...c,
+      oral: false,
+      href: `/mon-espace/statistiques/campagnes/${c.id}`,
+    })),
+    ...(oralList.ok ? oralList.data.items : []).map((c) => ({
+      ...c,
+      oral: true,
+      href: `/mon-espace/statistiques/campagnes/orale/${c.id}`,
+    })),
+  ].sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
   /** Lien vers le tableau avec un réglage changé. */
   const link = (changes: Record<string, string | null>) => {
@@ -614,16 +628,20 @@ export default async function StatsPage({ searchParams }: Props) {
               {campaigns.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-3 py-3">
                   <div className="min-w-0 flex-1 basis-60">
-                    <p className="font-bold">{c.title}</p>
+                    <p className="font-bold">
+                      {c.title}
+                      {c.oral && (
+                        <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-sm text-primary">
+                          Orale
+                        </span>
+                      )}
+                    </p>
                     <p className="text-sm text-ink-muted">
                       {zoneLabel(c)} · {levelName(c)} · du {startDay(c)} au {lastDay(c)}
                     </p>
                   </div>
                   {c.status === 'close' ? (
-                    <Link
-                      href={`/mon-espace/statistiques/campagnes/${c.id}`}
-                      className={buttonOutline}
-                    >
+                    <Link href={c.href} className={buttonOutline}>
                       Voir les résultats<span className="sr-only"> de « {c.title} »</span>
                     </Link>
                   ) : (

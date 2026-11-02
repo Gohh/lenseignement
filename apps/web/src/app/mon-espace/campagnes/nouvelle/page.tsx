@@ -3,6 +3,7 @@ import {
   levelLabel,
   type CampaignOptions,
   type CampaignPreview,
+  type OralCampaignOptions,
 } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -11,7 +12,7 @@ import { PendingButton } from '@/components/PendingButton';
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { createCampaignAction } from '../actions';
-import { HOME } from '../parts';
+import { HOME, zoneLabel } from '../parts';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Lancer une campagne' };
@@ -32,9 +33,29 @@ export default async function NewCampaignPage({
   const session = await getSession();
   if (!session) redirect(`/auth/login?returnTo=${HOME}/nouvelle`);
   const query = (await searchParams) ?? {};
-  const res = await apiGet<CampaignOptions>(session.accessToken, '/authoring/campaigns/options');
-  const { zones, exams } = res.ok ? res.data : { zones: [], exams: [] };
+  // Campagne écrite (épreuve de la banque) ou orale (épreuve orale publiée).
+  const oral = param(query.type) === 'orale';
+  let zones: CampaignOptions['zones'] = [];
+  let exams: Array<{ id: string; label: string; title: string }> = [];
+  if (oral) {
+    const res = await apiGet<OralCampaignOptions>(session.accessToken, '/oral/campaigns/options');
+    zones = res.ok ? res.data.zones : [];
+    exams = (res.ok ? res.data.tests : []).map((t) => ({
+      id: t.id,
+      title: t.title,
+      label: `${t.title} · ${levelLabel(t.level) ?? t.level} · ${t.organization}`,
+    }));
+  } else {
+    const res = await apiGet<CampaignOptions>(session.accessToken, '/authoring/campaigns/options');
+    zones = res.ok ? res.data.zones : [];
+    exams = (res.ok ? res.data.exams : []).map((e) => ({
+      id: e.id,
+      title: e.title,
+      label: `${e.title} · ${e.itemCount} questions · ${e.organization}`,
+    }));
+  }
   const value = {
+    type: oral ? 'orale' : 'ecrite',
     title: param(query.title) ?? '',
     zone: param(query.zone) ?? zones[0]?.id ?? 'pays',
     level: param(query.level) ?? '',
@@ -61,7 +82,25 @@ export default async function NewCampaignPage({
       <Link href={HOME} className="inline-flex min-h-[44px] items-center underline">
         ← Campagnes d’évaluation
       </Link>
-      <h1 className="text-3xl font-extrabold">Lancer une campagne</h1>
+      <h1 className="text-3xl font-extrabold">
+        {oral ? 'Lancer une campagne orale' : 'Lancer une campagne'}
+      </h1>
+      <nav aria-label="Type de campagne" className="flex flex-wrap gap-2">
+        <Link
+          href={`${HOME}/nouvelle`}
+          aria-current={oral ? undefined : 'page'}
+          className={oral ? secondaryButtonClass : buttonClass}
+        >
+          Épreuve écrite
+        </Link>
+        <Link
+          href={`${HOME}/nouvelle?type=orale`}
+          aria-current={oral ? 'page' : undefined}
+          className={oral ? buttonClass : secondaryButtonClass}
+        >
+          Épreuve orale
+        </Link>
+      </nav>
       <Notice message={param(query.message)} error={param(query.erreur)} />
       {zones.length === 0 ? (
         <p>
@@ -69,16 +108,27 @@ export default async function NewCampaignPage({
           centrales, les DRENA et les IEPP.
         </p>
       ) : exams.length === 0 ? (
-        <p>
-          Aucune épreuve d’au moins quatre questions dans votre zone.{' '}
-          <Link href="/mon-espace/epreuves" className="underline">
-            Préparez d’abord une épreuve
-          </Link>
-          .
-        </p>
+        oral ? (
+          <p>
+            Aucune épreuve orale publiée.{' '}
+            <Link href="/mon-espace/oral" className="underline">
+              Préparez d’abord une épreuve orale
+            </Link>
+            .
+          </p>
+        ) : (
+          <p>
+            Aucune épreuve d’au moins quatre questions dans votre zone.{' '}
+            <Link href="/mon-espace/epreuves" className="underline">
+              Préparez d’abord une épreuve
+            </Link>
+            .
+          </p>
+        )
       ) : (
         <>
           <form method="get" className="space-y-5 rounded-big border border-line bg-surface p-5">
+            {oral && <input type="hidden" name="type" value="orale" />}
             <label className="block font-bold">
               Titre de la campagne
               <input
@@ -91,12 +141,12 @@ export default async function NewCampaignPage({
               />
             </label>
             <label className="block font-bold">
-              Épreuve
+              {oral ? 'Épreuve orale' : 'Épreuve'}
               <select name="examId" className={inputClass} required defaultValue={value.examId}>
                 <option value="">Choisir…</option>
                 {exams.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.title} · {e.itemCount} questions · {e.organization}
+                    {e.label}
                   </option>
                 ))}
               </select>
@@ -107,9 +157,7 @@ export default async function NewCampaignPage({
                 <select name="zone" className={inputClass} required defaultValue={value.zone}>
                   {zones.map((z) => (
                     <option key={z.id ?? 'pays'} value={z.id ?? 'pays'}>
-                      {z.kind === 'pays'
-                        ? z.name
-                        : `${z.kind === 'iepp' ? 'IEPP' : 'DRENA'} ${z.name}`}
+                      {z.kind === 'pays' ? z.name : zoneLabel({ zone: z })}
                     </option>
                   ))}
                 </select>
@@ -151,9 +199,9 @@ export default async function NewCampaignPage({
               </label>
             </div>
             <p className="text-sm text-ink-muted">
-              Toutes les classes de ce niveau dans les écoles de la zone reçoivent l’épreuve. Chaque
-              école choisit ensuite, classe par classe, en ligne ou sur papier. Les élèves la voient
-              le premier jour ; les notes restent cachées jusqu’au lendemain du dernier jour.
+              {oral
+                ? 'Toutes les classes de ce niveau dans les écoles de la zone sont concernées. Les enseignants font passer l’épreuve orale élève par élève pendant ces dates ; les chiffres de la zone s’ouvrent à la clôture, sans nom d’élève.'
+                : 'Toutes les classes de ce niveau dans les écoles de la zone reçoivent l’épreuve. Chaque école choisit ensuite, classe par classe, en ligne ou sur papier. Les élèves la voient le premier jour ; les notes restent cachées jusqu’au lendemain du dernier jour.'}
             </p>
             <button type="submit" className={ready ? secondaryButtonClass : buttonClass}>
               Voir les classes concernées

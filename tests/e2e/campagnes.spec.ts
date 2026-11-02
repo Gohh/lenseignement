@@ -117,12 +117,12 @@ test('campagne de zone : lancée, passée, suivie, close', async ({ browser, pag
     .getByRole('navigation', { name: 'Menu de mon espace' })
     .getByRole('link', { name: 'Campagnes d’évaluation' })
     .click();
-  await page.getByRole('link', { name: 'Lancer une campagne' }).click();
+  await page.getByRole('link', { name: 'Lancer une campagne', exact: true }).click();
   await page.getByLabel('Titre de la campagne').fill(title);
   await page
     .getByLabel('Épreuve')
     .selectOption({ label: `Sciences CM1 ${tag} · 4 questions · EPP Les Flamboyants ${tag}` });
-  await page.getByLabel('Zone').selectOption({ label: `DRENA DRENA Campagne ${tag}` });
+  await page.getByLabel('Zone').selectOption({ label: `DRENA Campagne ${tag}` });
   await page.getByLabel('Niveau').selectOption('cm1');
   await page.getByRole('button', { name: 'Voir les classes concernées' }).click();
   const preview = page.getByTestId('campaign-preview');

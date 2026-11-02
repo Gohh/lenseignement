@@ -2,6 +2,7 @@ import { levelLabel, type OralClassResults } from '@lenseignement/types';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Tile } from '@/components/ExamCharts';
+import { OralBands, OralPartBars } from '@/components/OralCharts';
 import { Notice, param, secondaryButtonClass } from '@/components/Notice';
 import { PrintButton } from '@/app/mon-espace/statistiques/PrintButton';
 import { apiGet } from '@/lib/api';
@@ -11,14 +12,6 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Résultats oraux de la classe' };
 
 const ID = /^[0-9a-f-]{36}$/i;
-
-// Répartition : du plus fragile au repère atteint ; chaque bande a aussi son nom et son nombre.
-const BAND_STYLE: Record<OralClassResults['bands'][number]['key'], string> = {
-  zero: 'bg-[#d03b3b]',
-  debut: 'bg-[#fab219]',
-  progres: 'bg-[#8fc9a8]',
-  repere: 'bg-primary',
-};
 
 /** Résultats d'une classe : médiane par minute, élèves à zéro, repère atteint, élève par élève. */
 export default async function OralResultsPage({
@@ -113,60 +106,14 @@ export default async function OralResultsPage({
           data-testid="oral-bands"
         >
           <h2 className="font-display text-xl font-bold">Où en sont les élèves</h2>
-          <div
-            className="flex h-4 gap-[2px] overflow-hidden rounded-full"
-            role="img"
-            aria-label={r.bands.map((b) => `${b.label} : ${b.count}`).join(', ')}
-          >
-            {r.bands
-              .filter((b) => b.count > 0)
-              .map((b) => (
-                <div
-                  key={b.key}
-                  className={BAND_STYLE[b.key]}
-                  style={{ width: `${(b.count * 100) / total}%` }}
-                />
-              ))}
-          </div>
-          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {r.bands.map((b) => (
-              <li key={b.key} className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className={`inline-block h-3 w-3 rounded-sm ${BAND_STYLE[b.key]}`}
-                />
-                {b.label} : <strong>{b.count}</strong>
-              </li>
-            ))}
-          </ul>
+          <OralBands bands={r.bands} />
         </div>
       )}
 
       {r.evaluated > 0 && (
         <div className="space-y-3 rounded-big border border-line bg-surface p-5">
           <h2 className="font-display text-xl font-bold">Moyenne par partie</h2>
-          <ul className="space-y-3">
-            {r.byPart.map((p, i) => (
-              <li key={i}>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-bold">{p.title}</span>
-                  <span className="text-sm">
-                    <strong>{p.average}</strong> <span className="text-ink-muted">{p.unit}</span>
-                  </span>
-                </div>
-                <div
-                  className="mt-1 h-3 rounded-full bg-line"
-                  role="img"
-                  aria-label={`${p.title} : ${p.average} ${p.unit}`}
-                >
-                  <div
-                    className="h-3 rounded-full bg-primary"
-                    style={{ width: `${Math.max(1, Math.min(100, (p.average * 100) / p.max))}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+          <OralPartBars parts={r.byPart} />
         </div>
       )}
 

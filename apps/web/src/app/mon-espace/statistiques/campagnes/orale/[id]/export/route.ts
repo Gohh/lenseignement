@@ -1,0 +1,118 @@
+import type { OralCampaignResultRow, OralCampaignResults } from '@lenseignement/types';
+import ExcelJS from 'exceljs';
+import { apiGet } from '@/lib/api';
+import { getSession } from '@/lib/session';
+
+// Résultats d'une campagne orale pour Excel : un onglet par section, aucun nom d'élève ; un
+// chiffre masqué (moins de 5 élèves) s'écrit « – ».
+
+const slug = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+function sheet(book: ExcelJS.Workbook, name: string, header: string[], rows: unknown[][]) {
+  const ws = book.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.addRow(header);
+  ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF146B46' } };
+  for (const r of rows) ws.addRow(r);
+  ws.columns.forEach((col, i) => {
+    col.width = Math.min(
+      50,
+      Math.max(12, header[i]!.length + 2, ...rows.map((r) => String(r[i] ?? '').length + 2)),
+    );
+  });
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: header.length } };
+}
+
+const cells = (r: OralCampaignResultRow, withGroup: boolean) => [
+  r.name,
+  ...(withGroup ? [r.group] : []),
+  r.expected,
+  r.evaluated,
+  r.median ?? '–',
+  r.zeroRate ?? '–',
+  r.benchmarkRate ?? '–',
+];
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const session = await getSession();
+  if (!session) return new Response('Connexion requise.', { status: 401 });
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response('Introuvable.', { status: 404 });
+  const res = await apiGet<OralCampaignResults>(
+    session.accessToken,
+    `/oral/campaigns/${id}/results`,
+  );
+  if (!res.ok) return new Response('Résultats indisponibles.', { status: res.status });
+  const r = res.data;
+  const c = r.campaign;
+  const book = new ExcelJS.Workbook();
+  book.creator = 'L’Enseignement';
+  sheet(
+    book,
+    'Synthèse',
+    ['Indicateur', 'Valeur'],
+    [
+      ['Campagne', c.title],
+      ['Zone', c.zone.name],
+      ['Épreuve orale', c.test.title],
+      ['Partie suivie', r.reference.title],
+      ['Repère', r.benchmark ? `${r.benchmark.perMinute} ${r.reference.unit}` : '–'],
+      ['Élèves attendus', r.expected],
+      ['Élèves évalués', r.evaluated],
+      [`Score du milieu (${r.reference.unit})`, r.median ?? '–'],
+      ['Élèves à zéro (%)', r.zeroRate ?? '–'],
+      ['Repère atteint (%)', r.benchmarkRate ?? '–'],
+      ['Préparé par', session.displayName ?? ''],
+    ],
+  );
+  const head = [
+    'Élèves attendus',
+    'Évalués',
+    `Score du milieu (${r.reference.unit})`,
+    'À zéro (%)',
+    'Repère atteint (%)',
+  ];
+  if (r.groupLabel && r.groups.length > 0) {
+    sheet(
+      book,
+      `Par ${r.groupLabel}`,
+      [r.groupLabel, ...head],
+      r.groups.map((g) => cells(g, false)),
+    );
+  }
+  sheet(
+    book,
+    'Par école',
+    ['École', ...(r.groupLabel ? [r.groupLabel] : []), ...head],
+    r.schools.map((s) => cells(s, Boolean(r.groupLabel))),
+  );
+  sheet(
+    book,
+    'Par partie',
+    ['Partie', 'Moyenne', 'Unité'],
+    r.byPart.map((p) => [p.title, p.average, p.unit]),
+  );
+  sheet(
+    book,
+    'Répartition',
+    ['Groupe', 'Élèves'],
+    r.bands.map((b) => [b.label, b.count]),
+  );
+  const file = await book.xlsx.writeBuffer();
+  return new Response(file, {
+    headers: {
+      'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'content-disposition': `attachment; filename="campagne-orale-${slug(c.title)}.xlsx"`,
+      'cache-control': 'no-store',
+    },
+  });
+}

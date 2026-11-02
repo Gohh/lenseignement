@@ -28,6 +28,7 @@ function idOf(form: FormData): string {
 }
 
 export async function createCampaignAction(form: FormData): Promise<void> {
+  if (text(form, 'type') === 'orale') return createOralCampaignAction(form);
   const zone = text(form, 'zone');
   const fields = {
     examId: text(form, 'examId'),
@@ -121,4 +122,55 @@ export async function deleteCampaignAction(form: FormData): Promise<void> {
   const result = await apiSend(await token(path), 'DELETE', `/authoring/campaigns/${id}`);
   if (!result.ok) back(path, 'erreur', result.message ?? 'Suppression impossible.');
   back(HOME, 'message', 'Campagne supprimée.');
+}
+
+async function createOralCampaignAction(form: FormData): Promise<void> {
+  const zone = text(form, 'zone');
+  const fields = {
+    testId: text(form, 'examId'),
+    title: text(form, 'title'),
+    zoneId: zone === 'pays' ? null : zone,
+    level: text(form, 'level'),
+    startsAt: text(form, 'startsAt'),
+    endsAt: text(form, 'endsAt'),
+  };
+  const query = new URLSearchParams({
+    type: 'orale',
+    zone,
+    level: fields.level,
+    examId: fields.testId,
+    title: fields.title,
+    startsAt: fields.startsAt,
+    endsAt: fields.endsAt,
+  });
+  const path = `${HOME}/nouvelle?${query.toString()}`;
+  const result = await apiSend<{ id: string; classes: number }>(
+    await token(`${HOME}/nouvelle`),
+    'POST',
+    '/oral/campaigns',
+    fields,
+  );
+  if (!result.ok) back(path, 'erreur', result.message ?? 'Lancement impossible.');
+  const n = result.data.classes;
+  back(
+    `${HOME}/orale/${result.data.id}`,
+    'message',
+    `Campagne orale lancée : ${n} classe${n > 1 ? 's sont concernées' : ' est concernée'}. Les enseignants la font passer dans « Évaluations orales ».`,
+  );
+}
+
+export async function closeOralCampaignAction(form: FormData): Promise<void> {
+  const id = idOf(form);
+  const path = `${HOME}/orale/${id}`;
+  const result = await apiSend(await token(path), 'POST', `/oral/campaigns/${id}/close`);
+  if (!result.ok) back(path, 'erreur', result.message ?? 'Clôture impossible.');
+  back(path, 'message', 'Campagne orale close : les résultats de la zone sont ouverts.');
+}
+
+export async function deleteOralCampaignAction(form: FormData): Promise<void> {
+  const id = idOf(form);
+  const path = `${HOME}/orale/${id}`;
+  const result = await apiSend(await token(path), 'DELETE', `/oral/campaigns/${id}`);
+  if (!result.ok) back(path, 'erreur', result.message ?? 'Suppression impossible.');
+  back(HOME, 'message', 'Campagne orale supprimée.');
 }

@@ -28,6 +28,8 @@ test('épreuve orale créée, publiée, passée en classe et hors ligne, résult
   context,
 }, testInfo) => {
   const title = `Lecture à voix haute ${testInfo.project.name}-${Date.now()}`;
+  // Pas de repère pour ce niveau : la page le dit.
+  await sql(`delete from oral_benchmarks where level = 'cp1' and subject = 'lecture'`);
 
   await loginAs(page, 'enseignant.demo', '/mon-espace/oral');
   await expect(page.getByRole('heading', { level: 1, name: 'Évaluations orales' })).toBeVisible();

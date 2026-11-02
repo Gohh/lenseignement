@@ -4,6 +4,7 @@ import type {
   AssignmentAnswersEvent,
   LearningEventInput,
   LearningEventResult,
+  OralResultEvent,
   WorkshopAttemptEvent,
 } from '@lenseignement/types';
 
@@ -14,8 +15,8 @@ import type {
  */
 
 export interface QueuedAction {
-  /** Action d'un cours (leçon, quiz), essai d'atelier ou devoir fait sans connexion. */
-  event: LearningEventInput | WorkshopAttemptEvent | AssignmentAnswersEvent;
+  /** Action d'un cours (leçon, quiz), essai d'atelier, devoir ou évaluation orale sans connexion. */
+  event: LearningEventInput | WorkshopAttemptEvent | AssignmentAnswersEvent | OralResultEvent;
   /** Personne qui a fait l'action (empreinte, pas d'identifiant en clair) : voir `ownerOf`. */
   owner: string;
 }

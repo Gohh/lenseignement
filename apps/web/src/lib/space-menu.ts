@@ -153,6 +153,14 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
           },
           { href: '/mon-espace/messages', label: 'Messages', icon: 'messages' as const },
         ]),
+        ...when(me?.oral ?? false, [
+          {
+            href: '/mon-espace/oral',
+            label: 'Évaluations orales',
+            section: true,
+            icon: 'oral' as const,
+          },
+        ]),
         ...when(teaching || admin, [
           {
             href: '/mon-espace/questions',

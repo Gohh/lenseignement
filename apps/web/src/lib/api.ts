@@ -107,6 +107,8 @@ export interface Me {
   exerciseAuthor?: boolean;
   /** Lance des campagnes d'évaluation, ou en a dans ses classes. */
   campaigns?: boolean;
+  /** Fait passer ou rédige des évaluations orales. */
+  oral?: boolean;
 }
 
 export interface CohortSummary {

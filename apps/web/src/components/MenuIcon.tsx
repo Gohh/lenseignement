@@ -22,6 +22,8 @@ const PATHS = {
   // Chronomètre : une épreuve se passe en temps donné.
   campagnes: 'M5 21V4M5 4h12l-2.5 4 2.5 4H5',
   epreuves: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16M12 9v4l2.5 2M10 2h4M19 6l1.5-1.5',
+  // Bulle de parole : l'élève lit à voix haute.
+  oral: 'M4 5h16v10H9l-5 4zM8 9h8M8 12h5',
   programmes: 'M8 6h12M8 12h12M8 18h12M4 6h.5M4 12h.5M4 18h.5',
   etablissements: 'M3 21h18M5 21V10l7-5 7 5v11M10 21v-5h4v5M12 10v2',
   drena: 'M4 21V5l8-2 8 2v16M4 21h16M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4',

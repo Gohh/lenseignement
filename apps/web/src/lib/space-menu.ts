@@ -181,6 +181,12 @@ export function staffMenu(sessionRoles: readonly string[], me: Me | null): Staff
             section: true,
             icon: 'fabrique' as const,
           },
+          {
+            href: '/mon-espace/epreuves',
+            label: 'Épreuves',
+            section: true,
+            icon: 'epreuves' as const,
+          },
         ]),
         ...when(programmes, [
           {

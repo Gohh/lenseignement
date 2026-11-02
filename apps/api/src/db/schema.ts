@@ -1376,6 +1376,56 @@ export const classSessions = pgTable(
   ],
 );
 
+/**
+ * Épreuve « type PASEC, TIMSS, ENIA » (étape 4 de la Fabrique) : une série d'exercices publiés,
+ * choisie selon les parts par domaine d'un modèle, puis donnée à des classes comme un devoir.
+ */
+export const exams = pgTable(
+  'exams',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    authorId: uuid('author_id').references(() => users.id),
+    title: text('title').notNull(),
+    model: text('model').notNull(),
+    curriculumVersionId: uuid('curriculum_version_id')
+      .notNull()
+      .references(() => curriculumVersions.id),
+    shares: jsonb('shares').$type<Record<string, number>>().notNull(),
+    questionCount: integer('question_count').notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    threshold: integer('threshold').notNull().default(50),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('exams_organization_idx').on(t.organizationId),
+    check('exams_question_count_check', sql`${t.questionCount} between 4 and 40`),
+    check('exams_duration_check', sql`${t.durationMinutes} between 5 and 240`),
+    check('exams_threshold_check', sql`${t.threshold} between 1 and 100`),
+  ],
+);
+
+/** Questions d'une épreuve, dans l'ordre. */
+export const examItems = pgTable(
+  'exam_items',
+  {
+    examId: uuid('exam_id')
+      .notNull()
+      .references(() => exams.id, { onDelete: 'cascade' }),
+    exerciseId: uuid('exercise_id')
+      .notNull()
+      .references(() => exercises.id),
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.examId, t.exerciseId] }),
+    index('exam_items_exercise_idx').on(t.exerciseId),
+  ],
+);
+
 /** Devoir donné par un enseignant à une classe. */
 export const assignments = pgTable(
   'assignments',
@@ -1391,10 +1441,13 @@ export const assignments = pgTable(
     instructions: text('instructions').notNull(),
     dueAt: timestamp('due_at', { withTimezone: true }),
     maxScore: integer('max_score').notNull().default(20),
+    /** Devoir né d'une épreuve : ses résultats se lisent aussi sur la page de l'épreuve. */
+    examId: uuid('exam_id').references(() => exams.id),
     createdAt: createdAt(),
   },
   (t) => [
     index('assignments_cohort_idx').on(t.cohortId),
+    index('assignments_exam_idx').on(t.examId),
     check('assignments_max_score_check', sql`${t.maxScore} between 1 and 100`),
   ],
 );

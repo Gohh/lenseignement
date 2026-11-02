@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { closeDb, sql } from './support/db';
 
 const loginAs = (page: Page, username: string, returnTo = '/mon-espace') =>
   page.goto(`/auth/login?returnTo=${encodeURIComponent(returnTo)}&login_hint=${username}`);
@@ -60,6 +61,16 @@ test.describe('Code parent : relier le parent à l’élève inscrit par l’éc
   }, testInfo) => {
     // Un élève par appareil : les deux projets tournent en même temps sur la même base.
     const learner = testInfo.project.name === 'mobile' ? 'Kouamé' : 'Aya';
+    // Deux parents au plus par élève : on retire ceux des passages précédents (base gardée).
+    await sql(
+      `delete from guardian_links
+        where learner_user_id = $1 and guardian_user_id::text not like '40000000-%'`,
+      [
+        testInfo.project.name === 'mobile'
+          ? '40000000-0000-4000-8000-000000000101'
+          : '40000000-0000-4000-8000-000000000102',
+      ],
+    );
     await loginAs(
       page,
       'directeur.demo',
@@ -97,4 +108,8 @@ test.describe('Code parent : relier le parent à l’élève inscrit par l’éc
     await expect(parent.getByText('CP1 A').first()).toBeVisible();
     await parentContext.close();
   });
+});
+
+test.afterAll(async () => {
+  await closeDb();
 });

@@ -66,19 +66,21 @@ export const WORKSHOP_STATUS_LABELS: Record<WorkshopStatus, string> = {
   archived: 'Retiré',
 };
 
-export const WORKSHOP_STEP_KINDS = ['identify', 'equipment', 'order'] as const;
+export const WORKSHOP_STEP_KINDS = ['identify', 'equipment', 'order', 'h5p'] as const;
 export type WorkshopStepKind = (typeof WORKSHOP_STEP_KINDS)[number];
 
 export const WORKSHOP_STEP_KIND_LABELS: Record<WorkshopStepKind, string> = {
   identify: 'Reconnaître',
   equipment: 'Choisir l’équipement',
   order: 'Remettre dans l’ordre',
+  h5p: 'Exercice H5P',
 };
 
 export const WORKSHOP_STEP_KIND_HINTS: Record<WorkshopStepKind, string> = {
   identify: 'Des questions à choix : une seule bonne réponse par question.',
   equipment: 'Une liste d’équipements : l’élève coche ceux qu’il faut prendre.',
   order: 'Des gestes à remettre dans le bon ordre.',
+  h5p: 'Un exercice interactif ou un simulateur au format H5P (fichier .h5p).',
 };
 
 const text = (max: number) => z.string().trim().min(1, 'Champ à remplir.').max(max);
@@ -118,6 +120,16 @@ export const WorkshopStepInputSchema = z.discriminatedUnion('kind', [
       .min(2, 'Au moins deux équipements.')
       .max(12)
       .refine((o) => o.some((x) => x.needed), 'Cochez au moins un équipement à prendre.'),
+  }),
+  z.object({
+    kind: z.literal('h5p'),
+    title: text(120),
+    instructions: note(400),
+    /** Fichier .h5p déjà déposé (clé donnée par le serveur). */
+    packageKey: z.string().regex(/^[a-f0-9]{32}$/, 'Déposez le fichier H5P.'),
+    packageTitle: note(200),
+    /** Score à atteindre, en pourcentage. */
+    passPercent: z.number().int().min(1).max(100),
   }),
   z.object({
     kind: z.literal('order'),
@@ -203,3 +215,13 @@ export interface WorkshopCard {
   practice: boolean;
   progress: WorkshopProgress;
 }
+
+/** Fichier H5P déposé et vérifié. */
+export interface H5PPackageInfo {
+  key: string;
+  title: string;
+  mainLibrary: string;
+}
+
+/** Poids maximal d'un fichier .h5p envoyé. */
+export const H5P_MAX_BYTES = 100 * 1024 * 1024;

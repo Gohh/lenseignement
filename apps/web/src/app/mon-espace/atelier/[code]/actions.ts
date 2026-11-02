@@ -28,17 +28,18 @@ function back(code: string, kind: 'message' | 'erreur', value: string): never {
 
 /**
  * Champs du formulaire : `s:<étape>` (étape présente), `i:<étape>:<question>` (choix),
- * `e:<étape>` (équipements cochés), `o:<étape>:<place>` (geste à cette place).
+ * `e:<étape>` (équipements cochés), `o:<étape>:<place>` (geste à cette place),
+ * `h:<étape>` (score de l'exercice H5P, en pourcentage).
  */
 function submission(form: FormData) {
   const steps = new Map<string, Array<[number, number]>>();
   for (const [name, value] of form.entries()) {
     const [kind, stepId, index] = name.split(':');
-    if (!stepId || !['s', 'i', 'e', 'o'].includes(kind!)) continue;
+    if (!stepId || !['s', 'i', 'e', 'o', 'h'].includes(kind!)) continue;
     const list = steps.get(stepId) ?? [];
     steps.set(stepId, list);
     if (kind === 's' || value === '') continue;
-    list.push([kind === 'e' ? list.length : Number(index), Number(value)]);
+    list.push([kind === 'e' || kind === 'h' ? list.length : Number(index), Number(value)]);
   }
   return {
     attemptId: String(form.get('attemptId') ?? ''),

@@ -22,6 +22,7 @@ import {
   competencies,
   curricula,
   curriculumVersions,
+  h5pPackages,
   organizations,
   safetySimulations,
   users,
@@ -312,7 +313,7 @@ export async function createWorkshop(
   return { id: row!.id };
 }
 
-async function loadForAuthor(db: Executor, userId: string, id: string) {
+export async function loadForAuthor(db: Executor, userId: string, id: string) {
   const { row, p } = await loadFor(db, userId, id);
   if (!p.authorOrgIds.has(row.organization.id)) {
     throw new WorkshopError(
@@ -350,6 +351,21 @@ async function assertCompetency(db: Executor, competencyId: string | null) {
   if (!c) throw new WorkshopError('invalid', 'Choisissez une compétence d’un programme publié.');
 }
 
+/** Les fichiers H5P cités ont été déposés pour la même structure. */
+async function assertPackages(db: Executor, organizationId: string, steps: WorkshopStepInput[]) {
+  const keys = [...new Set(steps.flatMap((s) => (s.kind === 'h5p' ? [s.packageKey] : [])))];
+  if (keys.length === 0) return;
+  const found = await db
+    .select({ key: h5pPackages.storageKey })
+    .from(h5pPackages)
+    .where(
+      and(inArray(h5pPackages.storageKey, keys), eq(h5pPackages.organizationId, organizationId)),
+    );
+  if (found.length !== keys.length) {
+    throw new WorkshopError('invalid', 'Un fichier H5P est introuvable : déposez-le à nouveau.');
+  }
+}
+
 /** Enregistre le brouillon (fiche et étapes). */
 export async function updateWorkshop(
   db: Database,
@@ -367,6 +383,7 @@ export async function updateWorkshop(
     );
   }
   await assertCompetency(db, input.competencyId);
+  await assertPackages(db, row.organization.id, input.steps);
   await db
     .update(workshops)
     .set({
@@ -477,6 +494,14 @@ export function toSimulationSteps(steps: WorkshopStepInput[]): SimulationStepDef
         explanations: step.options.map(
           (o) => o.explanation || (o.needed ? 'Il faut le prendre.' : 'Pas utile ici.'),
         ),
+      };
+    }
+    if (step.kind === 'h5p') {
+      return {
+        kind: 'h5p',
+        ...base,
+        packageKey: step.packageKey,
+        passPercent: step.passPercent,
       };
     }
     const shown = displayOrder(step.gestures.length);

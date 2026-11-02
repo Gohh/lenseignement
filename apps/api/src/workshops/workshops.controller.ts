@@ -13,17 +13,21 @@ import {
   Post,
   Put,
   Req,
+  Res,
 } from '@nestjs/common';
+import { createReadStream } from 'node:fs';
 import {
   CreateWorkshopSchema,
   UpdateWorkshopSchema,
   WorkshopReturnSchema,
 } from '@lenseignement/types';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import { Public } from '../auth/public.decorator.js';
 import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
 import { DATABASE, type Database } from '../db/database.js';
 import { UsersService } from '../users/users.service.js';
+import { h5pFile, uploadH5P } from './h5p.js';
 import {
   createWorkshop,
   deleteWorkshop,
@@ -133,6 +137,13 @@ export class WorkshopsController {
     await run(() => deleteWorkshop(this.db, userId, id, request.traceId));
   }
 
+  /** Fichier .h5p : les octets bruts en flux (application/octet-stream). */
+  @Post(':id/h5p')
+  async h5p(@Req() request: Request, @Param('id') id: string) {
+    const userId = await this.userId(request);
+    return run(() => uploadH5P(this.db, userId, id, request));
+  }
+
   @Post(':id/reopen')
   @HttpCode(204)
   async reopen(@Req() request: Request, @Param('id') id: string): Promise<void> {
@@ -174,5 +185,35 @@ export class WorkshopsController {
   async restore(@Req() request: Request, @Param('id') id: string): Promise<void> {
     const userId = await this.userId(request);
     await run(() => setWorkshopArchived(this.db, userId, id, false, request.traceId));
+  }
+}
+
+/**
+ * Fichiers des exercices H5P, pour le lecteur isolé (origine opaque, donc sans session) : la clé
+ * aléatoire du paquet fait office d'adresse. Un fichier ouvert seul reste dans un bac à sable.
+ */
+@Public()
+@Controller('h5p-files')
+export class H5PFilesController {
+  @Get(':key/*path')
+  async file(
+    @Param('key') key: string,
+    @Param('path') path: string | string[],
+    @Res() response: Response,
+  ) {
+    const file = await h5pFile(key, Array.isArray(path) ? path.join('/') : String(path));
+    if (!file) throw new NotFoundException('Fichier introuvable.');
+    response.set({
+      'content-type': file.type,
+      'content-length': String(file.size),
+      'access-control-allow-origin': '*',
+      'cache-control': 'public, max-age=86400',
+      'x-content-type-options': 'nosniff',
+      'content-security-policy': 'sandbox allow-scripts',
+      'cross-origin-resource-policy': 'cross-origin',
+    });
+    const stream = createReadStream(file.path);
+    stream.on('error', () => response.destroy());
+    stream.pipe(response);
   }
 }

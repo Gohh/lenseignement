@@ -10,8 +10,10 @@ import {
   type WorkshopCompetencyOption,
   type WorkshopStepInput,
   type WorkshopStepKind,
+  H5P_MAX_BYTES,
+  type H5PPackageInfo,
 } from '@lenseignement/types';
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { buttonClass, inputClass, secondaryButtonClass } from './Notice';
 
 const small =
@@ -36,6 +38,9 @@ function blank(kind: WorkshopStepKind): WorkshopStepInput {
         { label: '', needed: false, explanation: '' },
       ],
     };
+  }
+  if (kind === 'h5p') {
+    return { kind, title: '', instructions: '', packageKey: '', packageTitle: '', passPercent: 80 };
   }
   return {
     kind,
@@ -201,7 +206,7 @@ export function WorkshopEditor({
                   className={inputClass}
                 />
               </label>
-              <StepBody step={step} n={i + 1} onChange={(s) => setStep(i, s)} />
+              <StepBody step={step} n={i + 1} workshopId={id} onChange={(s) => setStep(i, s)} />
             </fieldset>
           </li>
         ))}
@@ -210,7 +215,7 @@ export function WorkshopEditor({
       {data.steps.length < 10 && (
         <div className="space-y-2 rounded-big border border-dashed border-line-strong p-5">
           <p className="font-bold">Ajouter une étape</p>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {WORKSHOP_STEP_KINDS.map((kind) => (
               <button
                 key={kind}
@@ -236,12 +241,17 @@ export function WorkshopEditor({
 function StepBody({
   step,
   n,
+  workshopId,
   onChange,
 }: {
   step: WorkshopStepInput;
   n: number;
+  workshopId: string;
   onChange: (step: WorkshopStepInput) => void;
 }) {
+  if (step.kind === 'h5p') {
+    return <H5PStepBody step={step} n={n} workshopId={workshopId} onChange={onChange} />;
+  }
   if (step.kind === 'identify') {
     const setQ = (q: number, patch: Partial<(typeof step.questions)[number]>) =>
       onChange({
@@ -487,6 +497,122 @@ function StepBody({
         >
           + Geste
         </button>
+      )}
+    </div>
+  );
+}
+
+type H5PInput = Extract<WorkshopStepInput, { kind: 'h5p' }>;
+
+/** Étape H5P : dépôt du fichier .h5p (vérifié par l'API), score à atteindre et aperçu. */
+function H5PStepBody({
+  step,
+  n,
+  workshopId,
+  onChange,
+}: {
+  step: H5PInput;
+  n: number;
+  workshopId: string;
+  onChange: (step: WorkshopStepInput) => void;
+}) {
+  const [state, setState] = useState<{ busy: boolean; error: string | null }>({
+    busy: false,
+    error: null,
+  });
+
+  async function upload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.h5p')) {
+      setState({ busy: false, error: 'Choisissez un fichier qui se termine par .h5p.' });
+      return;
+    }
+    if (file.size > H5P_MAX_BYTES) {
+      setState({ busy: false, error: 'Fichier trop lourd : 100 Mo au plus.' });
+      return;
+    }
+    setState({ busy: true, error: null });
+    try {
+      const res = await fetch(`/mon-espace/ateliers/h5p/${workshopId}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/octet-stream' },
+        body: file,
+      });
+      const json = (await res.json().catch(() => ({}))) as Partial<H5PPackageInfo> & {
+        message?: string;
+      };
+      if (!res.ok || !json.key) {
+        setState({ busy: false, error: json.message ?? 'Envoi impossible.' });
+        return;
+      }
+      onChange({
+        ...step,
+        packageKey: json.key,
+        packageTitle: json.title ?? '',
+        title: step.title || (json.title ?? ''),
+      });
+      setState({ busy: false, error: null });
+    } catch {
+      setState({ busy: false, error: 'Envoi impossible : vérifiez la connexion.' });
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-muted">
+        Déposez un fichier .h5p fait avec Lumi ou H5P.org, exporté avec ses bibliothèques. Le score
+        de l’élève compte pour réussir l’atelier.
+      </p>
+      <label className="block font-bold">
+        {step.packageKey ? 'Remplacer le fichier H5P' : 'Fichier H5P'}
+        <input
+          type="file"
+          accept=".h5p"
+          onChange={upload}
+          disabled={state.busy}
+          className={inputClass}
+          data-testid={`h5p-file-${n}`}
+        />
+      </label>
+      {state.busy && <p role="status">Envoi et vérification du fichier…</p>}
+      {state.error && (
+        <p role="alert" className="font-bold text-error">
+          {state.error}
+        </p>
+      )}
+      {step.packageKey && (
+        <p className="font-bold" data-testid={`h5p-package-${n}`}>
+          ✓ Fichier déposé : {step.packageTitle || 'Exercice H5P'}
+        </p>
+      )}
+      <label className="block font-bold">
+        Score à atteindre (en %)
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={step.passPercent}
+          onChange={(e) =>
+            onChange({
+              ...step,
+              passPercent: Math.max(1, Math.min(100, Number(e.target.value) || 1)),
+            })
+          }
+          className={`${inputClass} max-w-[10rem]`}
+        />
+      </label>
+      {step.packageKey && (
+        <details>
+          <summary className="min-h-[44px] cursor-pointer font-bold">Essayer l’exercice</summary>
+          <iframe
+            src={`/h5p/lecteur/${step.packageKey}`}
+            title={`Aperçu : ${step.packageTitle || 'exercice H5P'}`}
+            sandbox="allow-scripts"
+            className="mt-2 h-[480px] w-full rounded-card border border-line"
+          />
+        </details>
       )}
     </div>
   );

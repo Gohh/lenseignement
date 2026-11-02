@@ -1103,6 +1103,15 @@ export type SimulationStepDef =
       correctOrder: number[];
       /** Pour chaque geste (ordre d'affichage), pourquoi il vient à sa place. */
       explanations: string[];
+    }
+  | {
+      /** Exercice H5P : réussi quand le score rapporté atteint `passPercent`. */
+      kind: 'h5p';
+      id: string;
+      title: string;
+      instructions: string;
+      packageKey: string;
+      passPercent: number;
     };
 
 /**
@@ -1125,6 +1134,23 @@ export const safetySimulations = pgTable('safety_simulations', {
   summary: text('summary'),
   /** Une séance pratique encadrée suit la réussite en ligne. */
   practice: boolean('practice').notNull().default(true),
+  createdAt: createdAt(),
+});
+
+/**
+ * Exercice H5P déposé pour un atelier : le fichier .h5p est vérifié puis décompressé sur le disque
+ * (H5P_STORAGE_DIR, sinon storage/h5p), sous une clé produite par le serveur.
+ */
+export const h5pPackages = pgTable('h5p_packages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storageKey: text('storage_key').notNull().unique(),
+  title: text('title').notNull(),
+  mainLibrary: text('main_library').notNull(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id),
+  uploadedBy: uuid('uploaded_by').references(() => users.id),
+  sizeBytes: integer('size_bytes').notNull(),
   createdAt: createdAt(),
 });
 

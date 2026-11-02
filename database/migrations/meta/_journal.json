@@ -323,6 +323,13 @@
       "when": 1793575547572,
       "tag": "0045_atelier_metiers",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793577542372,
+      "tag": "0046_exercices_h5p",
+      "breakpoints": true
     }
   ]
 }

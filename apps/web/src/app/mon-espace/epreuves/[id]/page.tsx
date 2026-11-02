@@ -68,11 +68,18 @@ export default async function ExamPage({
             {exam.author ? ` · composée par ${exam.author}` : ''}
           </p>
         </div>
-        {exam.given.length > 0 && (
-          <Link href={`${HOME}/${exam.id}/resultats`} className={buttonClass}>
-            Voir les résultats
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-3">
+          {exam.items.length > 0 && (
+            <Link href={`${HOME}/${exam.id}/livret`} className={secondaryButtonClass}>
+              Livret à imprimer
+            </Link>
+          )}
+          {exam.given.length > 0 && (
+            <Link href={`${HOME}/${exam.id}/resultats`} className={buttonClass}>
+              Voir les résultats
+            </Link>
+          )}
+        </div>
       </div>
       <Notice message={param(query.message)} error={param(query.erreur)} />
 
@@ -191,8 +198,10 @@ export default async function ExamPage({
       <section className="space-y-3 rounded-big border border-line bg-surface p-5">
         <h2 className="font-display text-xl font-bold">Donner à des classes</h2>
         <p className="text-sm text-ink-muted">
-          Chaque classe la reçoit dans ses devoirs. Les élèves la font en ligne, ou sur l’appareil
-          sans connexion ; la plateforme corrige et la note s’affiche tout de suite.
+          En ligne : chaque classe la reçoit dans ses devoirs ; les élèves la font sur un appareil
+          (même sans connexion), la plateforme corrige et la note s’affiche tout de suite. Sur
+          papier : les élèves ne la voient pas en ligne ; vous imprimez le livret, puis vous
+          saisissez les copies dans une grille.
         </p>
         {cohorts.length === 0 ? (
           <p>
@@ -225,6 +234,29 @@ export default async function ExamPage({
                 ))}
               </div>
             </fieldset>
+            <fieldset className="space-y-2">
+              <legend className="font-bold">Comment les élèves la passent</legend>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ['en-ligne', 'En ligne (sur un appareil)'],
+                  ['papier', 'Sur papier (livret imprimé)'],
+                ].map(([value, label], i) => (
+                  <label
+                    key={value}
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-card border border-line-strong px-3 has-[:checked]:border-primary has-[:checked]:bg-primary-soft"
+                  >
+                    <input
+                      type="radio"
+                      name="mode"
+                      value={value}
+                      defaultChecked={i === 0}
+                      className="h-5 w-5"
+                    />
+                    <span className="font-bold">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <label className="block max-w-xs font-bold">
               À rendre avant (facultatif)
               <input type="datetime-local" name="dueAt" className={inputClass} />
@@ -246,6 +278,9 @@ export default async function ExamPage({
                   >
                     {g.cohortName}
                   </Link>
+                  <span className="rounded-full bg-line px-2 text-sm font-bold">
+                    {g.onPaper ? 'Sur papier' : 'En ligne'}
+                  </span>
                   <span className="text-sm text-ink-muted">
                     {g.submissionCount} copie{g.submissionCount > 1 ? 's' : ''} sur {g.learnerCount}{' '}
                     élève{g.learnerCount > 1 ? 's' : ''}
@@ -253,6 +288,12 @@ export default async function ExamPage({
                       ? ` · avant le ${new Date(g.dueAt).toLocaleDateString('fr-FR', { timeZone: 'UTC' })}`
                       : ''}
                   </span>
+                  <Link
+                    href={`${HOME}/${exam.id}/saisie?classe=${g.cohortId}`}
+                    className="text-sm font-bold underline"
+                  >
+                    {g.onPaper ? 'Saisir les copies' : 'Saisir des copies papier'}
+                  </Link>
                 </li>
               ))}
             </ul>

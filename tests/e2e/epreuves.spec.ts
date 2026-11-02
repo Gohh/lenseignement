@@ -116,6 +116,69 @@ test('épreuve composée depuis la banque, passée par la classe, lue par domain
   await axe(page);
 });
 
+test('épreuve sur papier : livret, corrigé, saisie des copies', async ({
+  browser,
+  page,
+}, testInfo) => {
+  const tag = `${testInfo.project.name}-papier-${Date.now()}`;
+  const versionId = await seedExercises(tag);
+  const title = `Épreuve papier ${tag}`;
+
+  await loginAs(page, 'enseignant.demo', '/mon-espace/epreuves/nouvelle');
+  await page.getByRole('radio', { name: /^Libre/ }).check();
+  await page.getByRole('spinbutton', { name: 'Sciences' }).fill('100');
+  await page.getByLabel('Titre').fill(title);
+  await page.getByLabel('Programme').selectOption(versionId);
+  await page.getByLabel('Nombre de questions').fill('4');
+  await page.getByRole('button', { name: 'Composer l’épreuve' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Épreuve composée' })).toBeVisible();
+  const examUrl = page.url().split('?')[0]!;
+
+  // Livret pour les élèves, corrigé pour l'enseignant.
+  await page.getByRole('link', { name: 'Livret à imprimer' }).click();
+  await expect(page.getByTestId('booklet-item')).toHaveCount(4);
+  await expect(page.getByText('Nom et prénom')).toBeVisible();
+  await axe(page);
+  await page.getByRole('link', { name: 'Voir le corrigé' }).click();
+  await expect(page.getByTestId('exam-answer-key')).toContainText('Vrai');
+  await axe(page);
+
+  // Donnée sur papier : l'élève ne la voit pas en ligne.
+  await page.goto(examUrl);
+  await page.getByRole('radio', { name: 'Sur papier (livret imprimé)' }).check();
+  await page.getByRole('checkbox', { name: /CP1 A/ }).check();
+  await page.getByRole('button', { name: 'Donner l’épreuve' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'imprimez le livret' })).toBeVisible();
+
+  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  const learner = await context.newPage();
+  await loginAs(learner, 'apprenant.demo', '/mon-espace/devoirs');
+  await learner.waitForLoadState('networkidle');
+  await expect(learner.getByTestId('my-assignments')).not.toContainText(title);
+
+  // Saisie : Awa a 3 réponses justes sur 4.
+  await page.getByRole('link', { name: 'Saisir les copies' }).click();
+  await expect(page.getByTestId('paper-grid')).toBeVisible();
+  for (const q of [1, 2, 4]) {
+    await page.getByRole('checkbox', { name: `Awa (fictive), question ${q} juste` }).check();
+  }
+  await axe(page);
+  await page.getByRole('button', { name: 'Enregistrer les copies' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Copies enregistrées : 1' }),
+  ).toBeVisible();
+  await expect(page.getByRole('row', { name: /Awa \(fictive\)/ })).toContainText('75 / 100');
+
+  // L'élève voit maintenant sa note ; les résultats se lisent comme en ligne.
+  await learner.reload();
+  await expect(
+    learner.getByTestId('my-assignments').getByRole('listitem').filter({ hasText: title }),
+  ).toContainText('75');
+  await context.close();
+  await page.goto(`${examUrl}/resultats`);
+  await expect(page.getByTestId('exam-kpis')).toContainText('75 %');
+});
+
 test('un élève n’a pas accès aux épreuves', async ({ page }) => {
   await loginAs(page, 'apprenant.demo', '/mon-espace/epreuves');
   await expect(page.getByRole('link', { name: 'Créer une épreuve' })).toHaveCount(0);

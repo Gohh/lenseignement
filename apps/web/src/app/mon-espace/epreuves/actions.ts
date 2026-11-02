@@ -97,12 +97,14 @@ export async function giveExamAction(form: FormData): Promise<void> {
     .map(String)
     .filter((c) => ID.test(c));
   const due = text(form, 'dueAt');
+  const onPaper = text(form, 'mode') === 'papier';
   const result = await apiSend<{ given: number; skipped: number }>(
     await token(path),
     'POST',
     `/authoring/exams/${id}/give`,
     {
       cohortIds,
+      onPaper,
       ...(due ? { dueAt: `${due}:00Z` } : {}),
     },
   );
@@ -113,7 +115,7 @@ export async function giveExamAction(form: FormData): Promise<void> {
     'message',
     given === 0
       ? 'Ces classes ont déjà reçu l’épreuve.'
-      : `Épreuve donnée à ${given} classe${given > 1 ? 's' : ''} : elle apparaît dans leurs devoirs.${skipped ? ` ${skipped} autre${skipped > 1 ? 's l’avaient' : ' l’avait'} déjà.` : ''}`,
+      : `Épreuve donnée à ${given} classe${given > 1 ? 's' : ''} : ${onPaper ? 'imprimez le livret, puis saisissez les copies.' : 'elle apparaît dans leurs devoirs.'}${skipped ? ` ${skipped} autre${skipped > 1 ? 's l’avaient' : ' l’avait'} déjà.` : ''}`,
   );
 }
 
@@ -123,4 +125,39 @@ export async function deleteExamAction(form: FormData): Promise<void> {
   const result = await apiSend(await token(path), 'DELETE', `/authoring/exams/${id}`);
   if (!result.ok) back(path, 'erreur', result.message ?? 'Suppression impossible.');
   back(HOME, 'message', 'Épreuve supprimée.');
+}
+
+/** Grille papier : « Copie » cochée = copie rendue ; chaque case cochée = réponse juste. */
+export async function saveExamPaperAction(form: FormData): Promise<void> {
+  const id = idOf(form);
+  const cohortId = text(form, 'cohortId');
+  if (!ID.test(cohortId)) redirect(`${HOME}/${id}`);
+  const path = `${HOME}/${id}/saisie?classe=${cohortId}`;
+  const count = Math.min(Math.max(int(form, 'count'), 0), 40);
+  const rows = form
+    .getAll('learners')
+    .map(String)
+    .filter((l) => ID.test(l))
+    .map((learnerId) => {
+      const marks = Array.from({ length: count }, (_, i) =>
+        form.get(`m:${learnerId}:${i}`) ? 1 : 0,
+      );
+      const handedIn = Boolean(form.get(`copie:${learnerId}`)) || marks.some((m) => m === 1);
+      return { learnerId, marks: handedIn ? marks : null };
+    });
+  const result = await apiSend<{ saved: number; removed: number }>(
+    await token(path),
+    'PUT',
+    `/authoring/exams/${id}/paper`,
+    { cohortId, rows },
+  );
+  const sep = '&';
+  if (!result.ok) {
+    redirect(
+      `${path}${sep}erreur=${encodeURIComponent(result.message ?? 'Enregistrement impossible.')}`,
+    );
+  }
+  const { saved, removed } = result.data;
+  const msg = `Copies enregistrées : ${saved}.${removed ? ` Copies effacées : ${removed}.` : ''}`;
+  redirect(`${path}${sep}message=${encodeURIComponent(msg)}`);
 }

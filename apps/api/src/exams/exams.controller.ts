@@ -15,7 +15,12 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { CreateExamSchema, GiveExamSchema, UpdateExamSchema } from '@lenseignement/types';
+import {
+  CreateExamSchema,
+  GiveExamSchema,
+  SaveExamPaperSchema,
+  UpdateExamSchema,
+} from '@lenseignement/types';
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { Principal } from '../auth/principal.js';
@@ -25,11 +30,14 @@ import { UsersService } from '../users/users.service.js';
 import {
   createExam,
   deleteExam,
+  examBooklet,
+  examPaperSheet,
   examResults,
   getExam,
   giveExam,
   listExams,
   reassembleExam,
+  saveExamPaper,
   removeExamItem,
   replaceExamItem,
   updateExam,
@@ -153,5 +161,28 @@ export class ExamsController {
     return run(() =>
       examResults(this.db, userId, id, cohort && UUID.test(cohort) ? cohort : undefined),
     );
+  }
+
+  /** Livret à imprimer et son corrigé. */
+  @Get(':id/booklet')
+  async booklet(@Req() request: Request, @Param('id') id: string) {
+    const userId = await this.userId(request);
+    return run(() => examBooklet(this.db, userId, id));
+  }
+
+  /** Grille de saisie des copies papier d'une classe. */
+  @Get(':id/paper')
+  async paper(@Req() request: Request, @Param('id') id: string, @Query('cohort') cohort?: string) {
+    if (!cohort || !UUID.test(cohort)) throw new BadRequestException('Choisissez la classe.');
+    const userId = await this.userId(request);
+    return run(() => examPaperSheet(this.db, userId, id, cohort));
+  }
+
+  @Put(':id/paper')
+  @HttpCode(200)
+  async savePaper(@Req() request: Request, @Param('id') id: string, @Body() body: unknown) {
+    const input = parse(SaveExamPaperSchema, body);
+    const userId = await this.userId(request);
+    return run(() => saveExamPaper(this.db, userId, id, input, request.traceId));
   }
 }

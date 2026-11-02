@@ -179,6 +179,9 @@ export async function assignmentWork(
     (await isLearnerOf(db, userId, assignment.cohortId)) ||
     (await canManageCohort(db, userId, assignment.cohortId));
   if (!allowed) throw notFound();
+  if (assignment.onPaper && !(await canManageCohort(db, userId, assignment.cohortId))) {
+    throw notFound();
+  }
   const item = (await myAssignments(db, userId)).find((a) => a.id === assignmentId);
   if (!item) throw notFound();
   const rows = await contents(db, assignmentId);
@@ -200,6 +203,12 @@ export async function answerAssignment(
 ): Promise<MySubmission> {
   const assignment = await loadAssignment(db, assignmentId);
   if (!(await isLearnerOf(db, userId, assignment.cohortId))) throw notFound();
+  if (assignment.onPaper) {
+    throw new TeamError(
+      'invalid',
+      'Cette épreuve se passe sur papier : ton enseignant saisit ta copie.',
+    );
+  }
   const [existing] = await db
     .select()
     .from(assignmentSubmissions)

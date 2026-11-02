@@ -1,0 +1,1 @@
+ALTER TABLE "assignments" ADD COLUMN "on_paper" boolean DEFAULT false NOT NULL;

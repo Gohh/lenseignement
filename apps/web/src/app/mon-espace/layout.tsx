@@ -1,10 +1,12 @@
 import type { MyEstablishment, MyWorkItem } from '@lenseignement/types';
 import type { ReactNode } from 'react';
+import { GuidedTour } from '@/components/GuidedTour';
 import { NavLink } from '@/components/NavLink';
 import { StaffShell, topRoleLabel } from '@/components/StaffShell';
 import { apiGet, type Me } from '@/lib/api';
 import { spaceMenuItems, staffMenu } from '@/lib/space-menu';
 import { getSession } from '@/lib/session';
+import { menuTourKey, simpleTour } from '@/lib/tour';
 
 // Menu latéral sur ordinateur ; barre fixe en bas sur téléphone (maquette « Mon espace »).
 const linkClass =
@@ -54,7 +56,12 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
           <ul className="flex gap-1 overflow-x-auto lg:flex-col" role="list">
             {items.map((item) => (
               <li key={item.href} className="flex flex-1 lg:flex-none">
-                <NavLink href={item.href} section={item.section} className={linkClass}>
+                <NavLink
+                  href={item.href}
+                  section={item.section}
+                  className={linkClass}
+                  tour={menuTourKey(item.href)}
+                >
                   {item.label}
                 </NavLink>
               </li>
@@ -62,7 +69,12 @@ export default async function MySpaceLayout({ children }: { children: ReactNode 
           </ul>
         </nav>
       )}
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-4 flex flex-wrap justify-end gap-3 print:hidden">
+          <GuidedTour steps={simpleTour(items)} storageKey="lse-visite-espace" />
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

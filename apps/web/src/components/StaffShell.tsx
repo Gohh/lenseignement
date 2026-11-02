@@ -6,6 +6,8 @@ import { NavLink } from '@/components/NavLink';
 import { setMyNameAction } from '@/app/mon-espace/nom-actions';
 import { buttonClass, inputClass } from '@/components/Notice';
 import type { StaffMenu } from '@/lib/space-menu';
+import { staffTour } from '@/lib/tour';
+import { GuidedTour } from './GuidedTour';
 
 const linkClass =
   'flex min-h-[44px] items-center gap-3 rounded-card px-3 font-bold text-surface no-underline hover:bg-surface/15 aria-[current=page]:bg-surface aria-[current=page]:text-primary';
@@ -83,7 +85,7 @@ export function StaffShell({
         className="flex flex-col gap-4 rounded-big bg-primary p-4 text-surface print:hidden lg:sticky lg:top-4 lg:w-64 lg:flex-none"
       >
         <nav aria-label="Menu de mon espace" className="space-y-2">
-          <ul role="list" className="space-y-1">
+          <ul role="list" className="space-y-1" data-tour="accueil">
             {menu.main.map((item) => (
               <li key={item.href}>
                 <NavLink href={item.href} section={item.section} className={linkClass}>
@@ -155,6 +157,7 @@ export function StaffShell({
             method="get"
             role="search"
             className="flex-1 basis-56"
+            data-tour="recherche"
           >
             <label className="sr-only" htmlFor="staff-search">
               Rechercher un établissement
@@ -167,8 +170,10 @@ export function StaffShell({
               className="min-h-[44px] w-full rounded-full border border-line-strong bg-background px-4"
             />
           </form>
+          <GuidedTour steps={staffTour(menu)} storageKey="lse-visite-equipe" />
           <a
             href="/mon-espace/travail"
+            data-tour="cloche"
             className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-xl no-underline hover:bg-primary-soft"
           >
             <span aria-hidden="true">🔔</span>

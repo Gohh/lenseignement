@@ -113,3 +113,13 @@
     color: #4a5a6e;
   }
 }
+
+/* Visite guidée : la partie de l'écran expliquée est entourée en orange. */
+.lse-tour-target {
+  position: relative;
+  z-index: 55;
+  outline: 4px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.08);
+}

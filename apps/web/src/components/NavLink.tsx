@@ -9,18 +9,25 @@ interface Props {
   children: ReactNode;
   /** Actif aussi sur les pages en dessous (ex. /catalogue/…), ou sous le chemin donné. */
   section?: boolean | string;
+  /** Repère pour la visite guidée. */
+  tour?: string;
 }
 
 /**
  * Lien de menu qui signale la page en cours (`aria-current`). Reste un vrai lien `<a>` : chaque
  * page est une vraie navigation, que le service worker peut garder pour le hors ligne (ADR-012).
  */
-export function NavLink({ href, className, children, section = false }: Props) {
+export function NavLink({ href, className, children, section = false, tour }: Props) {
   const pathname = usePathname();
   const prefix = typeof section === 'string' ? section : section ? href : null;
   const current = pathname === href || (prefix !== null && pathname.startsWith(`${prefix}/`));
   return (
-    <a href={href} className={className} aria-current={current ? 'page' : undefined}>
+    <a
+      href={href}
+      className={className}
+      aria-current={current ? 'page' : undefined}
+      data-tour={tour}
+    >
       {children}
     </a>
   );

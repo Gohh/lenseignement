@@ -1606,3 +1606,30 @@ export const helpAttachments = pgTable(
     check('help_attachments_kind_check', sql`${t.kind} in ('photo','audio')`),
   ],
 );
+
+/**
+ * Réglages de l'IA d'aide à la rédaction (une seule ligne). Éteinte par défaut ; la clé du
+ * fournisseur est chiffrée (AES-256-GCM) et n'est jamais renvoyée au navigateur.
+ */
+export const aiSettings = pgTable(
+  'ai_settings',
+  {
+    id: integer('id').primaryKey().default(1),
+    enabled: boolean('enabled').notNull().default(false),
+    provider: text('provider').notNull().default('mistral'),
+    model: text('model').notNull().default(''),
+    baseUrl: text('base_url').notNull().default(''),
+    apiKeyCipher: text('api_key_cipher'),
+    keyHint: text('key_hint'),
+    dailyLimit: integer('daily_limit').notNull().default(30),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('ai_settings_single_row', sql`${t.id} = 1`),
+    check(
+      'ai_settings_provider_check',
+      sql`${t.provider} in ('mistral','anthropic','openai','local')`,
+    ),
+  ],
+);

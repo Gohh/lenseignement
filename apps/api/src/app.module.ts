@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from './access/access.module.js';
+import { AiController } from './ai/ai.controller.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CatalogController } from './catalog/catalog.controller.js';
 import { CatalogCoursesController } from './catalog/catalog-courses.controller.js';
@@ -65,6 +66,7 @@ import {
     WorkshopsController,
     H5PFilesController,
     ExercisesController,
+    AiController,
     ExerciseMediaController,
     StatsController,
     DirectionController,

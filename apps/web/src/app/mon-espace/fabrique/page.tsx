@@ -134,12 +134,20 @@ export default async function ExerciseBankPage({
           </p>
         </div>
         {canCreate && (
-          <Link
-            href={`${HOME}/nouveau`}
-            className="inline-flex min-h-[44px] items-center rounded-card bg-primary px-5 font-bold text-surface no-underline hover:bg-primary-dark"
-          >
-            Créer un exercice
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href={`${HOME}/ia`} className={secondaryButtonClass}>
+              Proposer avec l’IA
+            </Link>
+            <Link href={`${HOME}/importer`} className={secondaryButtonClass}>
+              Importer
+            </Link>
+            <Link
+              href={`${HOME}/nouveau`}
+              className="inline-flex min-h-[44px] items-center rounded-card bg-primary px-5 font-bold text-surface no-underline hover:bg-primary-dark"
+            >
+              Créer un exercice
+            </Link>
+          </div>
         )}
       </div>
       <Notice message={param(raw.message)} error={param(raw.erreur)} />

@@ -17,7 +17,7 @@ export function MenuGroup({ title, closed = false, hrefs, children }: Props) {
   const pathname = usePathname();
   const active = hrefs.some((href) => pathname === href || pathname.startsWith(`${href}/`));
   return (
-    <details open={!closed || active} className="group">
+    <details open={!closed || active} className="group" data-tour={`groupe-${title}`}>
       <summary className="flex min-h-[40px] cursor-pointer list-none items-center justify-between px-3 text-xs font-bold uppercase tracking-widest text-surface/80 marker:hidden hover:text-surface [&::-webkit-details-marker]:hidden">
         {title}
         <span aria-hidden="true" className="transition-transform group-open:rotate-90">

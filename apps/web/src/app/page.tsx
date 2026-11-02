@@ -1,6 +1,8 @@
 import { LEVEL_GROUPS, levelLabel, type CatalogPage } from '@lenseignement/types';
 import { Logo, CourseCard } from '@lenseignement/ui';
+import { GuidedTour } from '@/components/GuidedTour';
 import { buttonClass, secondaryButtonClass } from '@/components/Notice';
+import { PUBLIC_TOUR } from '@/lib/tour';
 import { publicApiGet } from '@/lib/api';
 import { BRANCH_ICONS } from '@/lib/branch-icons';
 
@@ -98,6 +100,9 @@ export default async function HomePage() {
             </a>
             <span className="text-ink-muted"> · gratuit, pour garder ta progression</span>
           </p>
+          <div className="mt-4 flex flex-wrap gap-3 print:hidden">
+            <GuidedTour steps={PUBLIC_TOUR} storageKey="lse-visite-accueil" />
+          </div>
           <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-ink-muted" role="list">
             <li>✓ Marche sans internet</li>
             <li>✓ Leçons lues à voix haute</li>
@@ -115,7 +120,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="niveaux-title">
+      <section aria-labelledby="niveaux-title" data-tour="niveaux">
         <h2 id="niveaux-title" className="text-3xl font-extrabold">
           Choisis ton niveau
         </h2>

@@ -40,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <NavLink
                 href="/catalogue"
                 section
+                tour="catalogue"
                 className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-4 font-bold text-ink no-underline hover:bg-primary-soft aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary"
               >
                 Catalogue

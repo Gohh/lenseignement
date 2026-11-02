@@ -28,7 +28,7 @@ export async function AccountMenu() {
   const session = await getSession();
   if (!session) {
     return (
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2" data-tour="compte">
         <a
           href="/auth/login"
           className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full px-4 font-bold text-ink no-underline hover:bg-primary-soft"
@@ -53,7 +53,7 @@ export async function AccountMenu() {
   return (
     <>
       <HelpBell accessToken={session.accessToken} quietWhenEmpty={staff} />
-      <details className="relative">
+      <details className="relative" data-tour="compte">
         <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full bg-primary font-display text-lg font-extrabold text-surface shadow-[var(--shadow-press)] marker:hidden [&::-webkit-details-marker]:hidden">
           <span aria-hidden="true">{initialsOf(session.displayName)}</span>
           <span className="sr-only">Mon compte : {session.displayName}</span>
